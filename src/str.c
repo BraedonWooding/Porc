@@ -12,7 +12,6 @@
 
 #define max(a, b) (((a) < (b)) ? (b) : (a))
 
-
 // predeclare for function
 struct _str_it_t;
 

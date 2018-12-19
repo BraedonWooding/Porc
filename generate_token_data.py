@@ -1,13 +1,36 @@
-# Generates token data based upon the tokens.incl file
-# f-string expressions can't include backslash
+# Generates token data based upon the tokens file
+# Information about file format is at the top of the tokens file
+
+# f-string expressions can't include backslashes so we define them here
+# also allows us to change tab to `\t` easily if we ever need to
 tab = '    '
 null_term = '\\0'
+split_on = '\t'
+file_location = "src/tokens"
 
+# Effectively the same structure as the _token_set_t struct
+# Except it uses dictionaries/hashtables (more efficient in python and
+# takes less space and easier to use).
 class TokenSet:
+    # tokens contains all the tokens for single characters
+    # child_tokens shows the branching for characters
+    """
+        i.e.
+          > (token)
+        - (token)
+          - (token)
+          = (token)
+        The `-` would be in .tokens
+        The `-` would also be in .child_tokens which would have a sub tokenset
+        with `>`, `-`, `=` all as .tokens of that child subset
+    """
+
     def __init__(self):
         self.tokens = {}
         self.child_tokens = {}
 
+    # Recursively adds token to children one character at a time
+    # Till the last character where it goes into the self.tokens dictionary
     def add_token(self, key, token):
         if len(key) == 1:
             self.tokens[key] = token
@@ -16,26 +39,28 @@ class TokenSet:
                 self.child_tokens[key[0]] = TokenSet()
             self.child_tokens[key[0]].add_token(key[1:], token)
 
+# Prints out token maps recursively
 def print_token(file, token, counter):
     original_counter = counter
     counter += 1
-    second_bit = [(key, tok) for key, tok in token.child_tokens.items()]
-    first_bit = [(key, tok) for key, tok in token.tokens.items()]
-    if len(first_bit) == 0:
+    # Grab the bits we care about
+    children_nodes = [(key, tok) for key, tok in token.child_tokens.items()]
+    token_nodes = [(key, tok) for key, tok in token.tokens.items()]
+    if len(token_nodes) == 0:
         file.write(f"{tab * (counter - 1)}NULL,\n")
     else:
         file.write(f"{tab * (counter - 1)}(const int[ASCII_SET]){{\n")
-        for bit in first_bit:
-            file.write(f"{tab * counter}['{bit[0]}'] = TOK_{bit[1]},\n")
+        for node in token_nodes:
+            file.write(f"{tab * counter}['{node[0]}'] = TOK_{node[1]},\n")
         file.write(f"{tab * (counter - 1)}}},\n")
 
-    if len(second_bit) == 0:
+    if len(token_nodes) == 0:
         file.write(f"{tab * (counter - 1)}NULL,\n")
     else:
         file.write(f"{tab * (counter - 1)}(const struct _token_set_t*[ASCII_SET]){{\n")
-        for bit in second_bit:
-            file.write(f"{tab * counter}['{bit[0]}'] = (const struct _token_set_t[1]){{\n")
-            print_token(file, bit[1], counter + 1)
+        for node in children_nodes:
+            file.write(f"{tab * counter}['{node[0]}'] = (const struct _token_set_t[1]){{\n")
+            print_token(file, node[1], counter + 1)
         file.write(f"{tab * (counter - 1)}}},\n")
     file.write(f"{tab * (original_counter - 1)}")
     file.write(f"}}{';' if original_counter == 1 else ','}\n")
@@ -55,7 +80,7 @@ def generate(file):
         # starts with
         if line[0:2] == "//" or not line.strip(): continue
 
-        toks = [x.strip() for x in line.split('\t') if x]
+        toks = [x.strip() for x in line.split(split_on) if x]
         if toks[0] == "COMMA": toks = ["COMMA", '","']
 
         token_list.write(f"TOK_{toks[0]},\n")
@@ -78,7 +103,7 @@ def generate(file):
     print_token(token_data, main_token, 1)
 
 def main():
-    with open("src/tokens", "r") as f:
+    with open(file_location, "r") as f:
         generate(f)
 
 if __name__ == "__main__":

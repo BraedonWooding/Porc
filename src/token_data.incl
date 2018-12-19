@@ -148,45 +148,52 @@ static const struct _token_set_t tokenFromStrMap = (struct _token_set_t){
                 ['='] = TOK_EQ,
                 ['>'] = TOK_FAT_ARROW,
             },
-            NULL,
+            (const struct _token_set_t*[ASCII_SET]){
+            },
         },
         ['!'] = (const struct _token_set_t[1]){
             (const int[ASCII_SET]){
                 ['='] = TOK_NEQ,
             },
-            NULL,
+            (const struct _token_set_t*[ASCII_SET]){
+            },
         },
         ['<'] = (const struct _token_set_t[1]){
             (const int[ASCII_SET]){
                 ['='] = TOK_LT_EQL,
                 ['-'] = TOK_L_ARROW,
             },
-            NULL,
+            (const struct _token_set_t*[ASCII_SET]){
+            },
         },
         ['>'] = (const struct _token_set_t[1]){
             (const int[ASCII_SET]){
                 ['='] = TOK_GT_EQL,
             },
-            NULL,
+            (const struct _token_set_t*[ASCII_SET]){
+            },
         },
         ['&'] = (const struct _token_set_t[1]){
             (const int[ASCII_SET]){
                 ['&'] = TOK_AND,
             },
-            NULL,
+            (const struct _token_set_t*[ASCII_SET]){
+            },
         },
         ['|'] = (const struct _token_set_t[1]){
             (const int[ASCII_SET]){
                 ['|'] = TOK_OR,
             },
-            NULL,
+            (const struct _token_set_t*[ASCII_SET]){
+            },
         },
         ['+'] = (const struct _token_set_t[1]){
             (const int[ASCII_SET]){
                 ['+'] = TOK_INCR,
                 ['='] = TOK_ADD_ASSIGN,
             },
-            NULL,
+            (const struct _token_set_t*[ASCII_SET]){
+            },
         },
         ['-'] = (const struct _token_set_t[1]){
             (const int[ASCII_SET]){
@@ -194,7 +201,8 @@ static const struct _token_set_t tokenFromStrMap = (struct _token_set_t){
                 ['='] = TOK_SUB_ASSIGN,
                 ['>'] = TOK_R_ARROW,
             },
-            NULL,
+            (const struct _token_set_t*[ASCII_SET]){
+            },
         },
         ['*'] = (const struct _token_set_t[1]){
             (const int[ASCII_SET]){
@@ -206,7 +214,8 @@ static const struct _token_set_t tokenFromStrMap = (struct _token_set_t){
                     (const int[ASCII_SET]){
                         ['='] = TOK_POW_ASSIGN,
                     },
-                    NULL,
+                    (const struct _token_set_t*[ASCII_SET]){
+                    },
                 },
             },
         },
@@ -220,7 +229,8 @@ static const struct _token_set_t tokenFromStrMap = (struct _token_set_t){
                     (const int[ASCII_SET]){
                         ['='] = TOK_INT_DIV_ASSIGN,
                     },
-                    NULL,
+                    (const struct _token_set_t*[ASCII_SET]){
+                    },
                 },
             },
         },
@@ -228,19 +238,22 @@ static const struct _token_set_t tokenFromStrMap = (struct _token_set_t){
             (const int[ASCII_SET]){
                 ['='] = TOK_DIV_ASSIGN,
             },
-            NULL,
+            (const struct _token_set_t*[ASCII_SET]){
+            },
         },
         [':'] = (const struct _token_set_t[1]){
             (const int[ASCII_SET]){
                 [':'] = TOK_DOUBLE_COLON,
             },
-            NULL,
+            (const struct _token_set_t*[ASCII_SET]){
+            },
         },
         ['.'] = (const struct _token_set_t[1]){
             (const int[ASCII_SET]){
                 ['.'] = TOK_RANGE,
             },
-            NULL,
+            (const struct _token_set_t*[ASCII_SET]){
+            },
         },
         ['f'] = (const struct _token_set_t[1]){
             (const int[ASCII_SET]){
@@ -251,135 +264,37 @@ static const struct _token_set_t tokenFromStrMap = (struct _token_set_t){
                     (const int[ASCII_SET]){
                         ['r'] = TOK_FOR,
                     },
-                    NULL,
+                    (const struct _token_set_t*[ASCII_SET]){
+                    },
                 },
             },
         },
         ['r'] = (const struct _token_set_t[1]){
             NULL,
-            (const struct _token_set_t*[ASCII_SET]){
-                ['e'] = (const struct _token_set_t[1]){
-                    NULL,
-                    (const struct _token_set_t*[ASCII_SET]){
-                        ['t'] = (const struct _token_set_t[1]){
-                            NULL,
-                            (const struct _token_set_t*[ASCII_SET]){
-                                ['u'] = (const struct _token_set_t[1]){
-                                    NULL,
-                                    (const struct _token_set_t*[ASCII_SET]){
-                                        ['r'] = (const struct _token_set_t[1]){
-                                            (const int[ASCII_SET]){
-                                                ['n'] = TOK_RETURN,
-                                            },
-                                            NULL,
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-            },
+            NULL,
         },
         ['w'] = (const struct _token_set_t[1]){
             NULL,
-            (const struct _token_set_t*[ASCII_SET]){
-                ['h'] = (const struct _token_set_t[1]){
-                    NULL,
-                    (const struct _token_set_t*[ASCII_SET]){
-                        ['i'] = (const struct _token_set_t[1]){
-                            NULL,
-                            (const struct _token_set_t*[ASCII_SET]){
-                                ['l'] = (const struct _token_set_t[1]){
-                                    (const int[ASCII_SET]){
-                                        ['e'] = TOK_WHILE,
-                                    },
-                                    NULL,
-                                },
-                            },
-                        },
-                    },
-                },
-            },
+            NULL,
         },
         ['b'] = (const struct _token_set_t[1]){
             NULL,
-            (const struct _token_set_t*[ASCII_SET]){
-                ['r'] = (const struct _token_set_t[1]){
-                    NULL,
-                    (const struct _token_set_t*[ASCII_SET]){
-                        ['e'] = (const struct _token_set_t[1]){
-                            NULL,
-                            (const struct _token_set_t*[ASCII_SET]){
-                                ['a'] = (const struct _token_set_t[1]){
-                                    (const int[ASCII_SET]){
-                                        ['k'] = TOK_BREAK,
-                                    },
-                                    NULL,
-                                },
-                            },
-                        },
-                    },
-                },
-            },
+            NULL,
         },
         ['c'] = (const struct _token_set_t[1]){
             NULL,
-            (const struct _token_set_t*[ASCII_SET]){
-                ['o'] = (const struct _token_set_t[1]){
-                    NULL,
-                    (const struct _token_set_t*[ASCII_SET]){
-                        ['n'] = (const struct _token_set_t[1]){
-                            NULL,
-                            (const struct _token_set_t*[ASCII_SET]){
-                                ['t'] = (const struct _token_set_t[1]){
-                                    NULL,
-                                    (const struct _token_set_t*[ASCII_SET]){
-                                        ['i'] = (const struct _token_set_t[1]){
-                                            NULL,
-                                            (const struct _token_set_t*[ASCII_SET]){
-                                                ['n'] = (const struct _token_set_t[1]){
-                                                    NULL,
-                                                    (const struct _token_set_t*[ASCII_SET]){
-                                                        ['u'] = (const struct _token_set_t[1]){
-                                                            (const int[ASCII_SET]){
-                                                                ['e'] = TOK_CONTINUE,
-                                                            },
-                                                            NULL,
-                                                        },
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-            },
+            NULL,
         },
         ['i'] = (const struct _token_set_t[1]){
             (const int[ASCII_SET]){
                 ['f'] = TOK_IF,
             },
-            NULL,
+            (const struct _token_set_t*[ASCII_SET]){
+            },
         },
         ['e'] = (const struct _token_set_t[1]){
             NULL,
-            (const struct _token_set_t*[ASCII_SET]){
-                ['l'] = (const struct _token_set_t[1]){
-                    NULL,
-                    (const struct _token_set_t*[ASCII_SET]){
-                        ['s'] = (const struct _token_set_t[1]){
-                            (const int[ASCII_SET]){
-                                ['e'] = TOK_ELSE,
-                            },
-                            NULL,
-                        },
-                    },
-                },
-            },
+            NULL,
         },
     },
 };

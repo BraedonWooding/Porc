@@ -195,29 +195,46 @@ Result(token) parse_buf(Tokenizer tok) {
     TokenSet previous_set = NULL;
     int i = 0;
 
+    /*
+        @REFACTOR: this is just a rough sketch of how it works
+                   would definitely benefit from some robustness
+    */
+
     while (true) {
+        // check if we need to read more
         if (tok->cur_index == tok->read_size) {
+            // @NOTE: technically this breaks if we ever have a token that is larger
+            // than the buf_size (not including strings/identifiers/numbers/...)
+            // so you would need something like >>>>> (*255) to be a valid singular (not multiple)
+            // token which is not going to happen (based purely on the fact of its absurdity)
             read_more_preserving(tok, tok->cur_index - i, i);
             buf = &tok->read_buf[tok->cur_index - 1];
             len = tok->read_size - tok->cur_index;
         }
 
+        // are we at the leaf of a trie
         if (current_set->child_tokens == NULL || current_set->child_tokens[buf[i]] == NULL) {
+            // are we a valid token
             if (current_set->tokens[buf[i]] != TOK_NULL) {
                 tok->current_token.TokenType = current_set->tokens[buf[i]];
                 tok->cur_index++;
                 return OK(tok->current_token);
             } else {
+                // was the previous token valid (i.e. `<!` should be parsed as `<` and `!`)
                 if (previous_set != NULL && previous_set->tokens[buf[i - 1]] != TOK_NULL) {
                     tok->current_token.TokenType = previous_set->tokens[buf[i - 1]];
                     tok->cur_index++;
                     return OK(tok->current_token);
                 } else if (tok->read_size == 0) {
+                    // in the case where we are missing the end of a token
+                    // note: we may want to change this when we introduce
+                    // identifiers and further parsing
                     return ERR(UNEXPECTED_EOF);
                 }
                 break;
             }
         } else {
+            // go deeper into set
             previous_set = current_set;
             current_set = current_set->child_tokens[buf[i]];
             tok->cur_index++;
@@ -239,7 +256,6 @@ Result(token) parse_buf(Tokenizer tok) {
         } break;
     }
 
-    ///if (buf[0] == )
     return OK(tok->current_token);
 }
 
