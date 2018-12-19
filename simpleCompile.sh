@@ -1,0 +1,1 @@
+gcc -g src/*.c -DDEBUG
