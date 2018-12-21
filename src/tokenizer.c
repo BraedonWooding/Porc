@@ -94,7 +94,12 @@ bool valid_char(char c) {
             c == '.' || c == '_';    // dec pt and seperator
 }
 
-Result(token) parse_number(Tokenizer tok) {
+/*
+    @NOTE: future calls to this invalidates the return value so you should make
+    a copy of the okay value / error value if needed (i.e. just dereference it).
+*/
+Result(Token) parse_number(Tokenizer tok) {
+    static token ret;
     char *buf = &tok->read_buf[tok->cur_index];
     // We may want to set an initial size??  Would make appending easier
     // especially since we don't have growth factors yet which makes appending really expensive
@@ -140,7 +145,7 @@ Result(token) parse_number(Tokenizer tok) {
         }
         i++;
     }
-    tok->cur_index = i;
+    tok->cur_index += i;
 
     // @TODO: 0.e3 is ambiguous could be calling method/property/field e3 on integer 0
     // or could be just referring to the exponent being 3 i.e. equivalent to 0e3 or 0.0e3
@@ -148,16 +153,15 @@ Result(token) parse_number(Tokenizer tok) {
     // if wanting the exponent or (0).e3 if wanting the call.  Applies to E as well.
     // The reason why i'm not dealing with this now is idk if I want member accesses to occur
     // on values (other than tuple sets).
-    token token;
     if (handled_dot || handled_exp) {
-        token.TokenType = TOK_FLT;
-        token.flt_lit = atof(str);
+        ret.TokenType = TOK_FLT;
+        ret.flt_lit = atof(str);
     } else {
-        token.TokenType = TOK_INT;
-        token.int_lit = atoi(str);
+        ret.TokenType = TOK_INT;
+        ret.int_lit = atoi(str);
     }
     str_free(str);
-    return OK(token);
+    return OK(&ret);
 }
 
 Token tokenizer_get_current(Tokenizer tok) {
@@ -168,9 +172,15 @@ bool is_whitespace(char c) {
     return c == ' ' || c == '\t' || c == '\r' || c == '\n';
 }
 
-void skip_ws(Tokenizer tok) {
+bool is_whitespace_str(char *c) {
+    return is_whitespace(*c);
+}
+
+typedef bool(*fn_read_till_predicate)(char *c);
+
+void read_while(Tokenizer tok, fn_read_till_predicate predicate) {
     if (tok->read_size == 0) return;
-    while (is_whitespace(tok->read_buf[tok->cur_index])) {
+    while (predicate(&tok->read_buf[tok->cur_index])) {
         tok->cur_index++;
         if (tok->cur_index == tok->read_size) {
             read_more(tok);
@@ -179,11 +189,61 @@ void skip_ws(Tokenizer tok) {
     }
 }
 
+Str read_while_grabbing_text(Tokenizer tok, fn_read_till_predicate predicate) {
+    Str str = str_empty();
+    if (tok->read_size == 0) return str;
+    while (predicate(&tok->read_buf[tok->cur_index])) {
+        str_append_char(&str, tok->read_buf[tok->cur_index]);
+        tok->cur_index++;
+        if (tok->cur_index == tok->read_size) {
+            read_more(tok);
+        }
+        if (tok->read_size == 0) return str;
+    }
+    return str;
+}
+
+bool valid_starting_num(char *c) {
+    return (*c >= '0' && *c <= '9') || ((*c == '_' || *c == '.') && valid_starting_num(c + 1));
+}
+
+bool valid_id_char_starting(char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+}
+
+bool valid_id_char(char c) {
+    return valid_id_char_starting(c) || (c >= '0' && c <= '9');
+}
+
+bool not_end_block_comment(char *c) {
+    // not very robust a bit hacky
+    return (*c != '*' && c[1] != '/');
+}
+
+bool not_newline(char *c) {
+    return *c != '\n';
+}
+
+Result(Token) parse_identifier(Tokenizer tok) {
+    static token ret;
+    Str str = str_empty();
+    GUARD(valid_id_char_starting(tok->read_buf[tok->cur_index]), PARSE_ID_INVALID_CHAR);
+    str_append_char(&str, tok->read_buf[tok->cur_index++]);
+
+    while (valid_id_char(tok->read_buf[tok->cur_index])) {
+        str_append_char(&str, tok->read_buf[tok->cur_index++]);
+    }
+    ret.TokenType = TOK_IDENTIFIER;
+    ret.str_lit = str_extract(str);
+
+    return OK(&ret);
+}
+
 // parses token and edits tok->current_token.s
 // returning it
 Result(Token) parse_buf(Tokenizer tok) {
     tok->current_token.TokenType = TOK_UNDEFINED;
-    skip_ws(tok);
+    read_while(tok, is_whitespace_str);
 
     if (tok->read_size == 0) {
         tok->current_token.TokenType = TOK_EOF;
@@ -193,56 +253,6 @@ Result(Token) parse_buf(Tokenizer tok) {
     // just for easy access
     char *buf = &tok->read_buf[tok->cur_index];
     size_t len = tok->read_size - tok->cur_index;
-    TokenSet current_set = &tokenFromStrMap;
-    TokenSet previous_set = NULL;
-    int i = 0;
-
-    /*
-        @REFACTOR: this is just a rough sketch of how it works
-                   would definitely benefit from some robustness
-    */
-
-    while (true) {
-        // check if we need to read more
-        if (tok->cur_index == tok->read_size) {
-            // @NOTE: technically this breaks if we ever have a token that is larger
-            // than the buf_size (not including strings/identifiers/numbers/...)
-            // so you would need something like >>>>> (*255) to be a valid singular (not multiple)
-            // token which is not going to happen (based purely on the fact of its absurdity)
-            read_more_preserving(tok, tok->cur_index - i, i);
-            buf = &tok->read_buf[tok->cur_index - 1];
-            len = tok->read_size - tok->cur_index;
-        }
-
-        // are we at the leaf of a trie
-        if (current_set->child_tokens == NULL || current_set->child_tokens[buf[i]] == NULL) {
-            // are we a valid token
-            if (current_set->tokens[buf[i]] != TOK_UNDEFINED) {
-                tok->current_token.TokenType = current_set->tokens[buf[i]];
-                tok->cur_index++;
-                return OK(&tok->current_token);
-            } else {
-                // was the previous token valid (i.e. `<!` should be parsed as `<` and `!`)
-                if (previous_set != NULL && previous_set->tokens[buf[i - 1]] != TOK_UNDEFINED) {
-                    tok->current_token.TokenType = previous_set->tokens[buf[i - 1]];
-                    tok->cur_index++;
-                    return OK(&tok->current_token);
-                } else if (tok->read_size == 0) {
-                    // in the case where we are missing the end of a token
-                    // note: we may want to change this when we introduce
-                    // identifiers and further parsing
-                    return ERR(UNEXPECTED_EOF);
-                }
-                break;
-            }
-        } else {
-            // go deeper into set
-            previous_set = current_set;
-            current_set = current_set->child_tokens[buf[i]];
-            tok->cur_index++;
-        }
-        i++;
-    }
 
     // parse complicated tokens
     switch (buf[0]) {
@@ -258,13 +268,90 @@ Result(Token) parse_buf(Tokenizer tok) {
         } break;
     }
 
+    // Parse number?
+    if (valid_starting_num(buf)) tok->current_token = *TRY(parse_number(tok), Token);
+
+    if (tok->current_token.TokenType != TOK_UNDEFINED) return OK(&tok->current_token);
+
+    TokenSet current_set = &tokenFromStrMap;
+    TokenSet previous_set = NULL;
+    int i = 0;
+
+    /*
+        @REFACTOR: this is just a rough sketch of how it works
+                   would definitely benefit from some robustness
+    */
+
+    while (true) {
+        // check if we need to read more
+        if (tok->cur_index + i == tok->read_size) {
+            // @NOTE: technically this breaks if we ever have a token that is larger
+            // than the buf_size (not including strings/identifiers/numbers/...)
+            // so you would need something like >>>>> (*255) to be a valid singular (not multiple)
+            // token which is not going to happen (based purely on the fact of its absurdity)
+            read_more_preserving(tok, tok->cur_index, i);
+            buf = &tok->read_buf[tok->cur_index - 1];
+            len = tok->read_size;
+            tok->cur_index = 0;
+        }
+
+        // are we at the leaf of a trie
+        if (current_set->child_tokens == NULL || current_set->child_tokens[buf[i]] == NULL) {
+            // are we a valid token
+            if (current_set->tokens != NULL && current_set->tokens[buf[i]] != TOK_UNDEFINED) {
+                tok->current_token.TokenType = current_set->tokens[buf[i]];
+                tok->cur_index += i + 1;
+                break;
+            } else {
+                // was the previous token valid (i.e. `<!` should be parsed as `<` and `!`)
+                if (previous_set != NULL && previous_set->tokens != NULL && previous_set->tokens[buf[i - 1]] != TOK_UNDEFINED) {
+                    tok->current_token.TokenType = previous_set->tokens[buf[i - 1]];
+                    // we don't want to + 1 here also because that we want to return the 
+                    // previous token map not the current.
+                    tok->cur_index += i;
+                    break;
+                } else if (tok->read_size == 0) {
+                    // in the case where we are missing the end of a token
+                    // note: we may want to change this when we introduce
+                    // identifiers and further parsing
+                    return ERR(UNEXPECTED_EOF);
+                }
+                break;
+            }
+        } else {
+            // go deeper into set
+            previous_set = current_set;
+            current_set = current_set->child_tokens[buf[i]];
+            i++;
+        }
+    }
+
+    if (tok->current_token.TokenType == TOK_LINE_COMMENT) {
+        // read till \n
+        tok->current_token.str_lit = str_extract(read_while_grabbing_text(tok, not_newline));
+    } else if (tok->current_token.TokenType == TOK_BLOCK_COMMENT) {
+        // read till */
+        tok->current_token.str_lit = str_extract(read_while_grabbing_text(tok, not_end_block_comment));
+        tok->cur_index += 2;
+    }
+
+    if (tok->current_token.TokenType == TOK_UNDEFINED && valid_id_char_starting(buf[0])) {
+        tok->current_token = *TRY(parse_identifier(tok), Token);
+    }
+
     return OK(&tok->current_token);
 }
 
 const char *token_to_str(token tok) {
+    if (tok.TokenType == TOK_STR || tok.TokenType == TOK_IDENTIFIER) return tok.str_lit;
+    char *out = NULL;
+    if (tok.TokenType == TOK_LINE_COMMENT) asprintf(&out, "//%s", tok.str_lit);
+    if (tok.TokenType == TOK_BLOCK_COMMENT) asprintf(&out, "/*%s*/", tok.str_lit);
+    if (tok.TokenType == TOK_FLT) asprintf(&out, "%lf", tok.flt_lit);
+    if (tok.TokenType == TOK_INT) asprintf(&out, "%ld", tok.int_lit);
+    if (out != NULL) return out;
     if (tokenToStrMap[tok.TokenType] != NULL) return tokenToStrMap[tok.TokenType];
-    if (tok.TokenType == TOK_STR) return tok.str_lit;
-    printf("NOT HANDLED");
+    printf(__FILE__":%d CASE NOT HANDLED\n", __LINE__);
     abort();
 }
 

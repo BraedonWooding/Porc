@@ -8,6 +8,8 @@ static const char *tokenToStrMap[NUM_TOKENS] = {
     [TOK_R_BRACE] = "}",
     [TOK_L_BRACKET] = "[",
     [TOK_R_BRACKET] = "]",
+    [TOK_LINE_COMMENT] = "//",
+    [TOK_BLOCK_COMMENT] = "/*",
     [TOK_LT] = "<",
     [TOK_GT] = ">",
     [TOK_EQ] = "==",
@@ -73,6 +75,8 @@ static const char *tokenToNameMap[NUM_TOKENS] = {
     [TOK_R_BRACE] = "R_BRACE",
     [TOK_L_BRACKET] = "L_BRACKET",
     [TOK_R_BRACKET] = "R_BRACKET",
+    [TOK_LINE_COMMENT] = "LINE_COMMENT",
+    [TOK_BLOCK_COMMENT] = "BLOCK_COMMENT",
     [TOK_LT] = "LT",
     [TOK_GT] = "GT",
     [TOK_EQ] = "EQ",
@@ -152,6 +156,14 @@ static const struct _token_set_t tokenFromStrMap = (struct _token_set_t){
         ['?'] = TOK_TERNARY,
     },
     (const struct _token_set_t*[ASCII_SET]){
+        ['/'] = (const struct _token_set_t[1]){
+            (const int[ASCII_SET]){
+                ['/'] = TOK_LINE_COMMENT,
+                ['*'] = TOK_BLOCK_COMMENT,
+                ['='] = TOK_DIV_ASSIGN,
+            },
+            NULL,
+        },
         ['='] = (const struct _token_set_t[1]){
             (const int[ASCII_SET]){
                 ['='] = TOK_EQ,
@@ -232,12 +244,6 @@ static const struct _token_set_t tokenFromStrMap = (struct _token_set_t){
                     NULL,
                 },
             },
-        },
-        ['/'] = (const struct _token_set_t[1]){
-            (const int[ASCII_SET]){
-                ['='] = TOK_DIV_ASSIGN,
-            },
-            NULL,
         },
         [':'] = (const struct _token_set_t[1]){
             (const int[ASCII_SET]){

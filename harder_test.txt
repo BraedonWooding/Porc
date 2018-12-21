@@ -1,0 +1,12 @@
+add = (a, b) => a + b;
+
+println(add(3, 5)); // 8
+println(add(3.0, 2)); // 5.0
+println(add(2, 3.0)); // 5.0
+println(add("Bob", 2)); // Compile Time Error: Invalid Types
+println(add("Bob", "Jim")); // "BobJim"
+/*
+
+WOw
+
+*/

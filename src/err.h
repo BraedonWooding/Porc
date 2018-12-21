@@ -25,11 +25,17 @@
 #ifndef BWW_ERR_H
 #define BWW_ERR_H
 
+#include <assert.h>
+
 /*
     Even though compilers can make this smaller we want multiple error types
     to work together reasonably well so we need this!
 */
-#define ERR_SIZE int
+#define ERR_TYPE int
+#define OK_TYPE unsigned long long int
+#define ERR_SIZE sizeof(ERR_TYPE)
+#define OK_SIZE sizeof(OK_TYPE)
+#define RESULT_CONTAINER_SIZE (ERR_SIZE > OK_SIZE ? ERR_SIZE : OK_SIZE)
 
 /*
     Comment out this out if you want each error to not get a unique ID
@@ -44,8 +50,8 @@ typedef enum _result_variant_t {
 
 typedef struct _result_t {
     union {
-        unsigned long long int ok;
-        ERR_SIZE error;
+        OK_TYPE ok;
+        ERR_TYPE error;
     };
     result_variant variant;
 } Result;
@@ -144,6 +150,7 @@ typedef struct _result_t {
 
 #define OK(x) ({ \
     Result __result__ = {.variant = VALUE}; \
+    _Static_assert(sizeof(x) <= RESULT_CONTAINER_SIZE, "Warning object size would cause overflow into result internals: " #x); \
     typeof(x) *tmp = (typeof(x)*)(&__result__.ok); \
     *tmp = x; \
     __result__; \
@@ -153,7 +160,11 @@ typedef struct _result_t {
 
 #define IS_OK(x) (x.variant == VALUE)
 
-#define UNWRAP(x, type) ({ Result __result = x; *((type*)&__result.ok); })
+#define UNWRAP(x, type) ({ \
+    _Static_assert(sizeof(type) <= RESULT_CONTAINER_SIZE, "Warning object size would cause overflow into result internals: " #type); \
+    Result __result = x; \
+    *((type*)&__result.ok); \
+})
 
 #define IF_LET(x, type, block) \
     { type out = UNWRAP(x, type); if (IS_OK(x)) block }

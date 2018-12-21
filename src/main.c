@@ -14,11 +14,15 @@
 // }
 
 WRAP_MAIN(main_handler, all_errors) {
-    FILE *fp = fopen("test.txt", "r");
+    char *fname = argc > 1 ? argv[1] : "test.txt";
+
+    FILE *fp = fopen(fname, "r");
+    GUARD(fp != NULL, IO_FILE_INVALID);
+
     Tokenizer tok = TRY(tokenize_file_stream(fp), Tokenizer);
     token next = *TRY(tokenizer_next(tok), Token);
     while (next.TokenType != TOK_EOF && next.TokenType != TOK_UNDEFINED) {
-        puts(token_to_str(next));
+        printf("(%s) %s\n", token_to_name(next.TokenType), token_to_str(next));
         next = *TRY(tokenizer_next(tok), Token);
     }
 

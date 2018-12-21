@@ -14,7 +14,6 @@ typedef struct _token_t {
         char *str_lit;
         double flt_lit;
         long int_lit;
-        char *str_rep;
         char char_lit;
     };
 
