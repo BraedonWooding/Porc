@@ -182,6 +182,7 @@ void append_strings(Str *a, char *b, size_t b_len) {
         // extend string
         str_prepare(a, str->max_length + b_len);
         str = convert_from_str(*a);
+        str->length += b_len;
     }
     memcpy(&str->starting_char + old_len, b, b_len + 1);
     *a = &str->starting_char;

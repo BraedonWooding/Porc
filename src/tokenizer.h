@@ -22,16 +22,18 @@ typedef struct _token_t {
 #include "token_list.incl"
         NUM_TOKENS,
     } TokenType;
-} token;
+} *Token;
+
+typedef struct _token_t token;
 
 const char *token_to_name(int token_type);
-const char *token_to_str(int token_type);
+const char *token_to_str(token tok);
 
 typedef struct _tokenizer_t *Tokenizer;
 
-token tokenizer_get_current(Tokenizer tok);
+Token tokenizer_get_current(Tokenizer tok);
 Result(Tokenizer) tokenize_file_stream(FILE *fp);
-Result(token) tokenizer_next(Tokenizer tok);
+Result(Token) tokenizer_next(Tokenizer tok);
 void tokenizer_push(Tokenizer tok, token to_push);
 
 #endif

@@ -5,7 +5,11 @@
 // It will generate the appropriate data classes given the tags
 
 // Void Tokens
+UNDEFINED
 NULL
+BOOL
+// variable or function name or macro or something
+IDENTIFIER
 STR
 FLT
 INT

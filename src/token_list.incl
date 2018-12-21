@@ -1,5 +1,8 @@
 /* Auto Generated File */
+TOK_UNDEFINED,
 TOK_NULL,
+TOK_BOOL,
+TOK_IDENTIFIER,
 TOK_STR,
 TOK_FLT,
 TOK_INT,

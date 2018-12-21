@@ -25,6 +25,11 @@ class TokenSet:
         with `>`, `-`, `=` all as .tokens of that child subset
     """
 
+    # debugging purposes
+    def __str__(self):
+        return "tokens: " + str(self.tokens) + "\n" + "child_tokens: " + \
+        '\n'.join([str(key) + ": " + str(val) for key, val in self.child_tokens.items()])
+
     def __init__(self):
         self.tokens = {}
         self.child_tokens = {}
@@ -54,7 +59,7 @@ def print_token(file, token, counter):
             file.write(f"{tab * counter}['{node[0]}'] = TOK_{node[1]},\n")
         file.write(f"{tab * (counter - 1)}}},\n")
 
-    if len(token_nodes) == 0:
+    if len(children_nodes) == 0:
         file.write(f"{tab * (counter - 1)}NULL,\n")
     else:
         file.write(f"{tab * (counter - 1)}(const struct _token_set_t*[ASCII_SET]){{\n")
@@ -84,9 +89,9 @@ def generate(file):
         if toks[0] == "COMMA": toks = ["COMMA", '","']
 
         token_list.write(f"TOK_{toks[0]},\n")
+        string_to_write += f"\n{tab}[TOK_{toks[0]}] = \"{toks[0]}\","
         if len(toks) >= 2:
             token_data.write(f"{tab}[TOK_{toks[0]}] = {toks[1]},\n")
-            string_to_write += f"\n{tab}[TOK_{toks[0]}] = \"{toks[0]}\","
             token = toks[1].strip('"')
             # handle the case of just ws properly
             if not token: token = " "

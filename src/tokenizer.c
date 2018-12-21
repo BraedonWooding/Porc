@@ -62,7 +62,6 @@ Result(token) parse_string(Tokenizer tok) {
         // for big strings or awkard places where the string is
         // towards the end of the 1024 boundary
         if (i == len) {
-            str_append(&str, buf);
             read_more(tok);
             // check we aren't EOF
             GUARD(tok->read_size > 0, PARSE_STR_MISSING_END, str_free(str));
@@ -78,15 +77,15 @@ Result(token) parse_string(Tokenizer tok) {
         } else {
             escaped = false;
         }
+        if (!escaped) {
+            str_append_char(&str, buf[i]);
+        }
         i++;
     }
 
-    tok->cur_index = i;
+    tok->cur_index += i + 2;
     GUARD(i < len && buf[i] == '"', PARSE_STR_MISSING_END, str_free(str));
-    token ret;
-    ret.TokenType = TOK_STR;
-    ret.str_lit = str;
-    return OK(ret);
+    return OK(str);
 }
 
 bool valid_char(char c) {
@@ -147,6 +146,8 @@ Result(token) parse_number(Tokenizer tok) {
     // or could be just referring to the exponent being 3 i.e. equivalent to 0e3 or 0.0e3
     // we should probably raise an error for this case forcing them to either do 0e3 0.0e3
     // if wanting the exponent or (0).e3 if wanting the call.  Applies to E as well.
+    // The reason why i'm not dealing with this now is idk if I want member accesses to occur
+    // on values (other than tuple sets).
     token token;
     if (handled_dot || handled_exp) {
         token.TokenType = TOK_FLT;
@@ -159,8 +160,8 @@ Result(token) parse_number(Tokenizer tok) {
     return OK(token);
 }
 
-token tokenizer_get_current(Tokenizer tok) {
-    return tok->current_token;
+Token tokenizer_get_current(Tokenizer tok) {
+    return &tok->current_token;
 }
 
 bool is_whitespace(char c) {
@@ -180,12 +181,13 @@ void skip_ws(Tokenizer tok) {
 
 // parses token and edits tok->current_token.s
 // returning it
-Result(token) parse_buf(Tokenizer tok) {
+Result(Token) parse_buf(Tokenizer tok) {
+    tok->current_token.TokenType = TOK_UNDEFINED;
     skip_ws(tok);
 
     if (tok->read_size == 0) {
         tok->current_token.TokenType = TOK_EOF;
-        return OK(tok->current_token);
+        return OK(&tok->current_token);
     }
 
     // just for easy access
@@ -215,16 +217,16 @@ Result(token) parse_buf(Tokenizer tok) {
         // are we at the leaf of a trie
         if (current_set->child_tokens == NULL || current_set->child_tokens[buf[i]] == NULL) {
             // are we a valid token
-            if (current_set->tokens[buf[i]] != TOK_NULL) {
+            if (current_set->tokens[buf[i]] != TOK_UNDEFINED) {
                 tok->current_token.TokenType = current_set->tokens[buf[i]];
                 tok->cur_index++;
-                return OK(tok->current_token);
+                return OK(&tok->current_token);
             } else {
                 // was the previous token valid (i.e. `<!` should be parsed as `<` and `!`)
-                if (previous_set != NULL && previous_set->tokens[buf[i - 1]] != TOK_NULL) {
+                if (previous_set != NULL && previous_set->tokens[buf[i - 1]] != TOK_UNDEFINED) {
                     tok->current_token.TokenType = previous_set->tokens[buf[i - 1]];
                     tok->cur_index++;
-                    return OK(tok->current_token);
+                    return OK(&tok->current_token);
                 } else if (tok->read_size == 0) {
                     // in the case where we are missing the end of a token
                     // note: we may want to change this when we introduce
@@ -256,22 +258,25 @@ Result(token) parse_buf(Tokenizer tok) {
         } break;
     }
 
-    return OK(tok->current_token);
+    return OK(&tok->current_token);
 }
 
-const char *token_to_str(int type) {
-    return tokenToStrMap[type];
+const char *token_to_str(token tok) {
+    if (tokenToStrMap[tok.TokenType] != NULL) return tokenToStrMap[tok.TokenType];
+    if (tok.TokenType == TOK_STR) return tok.str_lit;
+    printf("NOT HANDLED");
+    abort();
 }
 
 const char *token_to_name(int type) {
     return tokenToNameMap[type];
 }
 
-Result(token) tokenizer_next(Tokenizer tok) {
+Result(Token) tokenizer_next(Tokenizer tok) {
     obs_assert(tok, !=, NULL);
     if (tok->return_current) {
         tok->return_current = false;
-        return OK(tok->current_token);
+        return OK(&tok->current_token);
     }
 
     if (tok->cur_index == tok->read_size) read_more(tok);

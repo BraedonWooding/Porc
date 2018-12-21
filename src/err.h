@@ -173,7 +173,7 @@ typedef struct _result_t {
     int main(int argc, char *argv[]) {      \
         Result res = name(argc, argv);      \
         if (IS_ERR(res)) {                  \
-            fprintf(stderr, "ERR: %s\n", handler(res.error)); \
+            fprintf(stderr, "ERR (%d): %s\n", res.error, handler(res.error)); \
             return 1;                       \
         }                                   \
         return UNWRAP(res, int);            \
