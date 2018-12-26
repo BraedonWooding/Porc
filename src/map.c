@@ -12,8 +12,42 @@
 #define DEFAULT_SIZE (8)
 
 /*
-    @NOTE: this is very very wrong
-    Honestly the idea is great but I need to plan it out better
+    == HERE BE DRAGONS (kinda) ==
+    - A lot of this uses some pointer 'magic' it should be easy to follow regardless.
+    - But a short explanation may help, basically MapNode is how the data is stored
+      where as mapEntry is how the 'user' interacts with the nodes
+      this is mainly to instigate some kind of type safety and reduce bugs
+    - Each node has the same size but that size is determined by the map
+      - This has the following pros;
+        - Sets are easy (just 0 size values)
+        - Much much more efficient in terms of space (5 base + sizeof key + sizeof val)
+          rather than the void* approach (5 base + 16 for ptrs + sizeof key + sizeof val)
+          or the union approach which will require things like structs to be stored as a ptr
+          and still require the +16 for the 'ptrs' (max union will be a void*)
+        - Faster; this is slightly more complex but basically because all the data
+          are within the nodes which are stored as a single contiguous array
+          you get beautiful cache locality which effectively means that the operations
+          don't destroy the L1 cache which is a problem with any* maps
+        - No need to malloc memory for small literals i.e. int -> char arrays are
+          extremely efficient now
+      - The cons are;
+        - More complex implementation (easier to screw up)
+        - No real benefits for objects already malloc'd i.e. storing strings -> some AST node
+          - i.e. less benefits if not using literals or structs
+          - Arguably due to its complexity the compiler may have trouble optimising it
+            so this may result in ptrs being inefficient (slightly) compared to a normal map
+            - This can be fixed by explicitly doing assignments rather than using memcpy
+              for ptr sized args.
+    - Effectively you are looking at a std::map (c++ stdlib) impl in C.
+    - Also you can remove the hash in each node by commenting out STORE_HASH
+      this will improve space further (4 bytes per node) but will possibly slow down
+      lookups (since it will have to do a full comparison before stopping rather than
+      doing the quicker hash compare)
+    @NOTE: we convert to (size_t) often before doing ptr manipulation as it is 
+           more specific when we do that we can choose to go up 4 bytes specifically
+           and we get less weird behaviour (void*)a + 1 goes up 8 bytes.
+           Basically '1' means 1 byte rather than sizeof(obj) which in our case makes more sense
+           as our keys/values are variable sized.
 */
 
 uint32_t default_hash(const void *key, size_t key_size);

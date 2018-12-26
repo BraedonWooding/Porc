@@ -82,7 +82,7 @@ typedef struct _map_t {
     size_t deleted_entries;
 
     // to illustrate it is an array
-    struct _map_entry_t *nodes;
+    void *nodes;
 } *Map;
 
 Map map_new(size_t key_size, size_t val_size);
