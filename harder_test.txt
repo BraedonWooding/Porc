@@ -10,3 +10,8 @@ println(add("Bob", "Jim")); // "BobJim"
 WOw
 
 */
+
+// our package manager at work
+@import_package("BraedonWooding/cmd-porc", *);
+echo(stdout()) <- grep("A") <- wget("http://some_address.com/some_file.txt") -> sort(.Reverse);
+println("This is a \" and a '");

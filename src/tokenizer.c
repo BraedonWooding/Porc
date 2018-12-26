@@ -23,6 +23,18 @@ struct _tokenizer_t {
     size_t read_size;
 };
 
+Result(Tokenizer) tokenizer_copy(Tokenizer tok) {
+    FILE *cpy = fdopen(fileno(tok->fp), "r");
+    GUARD(cpy != NULL, IO_FILE_INVALID);
+    fpos_t pos;
+    fgetpos(tok->fp, &pos);
+    fsetpos(cpy, &pos);
+    Tokenizer cpy_tok = malloc(sizeof(struct _tokenizer_t));
+    memcpy(cpy_tok, tok, sizeof(struct _tokenizer_t));
+    cpy_tok->fp = cpy;
+    return OK(cpy_tok);
+}
+
 static void read_more(Tokenizer tok) {
     tok->read_size = fread(tok->read_buf, sizeof(char), BUF_SIZE, tok->fp);
     tok->cur_index = 0;

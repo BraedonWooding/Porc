@@ -89,7 +89,7 @@ println(fib(10.355));
 // so we can give it a type (this is normally defined under int.positive but I'll
 // recreate it here for example)
 // you could also just use an uint but let's just use int for the sake of it
-IntPositive = (int) :: {
+IntPositive = (data: int) :: {
     new = fn (data) => {
         // this allows it to pick some errors up at compile time rather than
         // just at runtime.

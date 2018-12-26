@@ -34,5 +34,9 @@ Token tokenizer_get_current(Tokenizer tok);
 Result(Tokenizer) tokenize_file_stream(FILE *fp);
 Result(Token) tokenizer_next(Tokenizer tok);
 void tokenizer_push(Tokenizer tok, token to_push);
+// Copies the current tokenizer including the current fp location
+// However creates new handles so that it is independent from
+// this point onwards.
+Result(Tokenizer) tokenizer_copy(Tokenizer tok);
 
 #endif

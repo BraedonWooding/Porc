@@ -25,7 +25,10 @@
 #ifndef BWW_ERR_H
 #define BWW_ERR_H
 
+// for _Static_assert
+#ifndef _Static_assert
 #include <assert.h>
+#endif
 
 /*
     Even though compilers can make this smaller we want multiple error types
