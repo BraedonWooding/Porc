@@ -20,6 +20,9 @@
 // more just till I lose my laziness to not add proper lines
 #define NULL_RANGE (lineRange){0}
 
+#define BASE_AST(x, fn_name, ...) x->parent.fn_name(x, ##__VA_ARGS__)
+#define BASE_AST_OPT(x, fn_name, ...) x != NULL ? x->parent.fn_name(x, ##__VA_ARGS__) : true
+
 typedef struct _line_range_t {
     size_t line_start;
     size_t line_end;
@@ -27,7 +30,7 @@ typedef struct _line_range_t {
     size_t col_end;
 } lineRange;
 
-typedef void(*fn_print)(void *self, FILE *io_out);
+typedef void(*fn_print)(void *self, FILE *io_out, int indent);
 typedef void(*fn_free)(void *self);
 typedef bool(*fn_validate)(void *self);
 
@@ -180,7 +183,7 @@ struct _file_level_expression_t {
     Vector(TopLevelExpression) expressions;
 };
 
-FileLevelExpression new_file_level_expr(lineRange pos, Vector(TopLevelExpression) exprs);
+FileLevelExpression ast_new_file_level_expr(lineRange pos, Vector(TopLevelExpression) exprs);
 
 struct _top_level_expression_t {
     baseAST parent;
@@ -192,7 +195,7 @@ struct _top_level_expression_t {
     bool ret; // 'return' expression
 };
 
-TopLevelExpression new_top_level_expr(lineRange pos, void *arg, TypeTagAST tag, bool ret);
+TopLevelExpression ast_new_top_level_expr(lineRange pos, void *arg, TypeTagAST tag, bool ret);
 
 struct _primary_expression_t {
     baseAST parent;
@@ -205,7 +208,7 @@ struct _primary_expression_t {
     TypeTagAST tag;
 };
 
-PrimaryExpression new_primary_expr(lineRange pos, void *arg, TypeTagAST tag);
+PrimaryExpression ast_new_primary_expr(lineRange pos, void *arg, TypeTagAST tag);
 
 struct _assignment_expression_t {
     baseAST parent;
@@ -224,8 +227,8 @@ struct _assignment_expression_t {
     bool is_declaration;
 };
 
-AssignmentExpression new_assign_expr_decl(lineRange pos, TupleDefinition lhs, OPT(Expression) res);
-AssignmentExpression new_assign_expr(lineRange pos, Expression lhs, AssignmentOp op, Expression rhs);
+AssignmentExpression ast_new_assign_expr_decl(lineRange pos, TupleDefinition lhs, OPT(Expression) res);
+AssignmentExpression ast_new_assign_expr(lineRange pos, Expression lhs, AssignmentOp op, Expression rhs);
 
 struct _func_call_t {
     baseAST parent;
@@ -233,7 +236,7 @@ struct _func_call_t {
     Vector(Expression) args;
 };
 
-FuncCall new_func_call(lineRange pos, PostfixExpression func, Vector(Expression) args);
+FuncCall ast_new_func_call(lineRange pos, PostfixExpression func, Vector(Expression) args);
 
 struct _postfix_expression_t {
     baseAST parent;
@@ -270,12 +273,12 @@ struct _postfix_expression_t {
     TypeTagAST tag;
 };
 
-PostfixExpression new_postfix_expr_gen(lineRange pos, void *arg, TypeTagAST tag);
-PostfixExpression new_postfix_expr_fold(lineRange pos, FuncCall func, PostfixExpression to_fold, TypeTagAST tag);
-PostfixExpression new_postfix_expr_op(lineRange pos, PostfixExpression lhs, PostfixOp op, TypeTagAST tag);
-PostfixExpression new_postfix_expr_member(lineRange pos, PostfixExpression lhs, char *id, TypeTagAST tag);
-PostfixExpression new_postfix_expr_index(lineRange pos, PostfixExpression lhs, Expression index, TypeTagAST tag);
-PostfixExpression new_postfix_expr_slice(lineRange, PostfixExpression lhs, OPT(Expression) start, OPT(Expression) end, OPT(Expression) step);
+PostfixExpression ast_new_postfix_expr_gen(lineRange pos, void *arg, TypeTagAST tag);
+PostfixExpression ast_new_postfix_expr_fold(lineRange pos, FuncCall func, PostfixExpression to_fold, TypeTagAST tag);
+PostfixExpression ast_new_postfix_expr_member(lineRange pos, PostfixExpression lhs, char *id, TypeTagAST tag);
+PostfixExpression ast_new_postfix_expr_index(lineRange pos, PostfixExpression lhs, Expression index, TypeTagAST tag);
+PostfixExpression ast_new_postfix_expr_slice(lineRange pos, PostfixExpression lhs, OPT(Expression) start, OPT(Expression) end, OPT(Expression) step, TypeTagAST tag);
+PostfixExpression ast_new_postfix_expr_op(lineRange pos, PostfixExpression lhs, PostfixOp op, TypeTagAST tag);
 
 struct _unary_expression_t {
     baseAST parent;
@@ -289,8 +292,8 @@ struct _unary_expression_t {
     TypeTagAST tag;
 };
 
-UnaryExpression new_unary_expr(lineRange pos, PostfixExpression postfix_expr, TypeTagAST tag);
-UnaryExpression new_unary_expr_op(lineRange pos, UnaryExpression rhs, PrefixOp op, TypeTagAST tag);
+UnaryExpression ast_new_unary_expr(lineRange pos, PostfixExpression postfix_expr, TypeTagAST tag);
+UnaryExpression ast_new_unary_expr_op(lineRange pos, UnaryExpression rhs, PrefixOp op, TypeTagAST tag);
 
 struct _power_expression_t {
     baseAST parent;
@@ -304,8 +307,8 @@ struct _power_expression_t {
     TypeTagAST tag;
 };
 
-PowerExpression new_pow_expr_short(lineRange pos, UnaryExpression unary_expr, TypeTagAST tag);
-PowerExpression new_pow_expr(lineRange pos, PowerExpression lhs, UnaryExpression rhs, TypeTagAST tag);
+PowerExpression ast_new_pow_expr_short(lineRange pos, UnaryExpression unary_expr, TypeTagAST tag);
+PowerExpression ast_new_pow_expr(lineRange pos, PowerExpression lhs, UnaryExpression rhs, TypeTagAST tag);
 
 struct _multiplicative_expression_t {
     baseAST parent;
@@ -320,8 +323,8 @@ struct _multiplicative_expression_t {
     TypeTagAST tag;
 };
 
-MultiplicativeExpression new_mul_expr_short(lineRange pos, PowerExpression power_expr, TypeTagAST tag);
-MultiplicativeExpression new_mul_expr(lineRange pos, MultiplicativeExpression lhs, MultiplicativeOp op, PowerExpression rhs);
+MultiplicativeExpression ast_new_mul_expr_short(lineRange pos, PowerExpression power_expr, TypeTagAST tag);
+MultiplicativeExpression ast_new_mul_expr(lineRange pos, MultiplicativeExpression lhs, MultiplicativeOp op, PowerExpression rhs);
 
 struct _additive_expression_t {
     baseAST parent;
@@ -336,8 +339,8 @@ struct _additive_expression_t {
     TypeTagAST tag;
 };
 
-AdditiveExpression new_add_expr_short(lineRange pos, AdditiveExpression expr, TypeTagAST tag);
-AdditiveExpression new_add_expr(lineRange pos, AdditiveExpression lhs, AdditiveOp op, MultiplicativeExpression rhs, TypeTagAST tag);
+AdditiveExpression ast_new_add_expr_short(lineRange pos, AdditiveExpression expr, TypeTagAST tag);
+AdditiveExpression ast_new_add_expr(lineRange pos, AdditiveExpression lhs, AdditiveOp op, MultiplicativeExpression rhs, TypeTagAST tag);
 
 struct _relational_expression_t {
     baseAST parent;
@@ -352,8 +355,8 @@ struct _relational_expression_t {
     TypeTagAST tag;
 };
 
-RelationalExpression new_relational_expr_short(lineRange pos, AdditiveExpression expr, TypeTagAST tag);
-RelationalExpression new_relational_expr(lineRange pos, RelationalExpression lhs, RelationalOp op, AdditiveExpression rhs, TypeTagAST tag);
+RelationalExpression ast_new_relational_expr_short(lineRange pos, AdditiveExpression expr, TypeTagAST tag);
+RelationalExpression ast_new_relational_expr(lineRange pos, RelationalExpression lhs, RelationalOp op, AdditiveExpression rhs, TypeTagAST tag);
 
 struct _equality_expression_t {
     baseAST parent;
@@ -368,8 +371,8 @@ struct _equality_expression_t {
     TypeTagAST tag;
 };
 
-EqualityExpression new_eq_expr_short(lineRange pos, RelationalExpression expr, TypeTagAST tag);
-EqualityExpression new_eq_expr(lineRange pos, EqualityExpression lhs, EqualityOp op, RelationalExpression rhs, TypeTagAST tag);
+EqualityExpression ast_new_eq_expr_short(lineRange pos, RelationalExpression expr, TypeTagAST tag);
+EqualityExpression ast_new_eq_expr(lineRange pos, EqualityExpression lhs, EqualityOp op, RelationalExpression rhs, TypeTagAST tag);
 
 struct _logical_and_expression_t {
     baseAST parent;
@@ -383,8 +386,8 @@ struct _logical_and_expression_t {
     TypeTagAST tag;
 };
 
-LogicalAndExpression new_logic_and_expr_short(lineRange pos, EqualityExpression expr, TypeTagAST tag);
-LogicalAndExpression new_logic_and_expr(lineRange pos, LogicalAndExpression lhs, EqualityExpression rhs, TypeTagAST tag);
+LogicalAndExpression ast_new_logic_and_expr_short(lineRange pos, EqualityExpression expr, TypeTagAST tag);
+LogicalAndExpression ast_new_logic_and_expr(lineRange pos, LogicalAndExpression lhs, EqualityExpression rhs, TypeTagAST tag);
 
 struct _logical_or_expression_t {
     baseAST parent;
@@ -398,7 +401,8 @@ struct _logical_or_expression_t {
     TypeTagAST tag;
 };
 
-
+LogicalOrExpression ast_new_logic_or_expr_short(lineRange pos, LogicalAndExpression expr, TypeTagAST tag);
+LogicalOrExpression ast_new_logic_or_expr(lineRange pos, LogicalOrExpression lhs, LogicalAndExpression rhs, TypeTagAST tag);
 
 struct _conditional_expression_t {
     baseAST parent;
@@ -410,10 +414,15 @@ struct _conditional_expression_t {
     bool is_ternary;
 };
 
+ConditionalExpression ast_new_conditional_expr(lineRange pos, LogicalOrExpression expr);
+ConditionalExpression ast_new_conditional_expr_tern(lineRange pos, LogicalOrExpression expr, Expression if_expr, Expression else_expr);
+
 struct _block_t {
     baseAST parent;
     Vector(TopLevelExpression) topLevelExpressions;
 };
+
+Block ast_new_block(lineRange pos, Vector(TopLevelExpression) topLevelExpressions);
 
 struct _expression_t {
     baseAST parent;
@@ -432,6 +441,10 @@ struct _expression_t {
     TypeTagAST tag;
 };
 
+Expression ast_new_expr_gen(lineRange pos, void *arg, TypeTagAST tag);
+Expression ast_new_expr_func_block(lineRange pos, FuncDefinition func_def, Block block, TypeTagAST tag);
+Expression ast_new_expr_tuple_block(lineRange pos, TupleDefinition tuple_def, Block block, TypeTagAST tag);
+
 struct _compound_conditionals_t {
     baseAST parent;
     union {
@@ -442,12 +455,16 @@ struct _compound_conditionals_t {
     TypeTagAST tag;
 };
 
+CompoundConditionals ast_new_compound_conditional(lineRange pos, void *arg, TypeTagAST tag);
+
 struct _while_loop_t {
     baseAST parent;
     ConditionalExpression conditional_expr;
     Block block;
     OPT(Block) else_block;
 };
+
+WhileLoop ast_new_while_loop(lineRange pos, ConditionalExpression cond_expr, Block block, OPT(Block) else_block);
 
 struct _for_loop_t {
     baseAST parent;
@@ -456,12 +473,14 @@ struct _for_loop_t {
     OPT(Block) else_block;
 };
 
+ForLoop ast_new_for_loop(lineRange pos, ForLoopContents contents, Block block, OPT(Block) else_block);
+
 struct _for_loop_contents_t {
     baseAST parent;
     union {
         struct {
             // could have tuple_member here
-            Vector(char *) ids;
+            Vector(char*) ids;
             ConditionalExpression conditional_expr;
         } for_in;
         struct {
@@ -473,12 +492,17 @@ struct _for_loop_contents_t {
     TypeTagAST tag;
 };
 
+ForLoopContents ast_new_for_loop_contents_in(lineRange pos, Vector(char*) ids, ConditionalExpression cond_expr, TypeTagAST tag);
+ForLoopContents ast_new_for_loop_contents_in(lineRange pos, Vector(char*) ids, ConditionalExpression cond_expr, TypeTagAST tag);
+
 struct _if_block_t {
     baseAST parent;
     ConditionalExpression condition;
     Block block;
     OPT(ElseBlock) else_block;
 };
+
+IfBlock ast_new_if_block(lineRange pos, ConditionalExpression cond, Block block, OPT(Block) else_block);
 
 struct _else_block_t {
     baseAST parent;
@@ -489,16 +513,22 @@ struct _else_block_t {
     TypeTagAST tag;
 };
 
+ElseBlock ast_new_else_block(lineRange pos, void *arg, TypeTagAST tag);
+
 struct _tuple_member_t {
     baseAST parent;
     char *id;
-    OPT(TypeMember) type;
+    OPT(TypeExpression) type;
 };
+
+TupleMember ast_new_tuple_member(lineRange pos, char *id, OPT(TypeExpression) type);
 
 struct _tuple_definition_t {
     baseAST parent;
     Vector(TupleMember) tuple_members;
 };
+
+TupleDefinition ast_new_tuple_def(lineRange pos, Vector(TupleMember) members);
 
 struct _type_member_t {
     baseAST parent;
@@ -515,6 +545,9 @@ struct _type_member_t {
     TypeTagAST tag;
 };
 
+TypeMember ast_new_type_member_gen(lineRange pos, void *arg, TypeTagAST tag);
+TypeMember ast_new_type_member_array_map(lineRange pos, TypeExpression lhs, OPT(TypeExpression) rhs, TypeTagAST tag);
+
 struct _type_expression_t {
     baseAST parent;
     TypeMember lhs;
@@ -522,10 +555,15 @@ struct _type_expression_t {
     OPT(TypeExpression) implements_type;
 };
 
+TypeExpression ast_new_type_expr(lineRange pos, TypeMember lhs, OPT(TypeExpression) or_type, OPT(TypeExpression) impl_type);
+
 struct _func_definition_t {
     baseAST parent;
     OPT(TupleDefinition) arg_defs;
+    OPT(TypeExpression) ret_type;
 };
+
+FuncDefinition ast_new_func_def(lineRange pos, OPT(TupleDefinition) def, OPT(TypeExpression) ret_type);
 
 struct _constant_t {
     baseAST parent;
@@ -540,6 +578,9 @@ struct _constant_t {
     TypeTagAST tag;
 };
 
+Constant ast_new_constant(lineRange pos, void *arg, TypeTagAST tag);
+#define ast_new_constant_lit(pos, arg, tag) ast_new_constant(pos, &(typeof(arg){arg}), tag)
+
 struct _map_constant_t {
     baseAST parent;
     // we could just have a hashtable for this????
@@ -547,9 +588,13 @@ struct _map_constant_t {
     Vector(Expression) values;
 };
 
+MapConstant ast_new_map_constant(lineRange pos, Vector(Expression) keys, Vector(Expression) values);
+
 struct _array_constant_t {
     baseAST parent;
     Vector(Expression) contents;
 };
+
+ArrayConstant ast_new_array_constant(lineRange pos, Vector(Expression) contents);
 
 #endif

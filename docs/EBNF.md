@@ -74,6 +74,7 @@ func_call
 // However they could still be wrong if I'm considering a case incorrectly :).
 postfixExpression
     : primaryExpression
+    | '@' Identifier {'.' Identifier}
     | postfixExpression '[' expression ']'
     // i.e. array[1] or array[1:] or array[1::] or array[1:2:]
     // or array[] (lexical error) or array[:2:] ... and so on
@@ -177,7 +178,7 @@ if_block
     ;
 
 tuple_member
-    : Identifier [ ':' type_member ]
+    : Identifier [ ':' type_expression ]
     ;
 
 tuple_definition
@@ -198,7 +199,7 @@ type_expression
     ;
 
 func_definition
-    : 'fn' '(' tuple_definition? ')'
+    : 'fn' '(' tuple_definition? ')' type_expression?
 
 constant
     : array_constant

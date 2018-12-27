@@ -21,6 +21,8 @@ typedef struct _vector_t {
     double factor;
 } *Vector;
 
+#define vec_foreach(vec, elem, block) do { for (size_t i = 0; i < vec->cur_len; i++) { elem = vec_at(vec, i); block } } while(0);
+
 /*
     Create a new vector with the given name.
     By default uses `poly_grow_function` with factor 2.

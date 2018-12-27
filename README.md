@@ -8,7 +8,7 @@
 
 > Proper macro support that is built into the parser rather than being external!
 
-> *WARNING* This language is extremely WIP don't expect anything to be working for a decent time (as a rough estimate from previous projects around 6k lines I would expect basic functionality it currently is sitting at around 3k) this is not including the time estimates for 
+> *WARNING* This language is extremely WIP don't expect anything to be working for a decent time (as a rough estimate from previous compiler projects around 6k lines I would expect basic functionality it currently is sitting at around 3k) this is not including the time estimates for the byte code interpreter.
 
 Example of the scripting power;
 
@@ -34,4 +34,4 @@ println(add("Bob", 2)); // Compile Time Error: Invalid Types
 println(add("Bob", "Jim")); // "BobJim"
 ```
 
-Are you interested?  Maybe check out the [Language Guide](LanguageGuide.md).
+Are you interested?  Maybe check out the [Language Guide](docs/LanguageGuide.md).

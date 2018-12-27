@@ -4,6 +4,10 @@ Porc is a fully open sourced dynamic programming language that focuses on fixing
 
 It is meant to be both a sucessor (of sorts) to shell languages (i.e. bash) while also functioning as more general purpose (i.e. python) while also being performant enough to compete with performant dynamic languages (i.e. LUA).
 
+# NOTE:
+
+A lot of this is pseudo outdated, I just wanted to get ideas onto 'paper'.  For example struct syntax changed to `color = (r: int, g: int, b: int) :: { /* ... */ }` from `color = struct { r: int; g: int; b: int; /* ... */ }`
+
 ## Hello World
 
 `hello.porc`
@@ -110,16 +114,15 @@ IntPositive = (data: int) :: {
 // return type is after the ()
 fib = fn (n: IntPositive) IntPositive => 1 if n <= 1 else fib(n - 1) + fib(n - 2);
 
-// but there is more!
-// for example maybe you want to state that something implements a certain function
-// or perhaps is castable to a certain type (since type casting is implemented as functions)
-// you can use `^` to state what is called type invariants
-animal_noise = fn (animal: any ^ fn ()str) => (fn()str)(animal)();
-// the above syntax is a tad annoying since you have to cast it to that function
-// so you can also give it a name in one of two ways;
-// 1)
-make_noise: fn()str;
-animal_noise = fn (animal: any ^ make_noise) => animal.make_noise();
+// You can go further using the implements syntax `^` which just makes sure that
+// such a function exists in which it can call it like such.
+// You can have pseudo recursive type definitions as long as the recursion
+// occurs within any implement 'section' of the type
+animal_noise = fn (animal: any ^ fn (animal)str) => (fn(any)str)(animal);
+
+// 
+make_noise: fn(any)str;
+animal_noise = fn (animal: any ^ make_noise) => animal->make_noise()
 ```
 
 ## Deep End
