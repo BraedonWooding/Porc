@@ -324,7 +324,7 @@ struct _multiplicative_expression_t {
 };
 
 MultiplicativeExpression ast_new_mul_expr_short(lineRange pos, PowerExpression power_expr, TypeTagAST tag);
-MultiplicativeExpression ast_new_mul_expr(lineRange pos, MultiplicativeExpression lhs, MultiplicativeOp op, PowerExpression rhs);
+MultiplicativeExpression ast_new_mul_expr(lineRange pos, MultiplicativeExpression lhs, MultiplicativeOp op, PowerExpression rhs, TypeTagAST tag);
 
 struct _additive_expression_t {
     baseAST parent;
@@ -339,7 +339,7 @@ struct _additive_expression_t {
     TypeTagAST tag;
 };
 
-AdditiveExpression ast_new_add_expr_short(lineRange pos, AdditiveExpression expr, TypeTagAST tag);
+AdditiveExpression ast_new_add_expr_short(lineRange pos, MultiplicativeExpression expr, TypeTagAST tag);
 AdditiveExpression ast_new_add_expr(lineRange pos, AdditiveExpression lhs, AdditiveOp op, MultiplicativeExpression rhs, TypeTagAST tag);
 
 struct _relational_expression_t {

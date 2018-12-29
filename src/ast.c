@@ -156,6 +156,8 @@ TopLevelExpression ast_new_top_level_expr(lineRange pos, void *arg, TypeTagAST t
 
 #pragma endregion
 
+#pragma region PrimaryExpression
+
 static void primary_expr_print(void *self, FILE *io_out, int indent) {
     PrimaryExpression expr = self;
     write_indent(io_out, indent);
@@ -261,6 +263,10 @@ PrimaryExpression ast_new_primary_expr(lineRange pos, void *arg, TypeTagAST tag)
     return expr;
 }
 
+#pragma endregion
+
+#pragma region AssignmentExpression
+
 static void assignment_expr_free(void *arg) {
     AssignmentExpression expr = arg;
     if (expr->is_declaration) {
@@ -333,6 +339,10 @@ AssignmentExpression ast_new_assign_expr(lineRange pos, Expression lhs, Assignme
     return expr;
 }
 
+#pragma endregion
+
+#pragma region FuncCall
+
 static void func_call_free(void *self) {
     FuncCall func = self;
     vec_foreach(func->args, Expression expr, {
@@ -383,6 +393,10 @@ FuncCall ast_new_func_call(lineRange pos, PostfixExpression func, Vector(Express
     };
     return call;
 }
+
+#pragma endregion
+
+#pragma region PostfixExpression
 
 static void postfix_expr_print(void *self, FILE *io_out, int indent) {
     PostfixExpression expr = self;
@@ -618,6 +632,10 @@ PostfixExpression ast_new_postfix_expr_op(lineRange pos, PostfixExpression lhs, 
     return expr;
 }
 
+#pragma endregion
+
+#pragma region UnaryExpression
+
 static void unary_expr_print(void *self, FILE *io_out, int indent) {
     UnaryExpression expr = self;
     write_indent(io_out, indent);
@@ -693,7 +711,7 @@ UnaryExpression ast_new_unary_expr(lineRange pos, PostfixExpression postfix_expr
 }
 
 UnaryExpression ast_new_unary_expr_op(lineRange pos, UnaryExpression rhs, PrefixOp op, TypeTagAST tag) {
-    UnaryExpression expr = malloc(sizeof(struct _postfix_expression_t));
+    UnaryExpression expr = malloc(sizeof(struct _unary_expression_t));
     expr->tag = tag;
     if (tag != AST_PREFIX_OP) {
         AST_TAG_ERR(expr);
@@ -710,33 +728,688 @@ UnaryExpression ast_new_unary_expr_op(lineRange pos, UnaryExpression rhs, Prefix
     return expr;
 }
 
-PowerExpression ast_new_pow_expr_short(lineRange pos, UnaryExpression unary_expr, TypeTagAST tag);
+#pragma endregion
 
-PowerExpression ast_new_pow_expr(lineRange pos, PowerExpression lhs, UnaryExpression rhs, TypeTagAST tag);
+#pragma region PowerExpression
 
-MultiplicativeExpression ast_new_mul_expr_short(lineRange pos, PowerExpression power_expr, TypeTagAST tag);
+static void power_expr_print(void *self, FILE *io_out, int indent) {
+    PowerExpression expr = self;
+    write_indent(io_out, indent);
+    fprintf(io_out, "PowerExpr(\n");
+    switch (expr->tag) {
+        case AST_UNARY_EXPRESSION: {
+            BASE_AST(expr->unary_expr, print_tree, io_out, indent + 1);
+        } break;
+        case AST_POWER_EXPRESSION: {
+            BASE_AST(expr->power_expr.lhs, print_tree, io_out, indent + 1);
+            BASE_AST(expr->power_expr.rhs, print_tree, io_out, indent + 1);
+        } break;
+        default: {
+            AST_TAG_ERR(expr);
+            exit(1);
+        }
+    }
+    write_indent(io_out, indent);
+    fprintf(io_out, ")\n");
+}
 
-MultiplicativeExpression ast_new_mul_expr(lineRange pos, MultiplicativeExpression lhs, MultiplicativeOp op, PowerExpression rhs);
+static bool power_expr_validate(void *self) {
+    PowerExpression expr = self;
+    bool ret = true;
+    switch (expr->tag) {
+        case AST_UNARY_EXPRESSION: {
+            ret &= BASE_AST(expr->unary_expr, validate_tree);
+        } break;
+        case AST_POWER_EXPRESSION: {
+            ret &= BASE_AST(expr->power_expr.lhs, validate_tree);
+            ret &= BASE_AST(expr->power_expr.rhs, validate_tree);
+        } break;
+        default: {
+            ret = false;
+            VALIDATION_ERR("Invalid tag (%d)", expr->tag);
+        }
+    }
+    return ret;
+}
 
-AdditiveExpression ast_new_add_expr_short(lineRange pos, AdditiveExpression expr, TypeTagAST tag);
+static void power_expr_free(void *self) {
+    PowerExpression expr = self;
+    switch (expr->tag) {
+        case AST_UNARY_EXPRESSION: {
+            BASE_AST(expr->unary_expr, free_tree);
+        } break;
+        case AST_POWER_EXPRESSION: {
+            BASE_AST(expr->power_expr.lhs, free_tree);
+            BASE_AST(expr->power_expr.rhs, free_tree);
+        } break;
+        default: {
+            AST_TAG_ERR(expr);
+            exit(1);
+        }
+    }
+    free(expr);
+}
 
-AdditiveExpression ast_new_add_expr(lineRange pos, AdditiveExpression lhs, AdditiveOp op, MultiplicativeExpression rhs, TypeTagAST tag);
+PowerExpression ast_new_pow_expr_short(lineRange pos, UnaryExpression unary_expr, TypeTagAST tag) {
+    PowerExpression expr = malloc(sizeof(struct _power_expression_t));
+    expr->tag = tag;
+    if (tag != AST_UNARY_EXPRESSION) {
+        AST_TAG_ERR(expr);
+        exit(1);
+    }
+    expr->unary_expr = unary_expr;
+    expr->parent = (baseAST) {
+        .position = pos,
+        .print_tree = power_expr_print,
+        .free_tree = power_expr_free,
+        .validate_tree = power_expr_validate
+    };
+    return expr;
+}
 
-RelationalExpression ast_new_relational_expr_short(lineRange pos, AdditiveExpression expr, TypeTagAST tag);
+PowerExpression ast_new_pow_expr(lineRange pos, PowerExpression lhs, UnaryExpression rhs, TypeTagAST tag) {
+    PowerExpression expr = malloc(sizeof(struct _power_expression_t));
+    expr->tag = tag;
+    if (tag != AST_POWER_EXPRESSION) {
+        AST_TAG_ERR(expr);
+        exit(1);
+    }
+    expr->power_expr.lhs = lhs;
+    expr->power_expr.rhs = rhs;
+    expr->parent = (baseAST) {
+        .position = pos,
+        .print_tree = power_expr_print,
+        .free_tree = power_expr_free,
+        .validate_tree = power_expr_validate
+    };
+    return expr;
+}
 
-RelationalExpression ast_new_relational_expr(lineRange pos, RelationalExpression lhs, RelationalOp op, AdditiveExpression rhs, TypeTagAST tag);
+#pragma endregion
 
-EqualityExpression ast_new_eq_expr_short(lineRange pos, RelationalExpression expr, TypeTagAST tag);
+#pragma region MultiplicativeExpression
 
-EqualityExpression ast_new_eq_expr(lineRange pos, EqualityExpression lhs, EqualityOp op, RelationalExpression rhs, TypeTagAST tag);
+static void mul_expr_print(void *self, FILE *io_out, int indent) {
+    MultiplicativeExpression expr = self;
+    write_indent(io_out, indent);
+    fprintf(io_out, "MultiplicativeExpr(\n");
+    switch (expr->tag) {
+        case AST_POWER_EXPRESSION: {
+            BASE_AST(expr->power_expr, print_tree, io_out, indent + 1);
+        } break;
+        case AST_MULTIPLICATIVE_EXPRESSION: {
+            BASE_AST(expr->multiplicative_expr.lhs, print_tree, io_out, indent + 1);
+            BASE_AST(expr->multiplicative_expr.rhs, print_tree, io_out, indent + 1);
+        } break;
+        default: {
+            AST_TAG_ERR(expr);
+            exit(1);
+        }
+    }
+    write_indent(io_out, indent);
+    fprintf(io_out, ")\n");
+}
 
-LogicalAndExpression ast_new_logic_and_expr_short(lineRange pos, EqualityExpression expr, TypeTagAST tag);
+static bool mul_expr_validate(void *self) {
+    MultiplicativeExpression expr = self;
+    bool ret = true;
+    switch (expr->tag) {
+        case AST_POWER_EXPRESSION: {
+            ret &= BASE_AST(expr->power_expr, validate_tree);
+        } break;
+        case AST_MULTIPLICATIVE_EXPRESSION: {
+            ret &= BASE_AST(expr->multiplicative_expr.lhs, validate_tree);
+            ret &= BASE_AST(expr->multiplicative_expr.rhs, validate_tree);
+        } break;
+        default: {
+            ret = false;
+            VALIDATION_ERR("Invalid tag (%d)", expr->tag);
+        }
+    }
+    return ret;
+}
 
-LogicalAndExpression ast_new_logic_and_expr(lineRange pos, LogicalAndExpression lhs, EqualityExpression rhs, TypeTagAST tag);
+static void mul_expr_free(void *self) {
+    MultiplicativeExpression expr = self;
+    switch (expr->tag) {
+        case AST_POWER_EXPRESSION: {
+            BASE_AST(expr->power_expr, free_tree);
+        } break;
+        case AST_MULTIPLICATIVE_EXPRESSION: {
+            BASE_AST(expr->multiplicative_expr.lhs, free_tree);
+            BASE_AST(expr->multiplicative_expr.rhs, free_tree);
+        } break;
+        default: {
+            AST_TAG_ERR(expr);
+            exit(1);
+        }
+    }
+    free(expr);
+}
 
-LogicalOrExpression ast_new_logic_or_expr_short(lineRange pos, LogicalAndExpression expr, TypeTagAST tag);
+MultiplicativeExpression ast_new_mul_expr_short(lineRange pos, PowerExpression power_expr, TypeTagAST tag) {
+    MultiplicativeExpression expr = malloc(sizeof(struct _multiplicative_expression_t));
+    expr->tag = tag;
+    if (tag != AST_POWER_EXPRESSION) {
+        AST_TAG_ERR(expr);
+        exit(1);
+    }
+    expr->power_expr = power_expr;
+    expr->parent = (baseAST) {
+        .position = pos,
+        .print_tree = mul_expr_print,
+        .free_tree = mul_expr_free,
+        .validate_tree = mul_expr_validate
+    };
+    return expr;
+}
 
-LogicalOrExpression ast_new_logic_or_expr(lineRange pos, LogicalOrExpression lhs, LogicalAndExpression rhs, TypeTagAST tag);
+MultiplicativeExpression ast_new_mul_expr(lineRange pos, MultiplicativeExpression lhs, MultiplicativeOp op, PowerExpression rhs, TypeTagAST tag) {
+    MultiplicativeExpression expr = malloc(sizeof(struct _multiplicative_expression_t));
+    expr->tag = tag;
+    if (tag != AST_MULTIPLICATIVE_EXPRESSION) {
+        AST_TAG_ERR(expr);
+        exit(1);
+    }
+    expr->multiplicative_expr.lhs = lhs;
+    expr->multiplicative_expr.op = op;
+    expr->multiplicative_expr.rhs = rhs;
+    expr->parent = (baseAST) {
+        .position = pos,
+        .print_tree = mul_expr_print,
+        .free_tree = mul_expr_free,
+        .validate_tree = mul_expr_validate
+    };
+    return expr;
+}
+
+#pragma endregion
+
+#pragma region AdditiveExpression
+
+static void add_expr_print(void *self, FILE *io_out, int indent) {
+    AdditiveExpression expr = self;
+    write_indent(io_out, indent);
+    fprintf(io_out, "AdditiveExpr(\n");
+    switch (expr->tag) {
+        case AST_MULTIPLICATIVE_EXPRESSION: {
+            BASE_AST(expr->multiplicative_expr, print_tree, io_out, indent + 1);
+        } break;
+        case AST_ADDITIVE_EXPRESSION: {
+            BASE_AST(expr->additive_expr.lhs, print_tree, io_out, indent + 1);
+            BASE_AST(expr->additive_expr.rhs, print_tree, io_out, indent + 1);
+        } break;
+        default: {
+            AST_TAG_ERR(expr);
+            exit(1);
+        }
+    }
+    write_indent(io_out, indent);
+    fprintf(io_out, ")\n");
+}
+
+static bool add_expr_validate(void *self) {
+    AdditiveExpression expr = self;
+    bool ret = true;
+    switch (expr->tag) {
+        case AST_MULTIPLICATIVE_EXPRESSION: {
+            ret &= BASE_AST(expr->multiplicative_expr, validate_tree);
+        } break;
+        case AST_ADDITIVE_EXPRESSION: {
+            ret &= BASE_AST(expr->additive_expr.lhs, validate_tree);
+            ret &= BASE_AST(expr->additive_expr.rhs, validate_tree);
+        } break;
+        default: {
+            ret = false;
+            VALIDATION_ERR("Invalid tag (%d)", expr->tag);
+        }
+    }
+    return ret;
+}
+
+static void add_expr_free(void *self) {
+    AdditiveExpression expr = self;
+    switch (expr->tag) {
+        case AST_MULTIPLICATIVE_EXPRESSION: {
+            BASE_AST(expr->multiplicative_expr, free_tree);
+        } break;
+        case AST_ADDITIVE_EXPRESSION: {
+            BASE_AST(expr->additive_expr.lhs, free_tree);
+            BASE_AST(expr->additive_expr.rhs, free_tree);
+        } break;
+        default: {
+            AST_TAG_ERR(expr);
+            exit(1);
+        }
+    }
+    free(expr);
+}
+
+AdditiveExpression ast_new_add_expr_short(lineRange pos, MultiplicativeExpression mul_expr, TypeTagAST tag) {
+    AdditiveExpression expr = malloc(sizeof(struct _additive_expression_t));
+    expr->tag = tag;
+    if (tag != AST_MULTIPLICATIVE_EXPRESSION) {
+        AST_TAG_ERR(expr);
+        exit(1);
+    }
+    expr->multiplicative_expr = mul_expr;
+    expr->parent = (baseAST) {
+        .position = pos,
+        .print_tree = add_expr_print,
+        .free_tree = add_expr_free,
+        .validate_tree = add_expr_validate
+    };
+    return expr;
+}
+
+AdditiveExpression ast_new_add_expr(lineRange pos, AdditiveExpression lhs, AdditiveOp op, MultiplicativeExpression rhs, TypeTagAST tag) {
+    AdditiveExpression expr = malloc(sizeof(struct _additive_expression_t));
+    expr->tag = tag;
+    if (tag != AST_ADDITIVE_EXPRESSION) {
+        AST_TAG_ERR(expr);
+        exit(1);
+    }
+    expr->additive_expr.lhs = lhs;
+    expr->additive_expr.rhs = rhs;
+    expr->additive_expr.op = op;
+    expr->parent = (baseAST) {
+        .position = pos,
+        .print_tree = add_expr_print,
+        .free_tree = add_expr_free,
+        .validate_tree = add_expr_validate
+    };
+    return expr;
+}
+
+#pragma endregion
+
+#pragma region RelationalExpression
+
+static void relational_expr_print(void *self, FILE *io_out, int indent) {
+    RelationalExpression expr = self;
+    write_indent(io_out, indent);
+    fprintf(io_out, "RelationalExpr(\n");
+    switch (expr->tag) {
+        case AST_ADDITIVE_EXPRESSION: {
+            BASE_AST(expr->additive_expr, print_tree, io_out, indent + 1);
+        } break;
+        case AST_RELATIONAL_EXPRESSION: {
+            BASE_AST(expr->relational_expr.lhs, print_tree, io_out, indent + 1);
+            BASE_AST(expr->relational_expr.rhs, print_tree, io_out, indent + 1);
+        } break;
+        default: {
+            AST_TAG_ERR(expr);
+            exit(1);
+        }
+    }
+    write_indent(io_out, indent);
+    fprintf(io_out, ")\n");
+}
+
+static bool relational_expr_validate(void *self) {
+    RelationalExpression expr = self;
+    bool ret = true;
+    switch (expr->tag) {
+        case AST_ADDITIVE_EXPRESSION: {
+            ret &= BASE_AST(expr->additive_expr, validate_tree);
+        } break;
+        case AST_RELATIONAL_EXPRESSION: {
+            ret &= BASE_AST(expr->relational_expr.lhs, validate_tree);
+            ret &= BASE_AST(expr->relational_expr.rhs, validate_tree);
+        } break;
+        default: {
+            ret = false;
+            VALIDATION_ERR("Invalid tag (%d)", expr->tag);
+        }
+    }
+    return ret;
+}
+
+static void relational_expr_free(void *self) {
+    RelationalExpression expr = self;
+    switch (expr->tag) {
+        case AST_ADDITIVE_EXPRESSION: {
+            BASE_AST(expr->additive_expr, free_tree);
+        } break;
+        case AST_RELATIONAL_EXPRESSION: {
+            BASE_AST(expr->relational_expr.lhs, free_tree);
+            BASE_AST(expr->relational_expr.rhs, free_tree);
+        } break;
+        default: {
+            AST_TAG_ERR(expr);
+            exit(1);
+        }
+    }
+    free(expr);
+}
+
+RelationalExpression ast_new_relational_expr_short(lineRange pos, AdditiveExpression add_expr, TypeTagAST tag) {
+    RelationalExpression expr = malloc(sizeof(struct _relational_expression_t));
+    expr->tag = tag;
+    if (tag != AST_ADDITIVE_EXPRESSION) {
+        AST_TAG_ERR(expr);
+        exit(1);
+    }
+    expr->additive_expr = add_expr;
+    expr->parent = (baseAST) {
+        .position = pos,
+        .print_tree = relational_expr_print,
+        .free_tree = relational_expr_free,
+        .validate_tree = relational_expr_validate
+    };
+    return expr;
+}
+
+RelationalExpression ast_new_relational_expr(lineRange pos, RelationalExpression lhs, RelationalOp op, AdditiveExpression rhs, TypeTagAST tag) {
+    RelationalExpression expr = malloc(sizeof(struct _relational_expression_t));
+    expr->tag = tag;
+    if (tag != AST_RELATIONAL_EXPRESSION) {
+        AST_TAG_ERR(expr);
+        exit(1);
+    }
+    expr->relational_expr.lhs = lhs;
+    expr->relational_expr.op = op;
+    expr->relational_expr.rhs = rhs;
+    expr->parent = (baseAST) {
+        .position = pos,
+        .print_tree = relational_expr_print,
+        .free_tree = relational_expr_free,
+        .validate_tree = relational_expr_validate
+    };
+    return expr;
+}
+
+#pragma endregion
+
+#pragma region EqualityExpression
+
+static void equality_expr_print(void *self, FILE *io_out, int indent) {
+    EqualityExpression expr = self;
+    write_indent(io_out, indent);
+    fprintf(io_out, "EqualityExpr(\n");
+    switch (expr->tag) {
+        case AST_RELATIONAL_EXPRESSION: {
+            BASE_AST(expr->relational_expr, print_tree, io_out, indent + 1);
+        } break;
+        case AST_EQUALITY_EXPRESSION: {
+            BASE_AST(expr->equality_expr.lhs, print_tree, io_out, indent + 1);
+            BASE_AST(expr->equality_expr.rhs, print_tree, io_out, indent + 1);
+        } break;
+        default: {
+            AST_TAG_ERR(expr);
+            exit(1);
+        }
+    }
+    write_indent(io_out, indent);
+    fprintf(io_out, ")\n");
+}
+
+static bool equality_expr_validate(void *self) {
+    EqualityExpression expr = self;
+    bool ret = true;
+    switch (expr->tag) {
+        case AST_RELATIONAL_EXPRESSION: {
+            ret &= BASE_AST(expr->relational_expr, validate_tree);
+        } break;
+        case AST_EQUALITY_EXPRESSION: {
+            ret &= BASE_AST(expr->equality_expr.lhs, validate_tree);
+            ret &= BASE_AST(expr->equality_expr.rhs, validate_tree);
+        } break;
+        default: {
+            ret = false;
+            VALIDATION_ERR("Invalid tag (%d)", expr->tag);
+        }
+    }
+    return ret;
+}
+
+static void equality_expr_free(void *self) {
+    EqualityExpression expr = self;
+    switch (expr->tag) {
+        case AST_RELATIONAL_EXPRESSION: {
+            BASE_AST(expr->relational_expr, free_tree);
+        } break;
+        case AST_EQUALITY_EXPRESSION: {
+            BASE_AST(expr->equality_expr.lhs, free_tree);
+            BASE_AST(expr->equality_expr.rhs, free_tree);
+        } break;
+        default: {
+            AST_TAG_ERR(expr);
+            exit(1);
+        }
+    }
+    free(expr);
+}
+
+EqualityExpression ast_new_eq_expr_short(lineRange pos, RelationalExpression rel_expr, TypeTagAST tag) {
+    EqualityExpression expr = malloc(sizeof(struct _equality_expression_t));
+    expr->tag = tag;
+    if (tag != AST_RELATIONAL_EXPRESSION) {
+        AST_TAG_ERR(expr);
+        exit(1);
+    }
+    expr->relational_expr = rel_expr;
+    expr->parent = (baseAST) {
+        .position = pos,
+        .print_tree = equality_expr_print,
+        .free_tree = equality_expr_free,
+        .validate_tree = equality_expr_validate
+    };
+    return expr;
+}
+
+EqualityExpression ast_new_eq_expr(lineRange pos, EqualityExpression lhs, EqualityOp op, RelationalExpression rhs, TypeTagAST tag) {
+    EqualityExpression expr = malloc(sizeof(struct _equality_expression_t));
+    expr->tag = tag;
+    if (tag != AST_EQUALITY_EXPRESSION) {
+        AST_TAG_ERR(expr);
+        exit(1);
+    }
+    expr->equality_expr.lhs = lhs;
+    expr->equality_expr.op = op;
+    expr->equality_expr.rhs = rhs;
+    expr->parent = (baseAST) {
+        .position = pos,
+        .print_tree = equality_expr_print,
+        .free_tree = equality_expr_free,
+        .validate_tree = equality_expr_validate
+    };
+    return expr;
+}
+
+#pragma endregion
+
+#pragma region LogicalAndExpression
+
+static void logic_and_expr_print(void *self, FILE *io_out, int indent) {
+    LogicalAndExpression expr = self;
+    write_indent(io_out, indent);
+    fprintf(io_out, "LogicalAndExpr(\n");
+    switch (expr->tag) {
+        case AST_EQUALITY_EXPRESSION: {
+            BASE_AST(expr->equality_expr, print_tree, io_out, indent + 1);
+        } break;
+        case AST_LOGICAL_AND_EXPRESSION: {
+            BASE_AST(expr->logical_and_expr.lhs, print_tree, io_out, indent + 1);
+            BASE_AST(expr->logical_and_expr.rhs, print_tree, io_out, indent + 1);
+        } break;
+        default: {
+            AST_TAG_ERR(expr);
+            exit(1);
+        }
+    }
+    write_indent(io_out, indent);
+    fprintf(io_out, ")\n");
+}
+
+static bool logic_and_expr_validate(void *self) {
+    LogicalAndExpression expr = self;
+    bool ret = true;
+    switch (expr->tag) {
+        case AST_EQUALITY_EXPRESSION: {
+            ret &= BASE_AST(expr->equality_expr, validate_tree);
+        } break;
+        case AST_LOGICAL_AND_EXPRESSION: {
+            ret &= BASE_AST(expr->logical_and_expr.lhs, validate_tree);
+            ret &= BASE_AST(expr->logical_and_expr.rhs, validate_tree);
+        } break;
+        default: {
+            ret = false;
+            VALIDATION_ERR("Invalid tag (%d)", expr->tag);
+        }
+    }
+    return ret;
+}
+
+static void logic_and_expr_free(void *self) {
+    LogicalAndExpression expr = self;
+    switch (expr->tag) {
+        case AST_EQUALITY_EXPRESSION: {
+            BASE_AST(expr->equality_expr, free_tree);
+        } break;
+        case AST_LOGICAL_AND_EXPRESSION: {
+            BASE_AST(expr->logical_and_expr.lhs, free_tree);
+            BASE_AST(expr->logical_and_expr.rhs, free_tree);
+        } break;
+        default: {
+            AST_TAG_ERR(expr);
+            exit(1);
+        }
+    }
+    free(expr);
+}
+
+LogicalAndExpression ast_new_logic_and_expr_short(lineRange pos, EqualityExpression eq_expr, TypeTagAST tag) {
+    LogicalAndExpression expr = malloc(sizeof(struct _logical_and_expression_t));
+    expr->tag = tag;
+    if (tag != AST_EQUALITY_EXPRESSION) {
+        AST_TAG_ERR(expr);
+        exit(1);
+    }
+    expr->equality_expr = eq_expr;
+    expr->parent = (baseAST) {
+        .position = pos,
+        .print_tree = logic_and_expr_print,
+        .free_tree = logic_and_expr_free,
+        .validate_tree = logic_and_expr_validate
+    };
+    return expr;
+}
+
+LogicalAndExpression ast_new_logic_and_expr(lineRange pos, LogicalAndExpression lhs, EqualityExpression rhs, TypeTagAST tag) {
+    LogicalAndExpression expr = malloc(sizeof(struct _logical_and_expression_t));
+    expr->tag = tag;
+    if (tag != AST_LOGICAL_AND_EXPRESSION) {
+        AST_TAG_ERR(expr);
+        exit(1);
+    }
+    expr->logical_and_expr.lhs = lhs;
+    expr->logical_and_expr.rhs = rhs;
+    expr->parent = (baseAST) {
+        .position = pos,
+        .print_tree = logic_and_expr_print,
+        .free_tree = logic_and_expr_free,
+        .validate_tree = logic_and_expr_validate
+    };
+    return expr;
+}
+
+#pragma endregion
+
+#pragma region LogicalOrExpression
+
+static void logic_or_expr_print(void *self, FILE *io_out, int indent) {
+    LogicalOrExpression expr = self;
+    write_indent(io_out, indent);
+    fprintf(io_out, "LogicalOrExpr(\n");
+    switch (expr->tag) {
+        case AST_LOGICAL_AND_EXPRESSION: {
+            BASE_AST(expr->logical_and_expr, print_tree, io_out, indent + 1);
+        } break;
+        case AST_LOGICAL_OR_EXPRESSION: {
+            BASE_AST(expr->logical_or_expr.lhs, print_tree, io_out, indent + 1);
+            BASE_AST(expr->logical_or_expr.rhs, print_tree, io_out, indent + 1);
+        } break;
+        default: {
+            AST_TAG_ERR(expr);
+            exit(1);
+        }
+    }
+    write_indent(io_out, indent);
+    fprintf(io_out, ")\n");
+}
+
+static bool logic_or_expr_validate(void *self) {
+    LogicalOrExpression expr = self;
+    bool ret = true;
+    switch (expr->tag) {
+        case AST_LOGICAL_AND_EXPRESSION: {
+            ret &= BASE_AST(expr->logical_and_expr, validate_tree);
+        } break;
+        case AST_LOGICAL_OR_EXPRESSION: {
+            ret &= BASE_AST(expr->logical_or_expr.lhs, validate_tree);
+            ret &= BASE_AST(expr->logical_or_expr.rhs, validate_tree);
+        } break;
+        default: {
+            ret = false;
+            VALIDATION_ERR("Invalid tag (%d)", expr->tag);
+        }
+    }
+    return ret;
+}
+
+static void logic_or_expr_free(void *self) {
+    LogicalOrExpression expr = self;
+    switch (expr->tag) {
+        case AST_LOGICAL_AND_EXPRESSION: {
+            BASE_AST(expr->logical_and_expr, free_tree);
+        } break;
+        case AST_LOGICAL_OR_EXPRESSION: {
+            BASE_AST(expr->logical_or_expr.lhs, free_tree);
+            BASE_AST(expr->logical_or_expr.rhs, free_tree);
+        } break;
+        default: {
+            AST_TAG_ERR(expr);
+            exit(1);
+        }
+    }
+    free(expr);
+}
+
+LogicalOrExpression ast_new_logic_or_expr_short(lineRange pos, LogicalAndExpression logic_and_expr, TypeTagAST tag) {
+    LogicalOrExpression expr = malloc(sizeof(struct _logical_or_expression_t));
+    expr->tag = tag;
+    if (tag != AST_LOGICAL_AND_EXPRESSION) {
+        AST_TAG_ERR(expr);
+        exit(1);
+    }
+    expr->logical_and_expr = logic_and_expr;
+    expr->parent = (baseAST) {
+        .position = pos,
+        .print_tree = logic_or_expr_print,
+        .free_tree = logic_or_expr_free,
+        .validate_tree = logic_or_expr_validate
+    };
+    return expr;
+}
+
+LogicalOrExpression ast_new_logic_or_expr(lineRange pos, LogicalOrExpression lhs, LogicalAndExpression rhs, TypeTagAST tag) {
+    LogicalOrExpression expr = malloc(sizeof(struct _logical_or_expression_t));
+    expr->tag = tag;
+    if (tag != AST_LOGICAL_OR_EXPRESSION) {
+        AST_TAG_ERR(expr);
+        exit(1);
+    }
+    expr->logical_or_expr.lhs = lhs;
+    expr->logical_or_expr.rhs = rhs;
+    expr->parent = (baseAST) {
+        .position = pos,
+        .print_tree = logic_or_expr_print,
+        .free_tree = logic_or_expr_free,
+        .validate_tree = logic_or_expr_validate
+    };
+    return expr;
+}
 
 ConditionalExpression ast_new_conditional_expr(lineRange pos, LogicalOrExpression expr);
 
