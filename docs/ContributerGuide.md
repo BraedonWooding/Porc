@@ -16,4 +16,72 @@ Basically `token_list` just contains each token (comma separated) basically for 
 
 Whereas `token_data` contains conversions both from string to tokens and backwards (both the 'name' format and a more typical 'output format' i.e. name being `TOK_EQL` and 'output' being `=`) we use an in-memory trie for conversions (both for efficiency, ease of use and just simplicitly).
 
-We store more than a typical tokenizer for example TOK_INT stores an int and TOK_FLT stores a floating point, TOK_STR and TOK_CHAR store strings/chars respectively, this mainly just makes parsing easier with the only caveat being that we have to have a special case for `.` that is if you have `.l` it is separate tokens (`.` and `l` - with any sequence of letters being identifiers) where as `.0` is a valid float, luckily it is pretty easy for us to determine valid floats and having just `.` is invalid as a float so it can't be the last character before EOF so we can just omit a syntax erorr in that case.
+`token_data` also stores the ability to match against tokens very easiily (though sadly we have to basically do a memcmp(0) since we avoid pointers - I'm looking at ways to perhaps improve this probably using unique_ptrs or similar).  This is basically by representing a trie in static memory.
+
+> Note: the want to improve it is not for efficiency reasons (a double ptr comparison is negligible) but more for readability purposes.
+
+## AST
+
+Token stream gets converted to an AST, this AST is a recursive like structure (which is unoptimal for optimisations) since expressions like; `1 + 1 * (2 + 4 / 2)` have a lot of folding.
+
+> Terminology note: 'folding' is where you have something like this `ConditionalExpr(LogicalOrExpr(LogicalAndExpr(AdditiveExpr(...Constant(1)))))` where a very simple AST node is complicated due to a complex tree structure.
+
+## AST Flattening
+
+We flatten all math operations to a special type of AST node optimised specifically for math, this allows much easier optimisation and code generation.
+
+`(1 + x + 1) * (2 * 4 - y + 1 / z / y())` =>
+
+For example the AST will look something like this before flattening (excluding folding);
+
+> Note: representing constants/identifiers as `x`, `1` and so on...
+
+```rust
+MultiplicationExpr(
+    Parentheses(AdditionExpr(
+        AdditionExpr(1, x),
+        1
+    )),
+    Parentheses(AdditionExpr(
+        SubtractionExpr(
+            MultiplicationExpr(2, 4),
+            y
+        ),
+        DivisionExpr(DivisionExpr(1, z), FuncCall(y))
+    ))
+)
+```
+
+We can then make this even better to optimise like (flattening it);
+
+```rust
+MultiplicationExpr(
+    // see here: how we can have multiple in a group
+    // the extraneous group is removed here
+    AdditionExprGroup(1, x, 1),
+    MathGroup(
+        Add(
+            Sub(
+                Times(2, 4),
+            y
+        )
+        )
+        Times(2, 4)
+        Sub(y)
+        Add(Div(1, z, FuncCall(y)))
+    )
+)
+```
+
+Now this is much clearer to become;
+
+```rust
+MathExpr(
+    Times(
+        Add(2, x),
+        Group(
+            Sub(8, 4)
+        )
+    )
+)
+```

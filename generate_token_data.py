@@ -54,17 +54,17 @@ def print_token(file, token, counter):
     if len(token_nodes) == 0:
         file.write(f"{tab * (counter - 1)}NULL,\n")
     else:
-        file.write(f"{tab * (counter - 1)}(const int[ASCII_SET]){{\n")
+        file.write(f"{tab * (counter - 1)}(int[]){{\n")
         for node in token_nodes:
-            file.write(f"{tab * counter}['{node[0]}'] = TOK_{node[1]},\n")
+            file.write(f"{tab * counter}['{node[0]}'] = (int)TokenType::{node[1]},\n")
         file.write(f"{tab * (counter - 1)}}},\n")
 
     if len(children_nodes) == 0:
         file.write(f"{tab * (counter - 1)}NULL,\n")
     else:
-        file.write(f"{tab * (counter - 1)}(const struct _token_set_t*[ASCII_SET]){{\n")
+        file.write(f"{tab * (counter - 1)}(TokenSet[]){{\n")
         for node in children_nodes:
-            file.write(f"{tab * counter}['{node[0]}'] = (const struct _token_set_t[1]){{\n")
+            file.write(f"{tab * counter}['{node[0]}'] = {{\n")
             print_token(file, node[1], counter + 1)
         file.write(f"{tab * (counter - 1)}}},\n")
     file.write(f"{tab * (original_counter - 1)}")
@@ -76,8 +76,8 @@ def generate(file):
     token_list.write("/* Auto Generated File */\n")
     token_data.write("/* Auto Generated File */\n")
 
-    token_data.write("static const char *tokenToStrMap[NUM_TOKENS] = {\n")
-    string_to_write = "static const char *tokenToNameMap[NUM_TOKENS] = {"
+    token_data.write("static const char *tokenToStrMap[(int)TokenType::NUM_TOKENS] = {\n")
+    string_to_write = "static const char *tokenToNameMap[(int)TokenType::NUM_TOKENS] = {"
 
     main_token = TokenSet()
 
@@ -88,10 +88,10 @@ def generate(file):
         toks = [x.strip() for x in line.split(split_on) if x]
         if toks[0] == "COMMA": toks = ["COMMA", '","']
 
-        token_list.write(f"TOK_{toks[0]},\n")
-        string_to_write += f"\n{tab}[TOK_{toks[0]}] = \"{toks[0]}\","
+        token_list.write(f"{toks[0]},\n")
+        string_to_write += f"\n{tab}[(int)TokenType::{toks[0]}] = \"{toks[0]}\","
         if len(toks) >= 2:
-            token_data.write(f"{tab}[TOK_{toks[0]}] = {toks[1]},\n")
+            token_data.write(f"{tab}[(int)TokenType::{toks[0]}] = {toks[1]},\n")
             token = toks[1].strip('"')
             # handle the case of just ws properly
             if not token: token = " "
@@ -99,12 +99,12 @@ def generate(file):
     token_data.write("};\n\n" + string_to_write + "\n};\n\n")
 
     token_data.write(
-    """typedef struct _token_set_t {
+    """struct TokenSet {
     const int *tokens;
-    const struct _token_set_t **child_tokens;
-} const *TokenSet;\n\n""")
+    const TokenSet **child_tokens;
+};\n\n""")
 
-    token_data.write(f"static const struct _token_set_t tokenFromStrMap = (struct _token_set_t){{\n")
+    token_data.write(f"static const TokenSet tokenFromStrMap = {{\n")
     print_token(token_data, main_token, 1)
 
 def main():

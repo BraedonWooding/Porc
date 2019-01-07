@@ -1,400 +1,213 @@
 /* Auto Generated File */
-static const char *tokenToStrMap[NUM_TOKENS] = {
-    [TOK_COMMA] = ",",
-    [TOK_SEMICOLON] = ";",
-    [TOK_L_PAREN] = "(",
-    [TOK_R_PAREN] = ")",
-    [TOK_L_BRACE] = "{",
-    [TOK_R_BRACE] = "}",
-    [TOK_L_BRACKET] = "[",
-    [TOK_R_BRACKET] = "]",
-    [TOK_LINE_COMMENT] = "//",
-    [TOK_BLOCK_COMMENT] = "/*",
-    [TOK_LT] = "<",
-    [TOK_GT] = ">",
-    [TOK_EQ] = "==",
-    [TOK_NEQ] = "!=",
-    [TOK_LT_EQL] = "<=",
-    [TOK_GT_EQL] = ">=",
-    [TOK_NEG] = "!",
-    [TOK_AND] = "&&",
-    [TOK_OR] = "||",
-    [TOK_INCR] = "++",
-    [TOK_DECR] = "--",
-    [TOK_ADD] = "+",
-    [TOK_SUB] = "-",
-    [TOK_DIV] = "/",
-    [TOK_MUL] = "*",
-    [TOK_POW] = "**",
-    [TOK_MOD] = "%",
-    [TOK_INT_DIV] = "%/",
-    [TOK_ASSIGN] = "=",
-    [TOK_ADD_ASSIGN] = "+=",
-    [TOK_SUB_ASSIGN] = "-=",
-    [TOK_MUL_ASSIGN] = "*=",
-    [TOK_DIV_ASSIGN] = "/=",
-    [TOK_POW_ASSIGN] = "**=",
-    [TOK_INT_DIV_ASSIGN] = "%/=",
-    [TOK_MOD_ASSIGN] = "%=",
-    [TOK_FAT_ARROW] = "=>",
-    [TOK_L_ARROW] = "<-",
-    [TOK_R_ARROW] = "->",
-    [TOK_COLON] = ":",
-    [TOK_DOUBLE_COLON] = "::",
-    [TOK_IMPLEMENTS] = "^",
-    [TOK_VARIANT] = "|",
-    [TOK_DOT] = ".",
-    [TOK_RANGE] = "..",
-    [TOK_MACRO] = "@",
-    [TOK_TERNARY] = "?",
-    [TOK_FUNC] = "fn",
-    [TOK_RETURN] = "return",
-    [TOK_WHILE] = "while",
-    [TOK_FOR] = "for",
-    [TOK_BREAK] = "break",
-    [TOK_CONTINUE] = "continue",
-    [TOK_IF] = "if",
-    [TOK_ELSE] = "else",
+static const char *tokenToStrMap[(int)TokenType::NUM_TOKENS] = {
+    [(int)TokenType::Comma] = ",",
+    [(int)TokenType::SemiColon] = ";",
+    [(int)TokenType::LeftParen] = "(",
+    [(int)TokenType::RightParen] = ")",
+    [(int)TokenType::LeftBrace] = "{",
+    [(int)TokenType::RightBrace] = "}",
+    [(int)TokenType::LeftBracket] = "[",
+    [(int)TokenType::RightBracket] = "]",
+    [(int)TokenType::LineComment] = "//",
+    [(int)TokenType::BlockComment] = "/*",
+    [(int)TokenType::LessThan] = "<",
+    [(int)TokenType::GreaterThan] = ">",
+    [(int)TokenType::Equal] = "==",
+    [(int)TokenType::NotEqual] = "!=",
+    [(int)TokenType::LessThanEqual] = "<=",
+    [(int)TokenType::GreaterThanEqual] = ">=",
+    [(int)TokenType::Negate] = "!",
+    [(int)TokenType::And] = "&&",
+    [(int)TokenType::Or] = "||",
+    [(int)TokenType::Increment] = "++",
+    [(int)TokenType::Decrement] = "--",
+    [(int)TokenType::Add] = "+",
+    [(int)TokenType::Subtract] = "-",
+    [(int)TokenType::Divide] = "/",
+    [(int)TokenType::Multiply] = "*",
+    [(int)TokenType::Power] = "**",
+    [(int)TokenType::Modulus] = "%",
+    [(int)TokenType::IntegerDivide] = "%/",
+    [(int)TokenType::Assign] = "=",
+    [(int)TokenType::AddAssign] = "+=",
+    [(int)TokenType::SubtractAssign] = "-=",
+    [(int)TokenType::MultiplyAssign] = "*=",
+    [(int)TokenType::DivideAssign] = "/=",
+    [(int)TokenType::PowerAssign] = "**=",
+    [(int)TokenType::IntegerDivideAssign] = "%/=",
+    [(int)TokenType::ModulusAssign] = "%=",
+    [(int)TokenType::FatArrow] = "=>",
+    [(int)TokenType::LeftArrow] = "<-",
+    [(int)TokenType::RightArrow] = "->",
+    [(int)TokenType::Colon] = ":",
+    [(int)TokenType::DoubleColon] = "::",
+    [(int)TokenType::Implements] = "^",
+    [(int)TokenType::Variant] = "|",
+    [(int)TokenType::Dot] = ".",
+    [(int)TokenType::Range] = "..",
+    [(int)TokenType::Macro] = "@",
+    [(int)TokenType::Ternary] = "?",
+    [(int)TokenType::Func] = "fn",
+    [(int)TokenType::Return] = "return",
+    [(int)TokenType::While] = "while",
+    [(int)TokenType::For] = "for",
+    [(int)TokenType::Break] = "break",
+    [(int)TokenType::Continue] = "continue",
+    [(int)TokenType::If] = "if",
+    [(int)TokenType::Else] = "else",
 };
 
-static const char *tokenToNameMap[NUM_TOKENS] = {
-    [TOK_UNDEFINED] = "UNDEFINED",
-    [TOK_NULL] = "NULL",
-    [TOK_BOOL] = "BOOL",
-    [TOK_IDENTIFIER] = "IDENTIFIER",
-    [TOK_STR] = "STR",
-    [TOK_FLT] = "FLT",
-    [TOK_INT] = "INT",
-    [TOK_CHAR] = "CHAR",
-    [TOK_EOF] = "EOF",
-    [TOK_COMMA] = "COMMA",
-    [TOK_SEMICOLON] = "SEMICOLON",
-    [TOK_L_PAREN] = "L_PAREN",
-    [TOK_R_PAREN] = "R_PAREN",
-    [TOK_L_BRACE] = "L_BRACE",
-    [TOK_R_BRACE] = "R_BRACE",
-    [TOK_L_BRACKET] = "L_BRACKET",
-    [TOK_R_BRACKET] = "R_BRACKET",
-    [TOK_LINE_COMMENT] = "LINE_COMMENT",
-    [TOK_BLOCK_COMMENT] = "BLOCK_COMMENT",
-    [TOK_LT] = "LT",
-    [TOK_GT] = "GT",
-    [TOK_EQ] = "EQ",
-    [TOK_NEQ] = "NEQ",
-    [TOK_LT_EQL] = "LT_EQL",
-    [TOK_GT_EQL] = "GT_EQL",
-    [TOK_NEG] = "NEG",
-    [TOK_AND] = "AND",
-    [TOK_OR] = "OR",
-    [TOK_INCR] = "INCR",
-    [TOK_DECR] = "DECR",
-    [TOK_ADD] = "ADD",
-    [TOK_SUB] = "SUB",
-    [TOK_DIV] = "DIV",
-    [TOK_MUL] = "MUL",
-    [TOK_POW] = "POW",
-    [TOK_MOD] = "MOD",
-    [TOK_INT_DIV] = "INT_DIV",
-    [TOK_ASSIGN] = "ASSIGN",
-    [TOK_ADD_ASSIGN] = "ADD_ASSIGN",
-    [TOK_SUB_ASSIGN] = "SUB_ASSIGN",
-    [TOK_MUL_ASSIGN] = "MUL_ASSIGN",
-    [TOK_DIV_ASSIGN] = "DIV_ASSIGN",
-    [TOK_POW_ASSIGN] = "POW_ASSIGN",
-    [TOK_INT_DIV_ASSIGN] = "INT_DIV_ASSIGN",
-    [TOK_MOD_ASSIGN] = "MOD_ASSIGN",
-    [TOK_FAT_ARROW] = "FAT_ARROW",
-    [TOK_L_ARROW] = "L_ARROW",
-    [TOK_R_ARROW] = "R_ARROW",
-    [TOK_COLON] = "COLON",
-    [TOK_DOUBLE_COLON] = "DOUBLE_COLON",
-    [TOK_IMPLEMENTS] = "IMPLEMENTS",
-    [TOK_VARIANT] = "VARIANT",
-    [TOK_DOT] = "DOT",
-    [TOK_RANGE] = "RANGE",
-    [TOK_MACRO] = "MACRO",
-    [TOK_TERNARY] = "TERNARY",
-    [TOK_FUNC] = "FUNC",
-    [TOK_RETURN] = "RETURN",
-    [TOK_WHILE] = "WHILE",
-    [TOK_FOR] = "FOR",
-    [TOK_BREAK] = "BREAK",
-    [TOK_CONTINUE] = "CONTINUE",
-    [TOK_IF] = "IF",
-    [TOK_ELSE] = "ELSE",
+static const char *tokenToNameMap[(int)TokenType::NUM_TOKENS] = {
+    [(int)TokenType::Undefined] = "Undefined",
+    [(int)TokenType::Nil] = "Nil",
+    [(int)TokenType::Bool] = "Bool",
+    [(int)TokenType::Identifier] = "Identifier",
+    [(int)TokenType::Str] = "Str",
+    [(int)TokenType::Flt] = "Flt",
+    [(int)TokenType::Int] = "Int",
+    [(int)TokenType::Char] = "Char",
+    [(int)TokenType::EndOfFile] = "EndOfFile",
+    [(int)TokenType::Comma] = "Comma",
+    [(int)TokenType::SemiColon] = "SemiColon",
+    [(int)TokenType::LeftParen] = "LeftParen",
+    [(int)TokenType::RightParen] = "RightParen",
+    [(int)TokenType::LeftBrace] = "LeftBrace",
+    [(int)TokenType::RightBrace] = "RightBrace",
+    [(int)TokenType::LeftBracket] = "LeftBracket",
+    [(int)TokenType::RightBracket] = "RightBracket",
+    [(int)TokenType::LineComment] = "LineComment",
+    [(int)TokenType::BlockComment] = "BlockComment",
+    [(int)TokenType::LessThan] = "LessThan",
+    [(int)TokenType::GreaterThan] = "GreaterThan",
+    [(int)TokenType::Equal] = "Equal",
+    [(int)TokenType::NotEqual] = "NotEqual",
+    [(int)TokenType::LessThanEqual] = "LessThanEqual",
+    [(int)TokenType::GreaterThanEqual] = "GreaterThanEqual",
+    [(int)TokenType::Negate] = "Negate",
+    [(int)TokenType::And] = "And",
+    [(int)TokenType::Or] = "Or",
+    [(int)TokenType::Increment] = "Increment",
+    [(int)TokenType::Decrement] = "Decrement",
+    [(int)TokenType::Add] = "Add",
+    [(int)TokenType::Subtract] = "Subtract",
+    [(int)TokenType::Divide] = "Divide",
+    [(int)TokenType::Multiply] = "Multiply",
+    [(int)TokenType::Power] = "Power",
+    [(int)TokenType::Modulus] = "Modulus",
+    [(int)TokenType::IntegerDivide] = "IntegerDivide",
+    [(int)TokenType::Assign] = "Assign",
+    [(int)TokenType::AddAssign] = "AddAssign",
+    [(int)TokenType::SubtractAssign] = "SubtractAssign",
+    [(int)TokenType::MultiplyAssign] = "MultiplyAssign",
+    [(int)TokenType::DivideAssign] = "DivideAssign",
+    [(int)TokenType::PowerAssign] = "PowerAssign",
+    [(int)TokenType::IntegerDivideAssign] = "IntegerDivideAssign",
+    [(int)TokenType::ModulusAssign] = "ModulusAssign",
+    [(int)TokenType::FatArrow] = "FatArrow",
+    [(int)TokenType::LeftArrow] = "LeftArrow",
+    [(int)TokenType::RightArrow] = "RightArrow",
+    [(int)TokenType::Colon] = "Colon",
+    [(int)TokenType::DoubleColon] = "DoubleColon",
+    [(int)TokenType::Implements] = "Implements",
+    [(int)TokenType::Variant] = "Variant",
+    [(int)TokenType::Dot] = "Dot",
+    [(int)TokenType::Range] = "Range",
+    [(int)TokenType::Macro] = "Macro",
+    [(int)TokenType::Ternary] = "Ternary",
+    [(int)TokenType::Func] = "Func",
+    [(int)TokenType::Return] = "Return",
+    [(int)TokenType::While] = "While",
+    [(int)TokenType::For] = "For",
+    [(int)TokenType::Break] = "Break",
+    [(int)TokenType::Continue] = "Continue",
+    [(int)TokenType::If] = "If",
+    [(int)TokenType::Else] = "Else",
 };
 
-typedef struct _token_set_t {
-    const int *tokens;
-    const struct _token_set_t **child_tokens;
-} const *TokenSet;
+struct TokenSet {
+    int *tokens;
+    TokenSet *child_tokens;
+};
 
-static const struct _token_set_t tokenFromStrMap = (struct _token_set_t){
-    (const int[ASCII_SET]){
-        [','] = TOK_COMMA,
-        [';'] = TOK_SEMICOLON,
-        ['('] = TOK_L_PAREN,
-        [')'] = TOK_R_PAREN,
-        ['{'] = TOK_L_BRACE,
-        ['}'] = TOK_R_BRACE,
-        ['['] = TOK_L_BRACKET,
-        [']'] = TOK_R_BRACKET,
-        ['<'] = TOK_LT,
-        ['>'] = TOK_GT,
-        ['!'] = TOK_NEG,
-        ['+'] = TOK_ADD,
-        ['-'] = TOK_SUB,
-        ['/'] = TOK_DIV,
-        ['*'] = TOK_MUL,
-        ['%'] = TOK_MOD,
-        ['='] = TOK_ASSIGN,
-        [':'] = TOK_COLON,
-        ['^'] = TOK_IMPLEMENTS,
-        ['|'] = TOK_VARIANT,
-        ['.'] = TOK_DOT,
-        ['@'] = TOK_MACRO,
-        ['?'] = TOK_TERNARY,
+static const TokenSet tokenFromStrMap = {
+    (int[ASCII_SET]){
+        [','] = (int)TokenType::Comma,
+        [';'] = (int)TokenType::SemiColon,
+        ['('] = (int)TokenType::LeftParen,
+        [')'] = (int)TokenType::RightParen,
+        ['{'] = (int)TokenType::LeftBrace,
+        ['}'] = (int)TokenType::RightBrace,
+        ['['] = (int)TokenType::LeftBracket,
+        [']'] = (int)TokenType::RightBracket,
+        ['<'] = (int)TokenType::LessThan,
+        ['>'] = (int)TokenType::GreaterThan,
+        ['!'] = (int)TokenType::Negate,
+        ['+'] = (int)TokenType::Add,
+        ['-'] = (int)TokenType::Subtract,
+        ['/'] = (int)TokenType::Divide,
+        ['*'] = (int)TokenType::Multiply,
+        ['%'] = (int)TokenType::Modulus,
+        ['='] = (int)TokenType::Assign,
+        [':'] = (int)TokenType::Colon,
+        ['^'] = (int)TokenType::Implements,
+        ['|'] = (int)TokenType::Variant,
+        ['.'] = (int)TokenType::Dot,
+        ['@'] = (int)TokenType::Macro,
+        ['?'] = (int)TokenType::Ternary,
     },
-    (const struct _token_set_t*[ASCII_SET]){
-        ['/'] = (const struct _token_set_t[1]){
-            (const int[ASCII_SET]){
-                ['/'] = TOK_LINE_COMMENT,
-                ['*'] = TOK_BLOCK_COMMENT,
-                ['='] = TOK_DIV_ASSIGN,
+    (TokenSet[ASCII_SET]){
+        ['/'] = {
+            (int[ASCII_SET]){
+                ['/'] = (int)TokenType::LineComment,
+                ['*'] = (int)TokenType::BlockComment,
+                ['='] = (int)TokenType::DivideAssign,
             },
             NULL,
         },
-        ['='] = (const struct _token_set_t[1]){
-            (const int[ASCII_SET]){
-                ['='] = TOK_EQ,
-                ['>'] = TOK_FAT_ARROW,
+        ['='] = {
+            (int[ASCII_SET]){
+                ['='] = (int)TokenType::Equal,
+                ['>'] = (int)TokenType::FatArrow,
             },
             NULL,
         },
-        ['!'] = (const struct _token_set_t[1]){
-            (const int[ASCII_SET]){
-                ['='] = TOK_NEQ,
+        ['!'] = {
+            (int[ASCII_SET]){
+                ['='] = (int)TokenType::NotEqual,
             },
             NULL,
         },
-        ['<'] = (const struct _token_set_t[1]){
-            (const int[ASCII_SET]){
-                ['='] = TOK_LT_EQL,
-                ['-'] = TOK_L_ARROW,
+        ['<'] = {
+            (int[ASCII_SET]){
+                ['='] = (int)TokenType::LessThanEqual,
+                ['-'] = (int)TokenType::LeftArrow,
             },
             NULL,
         },
-        ['>'] = (const struct _token_set_t[1]){
-            (const int[ASCII_SET]){
-                ['='] = TOK_GT_EQL,
+        ['>'] = {
+            (int[ASCII_SET]){
+                ['='] = (int)TokenType::GreaterThanEqual,
             },
             NULL,
         },
-        ['&'] = (const struct _token_set_t[1]){
-            (const int[ASCII_SET]){
-                ['&'] = TOK_AND,
+        ['&'] = {
+            (int[ASCII_SET]){
+                ['&'] = (int)TokenType::And,
             },
             NULL,
         },
-        ['|'] = (const struct _token_set_t[1]){
-            (const int[ASCII_SET]){
-                ['|'] = TOK_OR,
+        ['|'] = {
+            (int[ASCII_SET]){
+                ['|'] = (int)TokenType::Or,
             },
             NULL,
         },
-        ['+'] = (const struct _token_set_t[1]){
-            (const int[ASCII_SET]){
-                ['+'] = TOK_INCR,
-                ['='] = TOK_ADD_ASSIGN,
+        ['+'] = {
+            (int[ASCII_SET]){
+                ['+'] = (int)TokenType::Increment,
+                ['='] = (int)TokenType::AddAssign,
             },
             NULL,
-        },
-        ['-'] = (const struct _token_set_t[1]){
-            (const int[ASCII_SET]){
-                ['-'] = TOK_DECR,
-                ['='] = TOK_SUB_ASSIGN,
-                ['>'] = TOK_R_ARROW,
-            },
-            NULL,
-        },
-        ['*'] = (const struct _token_set_t[1]){
-            (const int[ASCII_SET]){
-                ['*'] = TOK_POW,
-                ['='] = TOK_MUL_ASSIGN,
-            },
-            (const struct _token_set_t*[ASCII_SET]){
-                ['*'] = (const struct _token_set_t[1]){
-                    (const int[ASCII_SET]){
-                        ['='] = TOK_POW_ASSIGN,
-                    },
-                    NULL,
-                },
-            },
-        },
-        ['%'] = (const struct _token_set_t[1]){
-            (const int[ASCII_SET]){
-                ['/'] = TOK_INT_DIV,
-                ['='] = TOK_MOD_ASSIGN,
-            },
-            (const struct _token_set_t*[ASCII_SET]){
-                ['/'] = (const struct _token_set_t[1]){
-                    (const int[ASCII_SET]){
-                        ['='] = TOK_INT_DIV_ASSIGN,
-                    },
-                    NULL,
-                },
-            },
-        },
-        [':'] = (const struct _token_set_t[1]){
-            (const int[ASCII_SET]){
-                [':'] = TOK_DOUBLE_COLON,
-            },
-            NULL,
-        },
-        ['.'] = (const struct _token_set_t[1]){
-            (const int[ASCII_SET]){
-                ['.'] = TOK_RANGE,
-            },
-            NULL,
-        },
-        ['f'] = (const struct _token_set_t[1]){
-            (const int[ASCII_SET]){
-                ['n'] = TOK_FUNC,
-            },
-            (const struct _token_set_t*[ASCII_SET]){
-                ['o'] = (const struct _token_set_t[1]){
-                    (const int[ASCII_SET]){
-                        ['r'] = TOK_FOR,
-                    },
-                    NULL,
-                },
-            },
-        },
-        ['r'] = (const struct _token_set_t[1]){
-            NULL,
-            (const struct _token_set_t*[ASCII_SET]){
-                ['e'] = (const struct _token_set_t[1]){
-                    NULL,
-                    (const struct _token_set_t*[ASCII_SET]){
-                        ['t'] = (const struct _token_set_t[1]){
-                            NULL,
-                            (const struct _token_set_t*[ASCII_SET]){
-                                ['u'] = (const struct _token_set_t[1]){
-                                    NULL,
-                                    (const struct _token_set_t*[ASCII_SET]){
-                                        ['r'] = (const struct _token_set_t[1]){
-                                            (const int[ASCII_SET]){
-                                                ['n'] = TOK_RETURN,
-                                            },
-                                            NULL,
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-            },
-        },
-        ['w'] = (const struct _token_set_t[1]){
-            NULL,
-            (const struct _token_set_t*[ASCII_SET]){
-                ['h'] = (const struct _token_set_t[1]){
-                    NULL,
-                    (const struct _token_set_t*[ASCII_SET]){
-                        ['i'] = (const struct _token_set_t[1]){
-                            NULL,
-                            (const struct _token_set_t*[ASCII_SET]){
-                                ['l'] = (const struct _token_set_t[1]){
-                                    (const int[ASCII_SET]){
-                                        ['e'] = TOK_WHILE,
-                                    },
-                                    NULL,
-                                },
-                            },
-                        },
-                    },
-                },
-            },
-        },
-        ['b'] = (const struct _token_set_t[1]){
-            NULL,
-            (const struct _token_set_t*[ASCII_SET]){
-                ['r'] = (const struct _token_set_t[1]){
-                    NULL,
-                    (const struct _token_set_t*[ASCII_SET]){
-                        ['e'] = (const struct _token_set_t[1]){
-                            NULL,
-                            (const struct _token_set_t*[ASCII_SET]){
-                                ['a'] = (const struct _token_set_t[1]){
-                                    (const int[ASCII_SET]){
-                                        ['k'] = TOK_BREAK,
-                                    },
-                                    NULL,
-                                },
-                            },
-                        },
-                    },
-                },
-            },
-        },
-        ['c'] = (const struct _token_set_t[1]){
-            NULL,
-            (const struct _token_set_t*[ASCII_SET]){
-                ['o'] = (const struct _token_set_t[1]){
-                    NULL,
-                    (const struct _token_set_t*[ASCII_SET]){
-                        ['n'] = (const struct _token_set_t[1]){
-                            NULL,
-                            (const struct _token_set_t*[ASCII_SET]){
-                                ['t'] = (const struct _token_set_t[1]){
-                                    NULL,
-                                    (const struct _token_set_t*[ASCII_SET]){
-                                        ['i'] = (const struct _token_set_t[1]){
-                                            NULL,
-                                            (const struct _token_set_t*[ASCII_SET]){
-                                                ['n'] = (const struct _token_set_t[1]){
-                                                    NULL,
-                                                    (const struct _token_set_t*[ASCII_SET]){
-                                                        ['u'] = (const struct _token_set_t[1]){
-                                                            (const int[ASCII_SET]){
-                                                                ['e'] = TOK_CONTINUE,
-                                                            },
-                                                            NULL,
-                                                        },
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-            },
-        },
-        ['i'] = (const struct _token_set_t[1]){
-            (const int[ASCII_SET]){
-                ['f'] = TOK_IF,
-            },
-            NULL,
-        },
-        ['e'] = (const struct _token_set_t[1]){
-            NULL,
-            (const struct _token_set_t*[ASCII_SET]){
-                ['l'] = (const struct _token_set_t[1]){
-                    NULL,
-                    (const struct _token_set_t*[ASCII_SET]){
-                        ['s'] = (const struct _token_set_t[1]){
-                            (const int[ASCII_SET]){
-                                ['e'] = TOK_ELSE,
-                            },
-                            NULL,
-                        },
-                    },
-                },
-            },
         },
     },
 };

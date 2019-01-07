@@ -1,10 +1,8 @@
-#ifndef PARSER_H
-#define PARSER_H
+#ifndef PARSER_HPP
+#define PARSER_HPP
 
-#include "tokenizer.h"
-#include "ast.h"
-#include "err.h"
-#include "option.h"
+#include "tokenizer.hpp"
+#include "ast.hpp"
 
 typedef struct _parser_state_t {
     Tokenizer tok;

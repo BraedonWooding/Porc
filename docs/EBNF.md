@@ -1,5 +1,14 @@
 # EBNF
 
+## TODO
+
+Small todo section
+
+- `where`
+- `block` on while/for can be empty
+
+## Actual grammar
+
 This is more to make sure we something to make sure our parser is consistent.
 
 A few notes:
@@ -195,7 +204,8 @@ type_member
     ;
 
 type_expression
-    : type_member ['|' type_expression] ['^' type_expression]
+    : type_member
+    | type_expression ['|' type_member] ['^' type_member]
     ;
 
 func_definition

@@ -60,6 +60,10 @@ CMakeFiles/
 # Test stuff
 *.result
 tmp/
+*.tmp
+build/
+release/
+debug/
 
 # configuration files
 .vscode/

@@ -5,81 +5,80 @@
 // It will generate the appropriate data classes given the tags
 
 // Void Tokens
-UNDEFINED
-NULL
-BOOL
+Undefined
+Nil
+Bool
 // variable or function name or macro or something
-IDENTIFIER
-STR
-FLT
-INT
-CHAR
-EOF
+Identifier
+Str
+Flt
+Int
+Char
+EndOfFile
 
 // punctuation
-COMMA			","
-SEMICOLON		";"
-L_PAREN			"("
-R_PAREN			")"
-L_BRACE			"{"
-R_BRACE 		"}"
-L_BRACKET		"["
-R_BRACKET		"]"
-LINE_COMMENT	"//"
-BLOCK_COMMENT	"/*"
+Comma				","
+SemiColon			";"
+LeftParen			"("
+RightParen			")"
+LeftBrace			"{"
+RightBrace 			"}"
+LeftBracket			"["
+RightBracket		"]"
+LineComment			"//"
+BlockComment		"/*"
 
 // comparison
-LT				"<"
-GT				">"
-EQ 				"=="
-NEQ				"!="
-LT_EQL			"<="
-GT_EQL			">="
-NEG				"!"
-AND				"&&"
-OR				"||"
+LessThan			"<"
+GreaterThan			">"
+Equal				"=="
+NotEqual			"!="
+LessThanEqual		"<="
+GreaterThanEqual	">="
+Negate				"!"
+And					"&&"
+Or					"||"
 
 // math
-INCR			"++"
-DECR			"--"
-ADD				"+"
-SUB				"-"
-DIV				"/"
-MUL				"*"
-POW				"**"
-MOD				"%"
-INT_DIV			"%/"
+Increment			"++"
+Decrement			"--"
+Add 				"+"
+Subtract			"-"
+Divide				"/"
+Multiply			"*"
+Power				"**"
+Modulus				"%"
+IntegerDivide		"%/"
 
 // assignment
-ASSIGN 			"="
-ADD_ASSIGN		"+="
-SUB_ASSIGN		"-="
-MUL_ASSIGN		"*="
-DIV_ASSIGN		"/="
-POW_ASSIGN		"**="
-INT_DIV_ASSIGN	"%/="
-MOD_ASSIGN		"%="
+Assign				"="
+AddAssign			"+="
+SubtractAssign		"-="
+MultiplyAssign		"*="
+DivideAssign		"/="
+PowerAssign			"**="
+IntegerDivideAssign	"%/="
+ModulusAssign		"%="
 
 // Special Symbols
-FAT_ARROW		"=>"
-L_ARROW			"<-"
-R_ARROW			"->"
-COLON			":"
-DOUBLE_COLON	"::"
-IMPLEMENTS		"^"
-VARIANT			"|"
-DOT				"."
-RANGE			".."
-MACRO			"@"
-TERNARY			"?"
+FatArrow			"=>"
+LeftArrow			"<-"
+RightArrow			"->"
+Colon				":"
+DoubleColon 		"::"
+Implements			"^"
+Variant				"|"
+Dot					"."
+Range				".."
+Macro				"@"
+Ternary				"?"
 
 // Reserved names
-FUNC			"fn"
-RETURN			"return"
-WHILE			"while"
-FOR				"for"
-BREAK			"break"
-CONTINUE		"continue"
-IF				"if"
-ELSE			"else"
-
+Func				"fn"
+Return				"return"
+While				"while"
+For					"for"
+Break				"break"
+Continue			"continue"
+If					"if"
+Else				"else"
