@@ -4,41 +4,44 @@
 #include "tokenizer.hpp"
 #include "ast.hpp"
 
-typedef struct _parser_state_t {
+class Parser {
+private:
     Tokenizer tok;
-} *ParserState;
 
-ParserState parser_new(Tokenizer tok);
-Result(FileLevelExpression) parse_file_level_expr(ParserState state);
-Result(TopLevelExpression) parse_top_level_expr(ParserState state);
-Result(PrimaryExpression) parser_primary_expr(ParserState state);
-Result(AssignmentExpression) parser_assignment_expr(ParserState state);
-Result(FuncCall) parser_func_call(ParserState state);
-Result(PostfixExpression) parser_postfix_expr(ParserState state);
-Result(UnaryExpression) parser_unary_expr(ParserState state);
-Result(PowerExpression) parser_prefix_expr(ParserState state);
-Result(MultiplicativeExpression) parse_multiplicative_expr(ParserState state);
-Result(AdditiveExpression) parse_additive_expr(ParserState state);
-Result(RelationalExpression) parse_relational_expr(ParserState state);
-Result(EqualityExpression) parse_equality_expr(ParserState state);
-Result(LogicalAndExpression) parse_logical_and_expr(ParserState state);
-Result(LogicalOrExpression) parse_logical_or_expr(ParserState state);
-Result(ConditionalExpression) parse_conditional_expr(ParserState state);
-Result(Block) parse_block_expr(ParserState state);
-Result(Expression) parse_expr(ParserState state);
-Result(CompoundConditionals) parse_compound_conditionals(ParserState state);
-Result(WhileLoop) parse_while_loop(ParserState state);
-Result(ForLoop) parse_for_loop(ParserState state);
-Result(ForLoopContents) parse_for_loop_contents(ParserState state);
-Result(ElseBlock) parse_else_block(ParserState state);
-Result(IfBlock) parse_if_block(ParserState state);
-Result(TupleMember) parse_tuple_member(ParserState state);
-Result(TupleDefinition) parse_tuple_def(ParserState state);
-Result(TypeExpression) parse_type_expr(ParserState state);
-Result(TypeMember) parse_type_member(ParserState state);
-Result(FuncDefinition) parse_func_def(ParserState state);
-Result(Constant) parse_constant(ParserState state);
-Result(ArrayConstant) parse_array_constant(ParserState state);
-Result(MapConstant) parse_map_constant(ParserState state);
+public:
+    Parser(Tokenizer tok): tok(tok) {}
+
+    std::unique_ptr<FileLevelExpression> ParseFileLevelExp();
+    std::unique_ptr<TopLevelExpression> ParseTopLevelExpr();
+    std::unique_ptr<PrimaryExpression> ParserPrimaryExpr();
+    std::unique_ptr<AssignmentExpression> ParserAssignmentExpr();
+    std::unique_ptr<FuncCall> ParserFuncCall();
+    std::unique_ptr<PostfixExpression> ParserPostfixExpr();
+    std::unique_ptr<UnaryExpression> ParserUnaryExpr();
+    std::unique_ptr<PowerExpression> ParserPrefixExpr();
+    std::unique_ptr<MultiplicativeExpression> ParseMultiplicativeExpr();
+    std::unique_ptr<AdditiveExpression> ParseAdditiveExpr();
+    std::unique_ptr<RelationalExpression> ParseRelationalExpr();
+    std::unique_ptr<EqualityExpression> ParseEqualityExpr();
+    std::unique_ptr<LogicalAndExpression> ParseLogicalAndExpr();
+    std::unique_ptr<LogicalOrExpression> ParseLogicalOrExpr();
+    std::unique_ptr<ConditionalExpression> ParseConditionalExpr();
+    std::unique_ptr<Block> ParseBlockExpr();
+    std::unique_ptr<Expression> ParseExpr();
+    std::unique_ptr<CompoundConditional> ParseCompoundConditional();
+    std::unique_ptr<WhileLoop> ParseWhileLoop();
+    std::unique_ptr<ForLoop> ParseForLoop();
+    std::unique_ptr<ForLoopContents> ParseForLoopContents();
+    std::unique_ptr<ElseBlock> ParseElseBlock();
+    std::unique_ptr<IfBlock> ParseIfBlock();
+    std::unique_ptr<TupleMember> ParseTupleMember();
+    std::unique_ptr<TupleDefinition> ParseTupleDef();
+    std::unique_ptr<TypeExpression> ParseTypeExpr();
+    std::unique_ptr<TypeMember> ParseTypeMember();
+    std::unique_ptr<FuncDefinition> ParseFuncDef();
+    std::unique_ptr<Constant> ParseConstant();
+    std::unique_ptr<ArrayConstant> ParseArrayConstant();
+    std::unique_ptr<MapConstant> ParseMapConstant();
+};
 
 #endif

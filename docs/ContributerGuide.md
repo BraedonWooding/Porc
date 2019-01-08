@@ -28,60 +28,100 @@ Token stream gets converted to an AST, this AST is a recursive like structure (w
 
 ## AST Flattening
 
-We flatten all math operations to a special type of AST node optimised specifically for math, this allows much easier optimisation and code generation.
 
-`(1 + x + 1) * (2 * 4 - y + 1 / z / y())` =>
 
-For example the AST will look something like this before flattening (excluding folding);
+## AST Dev Modes
 
-> Note: representing constants/identifiers as `x`, `1` and so on...
+You can print out the AST in multiple formats; the three useful ones are (so far the only supported ones);
 
-```rust
-MultiplicationExpr(
-    Parentheses(AdditionExpr(
-        AdditionExpr(1, x),
-        1
-    )),
-    Parentheses(AdditionExpr(
-        SubtractionExpr(
-            MultiplicationExpr(2, 4),
-            y
-        ),
-        DivisionExpr(DivisionExpr(1, z), FuncCall(y))
-    ))
-)
+- JSON (perhaps useful since you could just parse porc files in background and use the produced AST to give some information)
+- Simplified JSON (basically no extraneous `"` looks a bit like the python AST)
+- Tree structure (prettier but not suitable for large ASTs)
+
+How these all print out is effectively the same, there is a single virtual printing function that returns a special 'string' object containing meta data about the class.  For example if you had the code `println("Hello World the numbers 1 + 1 = ${1 + 1}, which is amazing!");` it may form the following object meta data (json rep);
+
+```json
+{
+    // the name of the object
+    "name": "FuncCall",
+    "pos": [[0, 0], [0, 71]],
+    "data": [{
+        "func": "println",
+        "pos": [[0, 0], [0, 7]],
+        "args": [{
+            "name": "StringInterpolation",
+            "pos": [[0, 7], [0, 71]],
+            "data": [{
+                "name": "Constant",
+                "data": [{
+                    "type": "string",
+                    "value": "Hello World the numbers 1 + 1 = "
+                }]
+            }, {
+                "name": "AdditiveExpression",
+                "pos": [[0, 44], [0, 49]],
+                "data": {
+                    "lhs": {
+                        "name": "Constant",
+                        "pos": [[0, 46], [0, 46]],
+                        "data": [{
+                            "type": "int",
+                            "value": 1
+                        }]
+                    },
+                    "op": "+",
+                    "rhs": {
+                        "name": "Constant",
+                        "pos": [[0, 48], [0, 48]],
+                        "data": [{
+                            "type": "int",
+                            "value": 1
+                        }]
+                    }
+                }
+            }, {
+                "name": "Constant",
+                "pos": [[0, 50], [0, 71]],
+                "data": [{
+                    "type": "string",
+                    "value": ", which is amazing!"
+                }]
+            }]
+        }]
+    }]
+}
 ```
 
-We can then make this even better to optimise like (flattening it);
+Which as you can see is quite large, most of this useful in various different contexts but not all of it, so it is trimmed when converted to the formats!
+
+Basically the conversions that occur are;
+
+- For JSON: Strips away superfluous (extra) `[` `]` that can surround some maps.  As well as writes variables as `"var_name": data` rather than a much longer way (having to describe it as a type member and a lot more complexity).
+
+An example of the following program is shown in each of the outputs below;
 
 ```rust
-MultiplicationExpr(
-    // see here: how we can have multiple in a group
-    // the extraneous group is removed here
-    AdditionExprGroup(1, x, 1),
-    MathGroup(
-        Add(
-            Sub(
-                Times(2, 4),
-            y
-        )
-        )
-        Times(2, 4)
-        Sub(y)
-        Add(Div(1, z, FuncCall(y)))
-    )
-)
+number_guesser = fn (to_guess: uint, bounds: std.range) uint => {
+    guesses = 0;
+    guess = to_guess + 1;
+    while (guess != to_guess) {
+        print("Enter guess (${bounds}): ");
+        guess = uint(std.get_input());
+        if (!bounds.is_within(guess)) println("Out of bounds");
+        else {
+            guesses++;
+            if (guess == to_guess) break;
+        }
+    }
+    return guesses;
+}
+
+main = fn (void) => {
+    guesses = number_guesser(std.rand.int(0, 100), std.range(0, 100));
+    println("You got it in ${guesses}!");
+}
 ```
 
-Now this is much clearer to become;
 
-```rust
-MathExpr(
-    Times(
-        Add(2, x),
-        Group(
-            Sub(8, 4)
-        )
-    )
-)
-```
+
+

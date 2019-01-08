@@ -21,27 +21,12 @@
 #include <optional>
 #include <string>
 #include <variant>
+#include <iostream>
+#include <nlohmann/json.hpp>
 
-// more just till I lose my laziness to not add proper lines
-#define NULL_RANGE (lineRange){0}
+using json = nlohmann::json;
 
-struct LineRange {
-    size_t line_start;
-    size_t line_end;
-    size_t col_start;
-    size_t col_end;
-
-    LineRange(size_t line_start, size_t line_end, size_t col_start, size_t col_end) {
-        this->line_start = line_start;
-        this->line_end = line_end;
-        this->col_start = col_start;
-        this->col_end = col_end;
-    }
-
-    static LineRange NullRange() {
-        return LineRange(0, 0, 0, 0);
-    }
-};
+#include "printer_helpers.hpp"
 
 class BaseAST {
 protected:
@@ -50,7 +35,8 @@ public:
     LineRange pos;
 
     BaseAST() = delete;
-    void PrintTree(std::ostream &io_out, int indent);
+
+    virtual json GetMetaData() const = 0;
 };
 
 #pragma region AST_PRE_DECLARATIONS
@@ -89,60 +75,6 @@ class MapConstant;
 
 #pragma endregion
 
-// Note needed anymore
-// // @NOTE: only some of the values will be valid
-// //        for each node, validate should be called
-// //        to verify that the types are valid
-// enum class TypeTagAST {
-//     FileLevelExpression,
-//     AssignmentExpression,
-//     TopLevelExpression,
-//     PrimaryExpression,
-//     FuncCall,
-//     PostfixExpression,
-//     UnaryExpression,
-//     PowerExpression,
-//     MultiplicativeExpression,
-//     AdditiveExpression,
-//     RelationalExpression,
-//     EqualityExpression,
-//     LogicalAndExpression,
-//     LogicalOrExpression,
-//     ConditionalExpression,
-//     Block,
-//     Expression,
-//     CompoundConditionals,
-//     WhileLoop,
-//     ForLoop,
-//     ForLoopContents,
-//     ForLoopTraditional,
-//     ForLoopIn,
-//     ElseBlock,
-//     IfBlock,
-//     TupleMember,
-//     TupleDefinition,
-//     TypeExpression,
-//     TypeMember,
-//     FuncDefinition,
-//     Constant,
-//     Identifier,
-//     FuncCallLFold, // A() <- B
-//     FuncCallRFold, // B -> A()
-//     FuncDefinitionBlock,
-//     TupleDefinitionBlock,
-//     PostfixOp,
-//     PostfixMemberAccess, // A.B
-//     PostfixIndex, // A[B]
-//     PostfixSlice, // A[B:C:D]
-//     PrefixOp,
-//     Array,
-//     Map,
-//     Flt,
-//     Int,
-//     Str,
-//     Char,
-// };
-
 enum class AssignmentOp {
     AdditionEqual,
     SubtractionEqual,
@@ -154,10 +86,14 @@ enum class AssignmentOp {
     IntDivisionEqual,
 };
 
+const char *AssignmentOpToStr(AssignmentOp op);
+
 enum class PostfixOp {
     Increment,
     Decrement,
 };
+
+const char *PostfixOpToStr(PostfixOp op);
 
 enum class PrefixOp {
     Negate,
@@ -167,6 +103,8 @@ enum class PrefixOp {
     Decrement,
 };
 
+const char *PrefixOpToStr(PrefixOp op);
+
 enum class MultiplicativeOp {
     Multiplication,
     Division,
@@ -174,10 +112,14 @@ enum class MultiplicativeOp {
     IntDivision,
 };
 
+const char *MultiplicativeOpToStr(MultiplicativeOp op);
+
 enum class AdditiveOp {
     Subtraction,
     Addition,
 };
+
+const char *AdditiveOpToStr(AdditiveOp op);
 
 enum class RelationalOp {
     GreaterThan,
@@ -186,10 +128,14 @@ enum class RelationalOp {
     LessThanEqual,
 };
 
+const char *RelationalOpToStr(RelationalOp op);
+
 enum class EqualityOp {
     Equal,
     NotEqual,
 };
+
+const char *EqualityOpToStr(EqualityOp op);
 
 class FileLevelExpression: public BaseAST {
 public:
@@ -197,6 +143,8 @@ public:
 
     FileLevelExpression(LineRange pos, std::vector<std::unique_ptr<TopLevelExpression>> exprs):
         expressions(std::move(exprs)), BaseAST(pos) {}
+
+    json GetMetaData() const;
 };
 
 class TopLevelExpression: public BaseAST {
@@ -207,6 +155,8 @@ public:
     bool ret; // 'return' expression
 
     TopLevelExpression(LineRange pos, ExprType expr, bool ret): BaseAST(pos), ret(ret), expr(std::move(expr)) {}
+
+    json GetMetaData() const;
 };
 
 class PrimaryExpression: public BaseAST {
@@ -217,6 +167,8 @@ public:
 
     template<typename T>
     PrimaryExpression(LineRange pos, T arg): BaseAST(pos), expr(std::move(arg)) {}
+
+    json GetMetaData() const;
 };
 
 class AssignmentExpression: public BaseAST {
@@ -231,6 +183,8 @@ public:
 
     AssignmentExpression(LineRange pos, std::unique_ptr<Expression> lhs, AssignmentOp op, std::unique_ptr<Expression> rhs):
         expr(std::make_tuple(std::move(lhs), op, std::move(rhs))), BaseAST(pos) {}
+
+    json GetMetaData() const;
 };
 
 class FuncCall: public BaseAST {
@@ -240,6 +194,8 @@ public:
 
     FuncCall(LineRange pos, std::unique_ptr<PostfixExpression> expr, std::vector<std::unique_ptr<Expression>> args):
         BaseAST(pos), func(std::move(expr)), args(std::move(args)) {}
+
+    json GetMetaData() const;
 };
 
 class PostfixExpression: public BaseAST {
@@ -276,6 +232,8 @@ public:
 
     PostfixExpression(LineRange pos, std::string str, std::vector<std::string> sub_strs):
         BaseAST(pos), expr(std::make_tuple(str, sub_strs)) {}
+
+    json GetMetaData() const;
 };
 
 class UnaryExpression: public BaseAST {
@@ -286,6 +244,8 @@ public:
 
     UnaryExpression(LineRange pos, std::unique_ptr<PostfixExpression> expr): expr(std::move(expr)), BaseAST(pos) {}
     UnaryExpression(LineRange pos, std::unique_ptr<UnaryExpression> unary, PrefixOp op): expr(std::make_tuple(std::move(unary), op)), BaseAST(pos) {}
+
+    json GetMetaData() const;
 };
 
 class PowerExpression: public BaseAST {
@@ -296,6 +256,8 @@ public:
 
     PowerExpression(LineRange pos, std::unique_ptr<UnaryExpression> expr): expr(std::move(expr)), BaseAST(pos) {}
     PowerExpression(LineRange pos, std::unique_ptr<PowerExpression> lhs, std::unique_ptr<UnaryExpression> rhs): expr(std::make_tuple(std::move(lhs), std::move(rhs))), BaseAST(pos) {}
+
+    json GetMetaData() const;
 };
 
 class MultiplicativeExpression: public BaseAST {
@@ -306,6 +268,8 @@ public:
 
     MultiplicativeExpression(LineRange pos, std::unique_ptr<PowerExpression> expr): expr(std::move(expr)), BaseAST(pos) {}
     MultiplicativeExpression(LineRange pos, std::unique_ptr<MultiplicativeExpression> lhs, MultiplicativeOp op, std::unique_ptr<PowerExpression> rhs): expr(std::make_tuple(std::move(lhs), op, std::move(rhs))), BaseAST(pos) {}
+
+    json GetMetaData() const;
 };
 
 class AdditiveExpression: public BaseAST {
@@ -316,6 +280,8 @@ public:
 
     AdditiveExpression(LineRange pos, std::unique_ptr<MultiplicativeExpression> expr): expr(std::move(expr)), BaseAST(pos) {}
     AdditiveExpression(LineRange pos, std::unique_ptr<AdditiveExpression> lhs, AdditiveOp op, std::unique_ptr<MultiplicativeExpression> rhs): expr(std::make_tuple(std::move(lhs), op, std::move(rhs))), BaseAST(pos) {}
+
+    json GetMetaData() const;
 };
 
 class RelationalExpression: public BaseAST {
@@ -326,6 +292,8 @@ public:
 
     RelationalExpression(LineRange pos, std::unique_ptr<AdditiveExpression> expr): expr(std::move(expr)), BaseAST(pos) {}
     RelationalExpression(LineRange pos, std::unique_ptr<RelationalExpression> lhs, RelationalOp op, std::unique_ptr<AdditiveExpression> rhs): expr(std::make_tuple(std::move(lhs), op, std::move(rhs))), BaseAST(pos) {}
+
+    json GetMetaData() const;
 };
 
 class EqualityExpression: public BaseAST {
@@ -336,6 +304,8 @@ public:
 
     EqualityExpression(LineRange pos, std::unique_ptr<RelationalExpression> expr): expr(std::move(expr)), BaseAST(pos) {}
     EqualityExpression(LineRange pos, std::unique_ptr<EqualityExpression> lhs, EqualityOp op, std::unique_ptr<RelationalExpression> rhs): expr(std::make_tuple(std::move(lhs), op, std::move(rhs))), BaseAST(pos) {}
+
+    json GetMetaData() const;
 };
 
 class LogicalAndExpression: public BaseAST {
@@ -346,6 +316,8 @@ public:
 
     LogicalAndExpression(LineRange pos, std::unique_ptr<EqualityExpression> expr): expr(std::move(expr)), BaseAST(pos) {}
     LogicalAndExpression(LineRange pos, std::unique_ptr<LogicalAndExpression> lhs, std::unique_ptr<EqualityExpression> rhs): expr(std::make_tuple(std::move(lhs), std::move(rhs))), BaseAST(pos) {}
+
+    json GetMetaData() const;
 };
 
 class LogicalOrExpression: public BaseAST {
@@ -356,6 +328,8 @@ public:
 
     LogicalOrExpression(LineRange pos, std::unique_ptr<LogicalAndExpression> expr): expr(std::move(expr)), BaseAST(pos) {}
     LogicalOrExpression(LineRange pos, std::unique_ptr<LogicalOrExpression> lhs, std::unique_ptr<LogicalAndExpression> rhs): expr(std::make_tuple(std::move(lhs), std::move(rhs))), BaseAST(pos) {}
+
+    json GetMetaData() const;
 };
 
 class ConditionalExpression: public BaseAST {
@@ -364,16 +338,16 @@ public:
     std::optional<std::unique_ptr<Expression>> ternary_true;
     std::optional<std::unique_ptr<Expression>> ternary_false;
 
-    bool IsTernary() const {
-        return this->ternary_true && this->ternary_false;
-    }
-
     ConditionalExpression(LineRange pos, std::unique_ptr<LogicalOrExpression> expr): cond(std::move(expr)),
         ternary_true(std::nullopt), ternary_false(std::nullopt), BaseAST(pos) {}
     
     ConditionalExpression(LineRange pos, std::unique_ptr<LogicalOrExpression> expr,
         std::unique_ptr<Expression> if_true, std::unique_ptr<Expression> if_false): BaseAST(pos),
             cond(std::move(expr)), ternary_true(std::move(if_true)), ternary_false(std::move(if_false)) {}
+
+    bool IsTernary() const { return this->ternary_true && this->ternary_false; }
+
+    json GetMetaData() const;
 };
 
 class Block: public BaseAST {
@@ -381,6 +355,8 @@ public:
     std::vector<std::unique_ptr<TopLevelExpression>> exprs;
 
     Block(LineRange pos, std::vector<std::unique_ptr<TopLevelExpression>> exprs): BaseAST(pos), exprs(std::move(exprs)) {}
+
+    json GetMetaData() const;
 };
 
 class Expression: public BaseAST {
@@ -396,6 +372,8 @@ public:
     template<typename T>
     Expression(LineRange pos, std::unique_ptr<T> arg, std::unique_ptr<Block> attached):
         expr(std::make_tuple(std::move(arg), std::move(attached))), BaseAST(pos) {}
+
+    json GetMetaData() const;
 };
 
 class CompoundConditional: public BaseAST {
@@ -404,6 +382,8 @@ public:
 
     template<typename T>
     CompoundConditional(LineRange pos, std::unique_ptr<T> arg): expr(std::move(arg)), BaseAST(pos) {}
+
+    json GetMetaData() const;
 };
 
 class WhileLoop: public BaseAST {
@@ -417,6 +397,8 @@ public:
 
     WhileLoop(LineRange pos, std::unique_ptr<ConditionalExpression> expr, std::unique_ptr<Block> block, std::unique_ptr<Block> else_block):
         BaseAST(pos), expr(std::move(expr)), block(std::move(block)), else_block(std::move(else_block)) {}
+
+    json GetMetaData() const;
 };
 
 class ForLoopContents: public BaseAST {
@@ -435,6 +417,8 @@ public:
     ForLoopContents(LineRange pos, std::optional<std::unique_ptr<AssignmentExpression>> start,
         std::optional<std::unique_ptr<ConditionalExpression>> stop, std::optional<std::unique_ptr<ConditionalExpression>> step):
             expr(std::make_tuple(std::move(start), std::move(stop), std::move(step))), BaseAST(pos) {}
+
+    json GetMetaData() const;
 };
 
 class ForLoop: public BaseAST {
@@ -448,6 +432,8 @@ public:
 
     ForLoop(LineRange pos, ForLoopContents expr, std::unique_ptr<Block> block, std::unique_ptr<Block> else_block):
         BaseAST(pos), expr(std::move(expr)), block(std::move(block)), else_block(std::move(else_block)) {}
+
+    json GetMetaData() const;
 };
 
 class IfBlock: public BaseAST {
@@ -461,6 +447,8 @@ public:
 
     IfBlock(LineRange pos, std::unique_ptr<ConditionalExpression> cond, std::unique_ptr<Block> block, std::unique_ptr<ElseBlock> else_block): BaseAST(pos),
         cond(std::move(cond)), block(std::move(block)), else_block(std::move(else_block)) {}
+
+    json GetMetaData() const;
 };
 
 class ElseBlock: public BaseAST {
@@ -469,6 +457,8 @@ public:
 
     template<typename T>
     ElseBlock(LineRange pos, std::unique_ptr<T> arg): expr(std::move(arg)), BaseAST(pos) {}
+
+    json GetMetaData() const;
 };
 
 class TupleMember: public BaseAST {
@@ -478,6 +468,8 @@ public:
 
     TupleMember(LineRange pos, std::string id): id(id), type(std::nullopt), BaseAST(pos) {}
     TupleMember(LineRange pos, std::string id, std::unique_ptr<TypeExpression> expr): id(id), type(std::move(expr)), BaseAST(pos) {}
+
+    json GetMetaData() const;
 };
 
 class TupleDefinition: public BaseAST {
@@ -485,6 +477,8 @@ public:
     std::vector<std::unique_ptr<TupleMember>> members;
 
     TupleDefinition(LineRange pos, std::vector<std::unique_ptr<TupleMember>> members): BaseAST(pos), members(std::move(members)) {}
+
+    json GetMetaData() const;
 };
 
 class TypeMember: public BaseAST {
@@ -497,6 +491,8 @@ public:
 
     TypeMember(LineRange pos, std::unique_ptr<TypeExpression> lhs, std::optional<std::unique_ptr<TypeExpression>> rhs):
         BaseAST(pos), expr(std::make_tuple(std::move(lhs), std::move(rhs))) {}
+
+    json GetMetaData() const;
 };
 
 class TypeExpression: public BaseAST {
@@ -506,6 +502,8 @@ public:
     TypeExpression(LineRange pos, std::unique_ptr<TypeMember> expr): BaseAST(pos), expr(std::move(expr)) {}
     TypeExpression(LineRange pos, std::unique_ptr<TypeExpression> lhs, std::optional<std::unique_ptr<TypeMember>> or_expr, std::optional<std::unique_ptr<TypeMember>> impl_expr):
         BaseAST(pos), expr(std::make_tuple(std::move(lhs), std::move(or_expr), std::move(impl_expr))) {}
+
+    json GetMetaData() const;
 };
 
 class FuncDefinition: public BaseAST {
@@ -516,6 +514,8 @@ public:
     FuncDefinition(LineRange pos): BaseAST(pos), args(std::nullopt), ret_type(std::nullopt) {}
     FuncDefinition(LineRange pos, std::unique_ptr<TupleDefinition> args): BaseAST(pos), args(std::move(args)), ret_type(std::nullopt) {}
     FuncDefinition(LineRange pos, std::unique_ptr<TupleDefinition> args, std::unique_ptr<TypeExpression> ret_type): BaseAST(pos), args(std::move(args)), ret_type(std::move(ret_type)) {}
+
+    json GetMetaData() const;
 };
 
 class Constant: public BaseAST {
@@ -524,6 +524,8 @@ public:
 
     template<typename T>
     Constant(LineRange pos, T arg): data(arg), BaseAST(pos) {}
+
+    json GetMetaData() const;
 };
 
 class MapConstant: public BaseAST {
@@ -533,6 +535,8 @@ public:
 
     MapConstant(LineRange pos, std::vector<std::unique_ptr<Expression>> keys, std::vector<std::unique_ptr<Expression>> values):
         BaseAST(pos), keys(std::move(keys)), values(std::move(values)) {}
+
+    json GetMetaData() const;
 };
 
 class ArrayConstant: public BaseAST {
@@ -541,6 +545,8 @@ public:
 
     ArrayConstant(LineRange pos, std::vector<std::unique_ptr<Expression>> values):
         BaseAST(pos), values(std::move(values)) {}
+
+    json GetMetaData() const;
 };
 
 #endif

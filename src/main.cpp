@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "tokenizer.hpp"
-#include "../lib/CLI11.hpp"
+#include <CLI11.hpp>
 
 /* this is an example of a custom error handler for when we want nicer crash messages */
 // char *get_error_name(int err) {
@@ -28,15 +28,13 @@ int main(int argc, char *argv[]) {
         for (auto file: filenames) {
             FILE *fp = fopen(file.c_str(), "r");
             std::cout << "\t== " << file << " ==" << std::endl;
-            Tokenizer tok(fp);
-            Token next;
-            for (next = tok.Next();
-                 next.type != TokenType::EndOfFile && next.type != TokenType::Undefined;
-                 next = tok.Next()) {
-                std::cout << "(" << next.ToName() << "): " << next.ToString() << std::endl;
-            }
-            if (next.type == TokenType::Undefined) {
-                std::cerr << "ERROR: Undefined token" << std::endl;
+            TokenStream stream(std::make_unique<CFileReader>(fp));
+            for (auto tok = stream.Next(); !stream.IsDone(); tok = stream.Next()) {
+                if (tok.type == TokenType::Undefined) {
+                    std::cerr << "ERROR: Undefined token" << std::endl;
+                    break;
+                }
+                std::cout << "(" << tok.ToName() << "): " << tok.ToString() << std::endl;
             }
             std::cout << "\t== Finished ==" << std::endl;
             fclose(fp);
