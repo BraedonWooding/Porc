@@ -42,6 +42,11 @@ Are you interested?  Maybe check out the [Language Guide](docs/LanguageGuide.md)
 - It uses C++17 (used to use C so some artifacts exist such as printf)
   - I'm in the flows of updating right now
 - AST has a lot of copy + paste and I'm working on an auto generated solution
+- You need the following libraries (just added to lib will work);
+    - [catch](https://github.com/catchorg/Catch2)
+    - [CLI11](https://github.com/CLIUtils/CLI11)
+    - [expected](https://github.com/TartanLlama/expected)
+    - [json](https://github.com/nlohmann/json)
 
 ## Roadmap
 

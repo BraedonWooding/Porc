@@ -57,13 +57,14 @@ Makefile
 CMakeCache.txt
 CMakeFiles/
 
-# Test stuff
+# Test and build stuff
 *.result
 tmp/
 *.tmp
 build/
 release/
 debug/
+lib/
 
 # configuration files
 .vscode/
