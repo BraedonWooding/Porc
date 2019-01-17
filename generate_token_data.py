@@ -3,9 +3,9 @@
 
 # f-string expressions can't include backslashes so we define them here
 # also allows us to change tab to `\t` easily if we ever need to
-tab = '    '
+tab = '  '
 null_term = '\\0'
-split_on = '\t'
+split_on = ' '
 file_location = "src/tokens"
 
 # Effectively the same structure as the _token_set_t struct
@@ -54,7 +54,7 @@ def print_token(file, token, counter):
     if len(token_nodes) == 0:
         file.write(f"{tab * (counter - 1)}NULL,\n")
     else:
-        file.write(f"{tab * (counter - 1)}(int[]){{\n")
+        file.write(f"{tab * (counter - 1)}(int[ASCII_SET]){{\n")
         for node in token_nodes:
             file.write(f"{tab * counter}['{node[0]}'] = (int)TokenType::{node[1]},\n")
         file.write(f"{tab * (counter - 1)}}},\n")
@@ -62,7 +62,7 @@ def print_token(file, token, counter):
     if len(children_nodes) == 0:
         file.write(f"{tab * (counter - 1)}NULL,\n")
     else:
-        file.write(f"{tab * (counter - 1)}(TokenSet[]){{\n")
+        file.write(f"{tab * (counter - 1)}(TokenSet[ASCII_SET]){{\n")
         for node in children_nodes:
             file.write(f"{tab * counter}['{node[0]}'] = {{\n")
             print_token(file, node[1], counter + 1)
@@ -71,8 +71,8 @@ def print_token(file, token, counter):
     file.write(f"}}{';' if original_counter == 1 else ','}\n")
 
 def generate(file):
-    token_list = open("src/token_list.incl", "w")
-    token_data = open("src/token_data.incl", "w")
+    token_list = open("src/token_list.inc", "w")
+    token_data = open("src/token_data.inc", "w")
     token_list.write("/* Auto Generated File */\n")
     token_data.write("/* Auto Generated File */\n")
 
@@ -101,7 +101,7 @@ def generate(file):
     token_data.write(
     """struct TokenSet {
     const int *tokens;
-    const TokenSet **child_tokens;
+    const TokenSet *child_tokens;
 };\n\n""")
 
     token_data.write(f"static const TokenSet tokenFromStrMap = {{\n")

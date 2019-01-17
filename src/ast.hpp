@@ -1,19 +1,9 @@
 #ifndef AST_HPP
 #define AST_HPP
 
-/*
-    This is a gigantic file!
-*/
-
 // This is predominantly based upon the EBNF
 // of course changes will occur
-// i.e. ArgumentExpressionList => Vector(Expression)
-
-// @TODO: I'm a bit lazy rn so I've used template<typename T>
-// in place of copy + pasting the constructor multiple times while in effect
-// it shouldn't impact performance/codesize it will impact compile times
-// (though I would presume a relatively negligible amount)
-// regardless should be replaced as it isn't very explicit
+// i.e. ArgumentExprList => Vector(Expr)
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -29,36 +19,34 @@ using json = nlohmann::json;
 #include "printer_helpers.hpp"
 
 class BaseAST {
-protected:
-    BaseAST(LineRange pos) : pos(pos) {}
-public:
-    LineRange pos;
+ protected:
+  BaseAST(LineRange pos) : pos(pos) {}
 
-    BaseAST() = delete;
+ public:
+  LineRange pos;
 
-    virtual json GetMetaData() const = 0;
+  BaseAST() = delete;
+
+  virtual json GetMetaData() const = 0;
 };
 
-#pragma region AST_PRE_DECLARATIONS
-
-class FileLevelExpression;
-class AssignmentExpression;
-class TopLevelExpression;
-class PrimaryExpression;
+class FileLevelExpr;
+class AssignmentExpr;
+class TopLevelExpr;
+class PrimaryExpr;
 class FuncCall;
-class PostfixExpression;
-class UnaryExpression;
-class PowerExpression;
-class MultiplicativeExpression;
-class AdditiveExpression;
-class RelationalExpression;
-class EqualityExpression;
-class LogicalAndExpression;
-class LogicalOrExpression;
-class ConditionalExpression;
+class PostfixExpr;
+class UnaryExpr;
+class PowerExpr;
+class MultiplicativeExpr;
+class AdditiveExpr;
+class RelationalExpr;
+class EqualityExpr;
+class LogicalAndExpr;
+class LogicalOrExpr;
+class ConditionalExpr;
 class Block;
-class Expression;
-class CompoundConditional;
+class Expr;
 class WhileLoop;
 class ForLoop;
 class ForLoopContents;
@@ -66,487 +54,755 @@ class ElseBlock;
 class IfBlock;
 class TupleMember;
 class TupleDefinition;
-class TypeExpression;
+class TypeExpr;
 class TypeMember;
 class FuncDefinition;
 class Constant;
 class ArrayConstant;
 class MapConstant;
 
-#pragma endregion
-
 enum class AssignmentOp {
-    AdditionEqual,
-    SubtractionEqual,
-    Equal,
-    DivisionEqual,
-    PowerEqual,
-    ModulusEqual,
-    MultiplyEqual,
-    IntDivisionEqual,
+  AdditionEqual,
+  SubtractionEqual,
+  Equal,
+  DivisionEqual,
+  PowerEqual,
+  ModulusEqual,
+  MultiplyEqual,
+  IntDivisionEqual,
 };
 
 const char *AssignmentOpToStr(AssignmentOp op);
 
 enum class PostfixOp {
-    Increment,
-    Decrement,
+  Increment,
+  Decrement,
 };
 
 const char *PostfixOpToStr(PostfixOp op);
 
 enum class PrefixOp {
-    Negate,
-    Negative,
-    Positive,
-    Increment,
-    Decrement,
+  Negate,
+  Negative,
+  Positive,
+  Increment,
+  Decrement,
 };
 
 const char *PrefixOpToStr(PrefixOp op);
 
 enum class MultiplicativeOp {
-    Multiplication,
-    Division,
-    Modulus,
-    IntDivision,
+  Multiplication,
+  Division,
+  Modulus,
+  IntDivision,
 };
 
 const char *MultiplicativeOpToStr(MultiplicativeOp op);
 
 enum class AdditiveOp {
-    Subtraction,
-    Addition,
+  Subtraction,
+  Addition,
 };
 
 const char *AdditiveOpToStr(AdditiveOp op);
 
 enum class RelationalOp {
-    GreaterThan,
-    LessThan,
-    GreaterThanEqual,
-    LessThanEqual,
+  GreaterThan,
+  LessThan,
+  GreaterThanEqual,
+  LessThanEqual,
 };
 
 const char *RelationalOpToStr(RelationalOp op);
 
 enum class EqualityOp {
-    Equal,
-    NotEqual,
+  Equal,
+  NotEqual,
 };
 
 const char *EqualityOpToStr(EqualityOp op);
 
-class FileLevelExpression: public BaseAST {
-public:
-    std::vector<std::unique_ptr<TopLevelExpression>> expressions;
+class FileLevelExpr : public BaseAST {
+ public:
+  std::vector<std::unique_ptr<TopLevelExpr>> Exprs;
 
-    FileLevelExpression(LineRange pos, std::vector<std::unique_ptr<TopLevelExpression>> exprs):
-        expressions(std::move(exprs)), BaseAST(pos) {}
+  FileLevelExpr(LineRange pos, std::vector<std::unique_ptr<TopLevelExpr>> exprs)
+      : Exprs(std::move(exprs)), BaseAST(pos) {}
 
-    json GetMetaData() const;
+  json GetMetaData() const;
 };
 
-class TopLevelExpression: public BaseAST {
-using ExprType = std::variant<std::unique_ptr<AssignmentExpression>, std::unique_ptr<Expression>>;
+class TopLevelExpr : public BaseAST {
+using ExprType = std::variant<std::unique_ptr<AssignmentExpr>,
+                              std::unique_ptr<Expr>>;
 
-public:
-    ExprType expr;
-    bool ret; // 'return' expression
+ public:
+  ExprType expr;
+  bool ret; // 'return' Expr
 
-    TopLevelExpression(LineRange pos, ExprType expr, bool ret): BaseAST(pos), ret(ret), expr(std::move(expr)) {}
+  TopLevelExpr(LineRange pos, ExprType expr, bool ret)
+      : BaseAST(pos), ret(ret), expr(std::move(expr)) {}
 
-    json GetMetaData() const;
+  json GetMetaData() const;
 };
 
-class PrimaryExpression: public BaseAST {
-using ExprType = std::variant<std::string, std::unique_ptr<Expression>, std::unique_ptr<Constant>, std::unique_ptr<TypeExpression>>;
+class PrimaryExpr : public BaseAST {
+using ExprType = std::variant<std::string, std::unique_ptr<Expr>,
+                              std::unique_ptr<Constant>,
+                              std::unique_ptr<TypeExpr>>;
 
-public:
-    ExprType expr;
+ public:
+  ExprType expr;
 
-    template<typename T>
-    PrimaryExpression(LineRange pos, T arg): BaseAST(pos), expr(std::move(arg)) {}
+  PrimaryExpr(LineRange pos, std::string arg) : BaseAST(pos), expr(arg) {}
+  PrimaryExpr(LineRange pos, std::unique_ptr<Expr> arg)
+      : BaseAST(pos), expr(std::move(arg)) {}
+  PrimaryExpr(LineRange pos, std::unique_ptr<Constant> arg)
+      : BaseAST(pos), expr(std::move(arg)) {}
+  PrimaryExpr(LineRange pos, std::unique_ptr<TypeExpr> arg)
+      : BaseAST(pos), expr(std::move(arg)) {}
 
-    json GetMetaData() const;
+  json GetMetaData() const;
 };
 
-class AssignmentExpression: public BaseAST {
-using DeclareVariable = std::tuple<std::unique_ptr<TupleDefinition>, std::optional<std::unique_ptr<Expression>>>;
-using StandardAssignment = std::tuple<std::unique_ptr<Expression>, AssignmentOp, std::unique_ptr<Expression>>;
+class AssignmentExpr : public BaseAST {
+  struct Declare {
+    std::unique_ptr<TupleDefinition> lhs;
+    std::optional<std::unique_ptr<Expr>> rhs;
+    Declare(std::unique_ptr<TupleDefinition> lhs,
+            std::optional<std::unique_ptr<Expr>> rhs)
+        : lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+  };
 
-public:
-    std::variant<DeclareVariable, StandardAssignment> expr;
+  struct Assign {
+    std::unique_ptr<Expr> lhs;
+    AssignmentOp op;
+    std::unique_ptr<Expr> rhs;
+    Assign(std::unique_ptr<Expr> lhs, AssignmentOp op,
+           std::unique_ptr<Expr> rhs)
+        : lhs(std::move(lhs)), op(op), rhs(std::move(rhs)) {}
+  };
 
-    AssignmentExpression(LineRange pos, std::unique_ptr<TupleDefinition> def, std::optional<std::unique_ptr<Expression>> expr):
-        expr(std::make_tuple(std::move(def), std::move(expr))), BaseAST(pos) {}
+ public:
+  std::variant<Declare, Assign> expr;
 
-    AssignmentExpression(LineRange pos, std::unique_ptr<Expression> lhs, AssignmentOp op, std::unique_ptr<Expression> rhs):
-        expr(std::make_tuple(std::move(lhs), op, std::move(rhs))), BaseAST(pos) {}
+  AssignmentExpr(LineRange pos, std::unique_ptr<TupleDefinition> def,
+                 std::optional<std::unique_ptr<Expr>> expr)
+      : expr(Declare(std::move(def), std::move(expr))), BaseAST(pos) {}
 
-    json GetMetaData() const;
+  AssignmentExpr(LineRange pos, std::unique_ptr<Expr> lhs,
+                 AssignmentOp op, std::unique_ptr<Expr> rhs)
+      : expr(Assign(std::move(lhs), op, std::move(rhs))),
+        BaseAST(pos) {}
+
+  json GetMetaData() const;
 };
 
-class FuncCall: public BaseAST {
-public:
-    std::unique_ptr<PostfixExpression> func;
-    std::vector<std::unique_ptr<Expression>> args;
+class FuncCall : public BaseAST {
+ public:
+  std::unique_ptr<PostfixExpr> func;
+  std::vector<std::unique_ptr<Expr>> args;
 
-    FuncCall(LineRange pos, std::unique_ptr<PostfixExpression> expr, std::vector<std::unique_ptr<Expression>> args):
-        BaseAST(pos), func(std::move(expr)), args(std::move(args)) {}
+  FuncCall(LineRange pos, std::unique_ptr<PostfixExpr> expr,
+           std::vector<std::unique_ptr<Expr>> args)
+      : BaseAST(pos), func(std::move(expr)), args(std::move(args)) {}
 
-    json GetMetaData() const;
+  json GetMetaData() const;
 };
 
-class PostfixExpression: public BaseAST {
-using IndexExpr = std::tuple<std::unique_ptr<PostfixExpression>, std::unique_ptr<Expression>>;
-using SliceExpr = std::tuple<std::unique_ptr<PostfixExpression>,
-                             std::optional<std::unique_ptr<Expression>>,
-                             std::optional<std::unique_ptr<Expression>>,
-                             std::optional<std::unique_ptr<Expression>>>;
-using FoldExpr = std::tuple<std::unique_ptr<FuncCall>, std::unique_ptr<PostfixExpression>>;
-using PostfixOpExpr = std::tuple<std::unique_ptr<PostfixExpression>, PostfixOp>;
-using MemberAccessExpr = std::tuple<std::unique_ptr<PostfixExpression>, std::string>;
-using MacroExpr = std::tuple<std::string, std::vector<std::string>>;
+class PostfixExpr : public BaseAST {
+  struct IndexExpr {
+    std::unique_ptr<PostfixExpr> lhs;
+    std::unique_ptr<Expr> index;
 
-public:
-    std::variant<std::unique_ptr<PrimaryExpression>, IndexExpr, SliceExpr, std::unique_ptr<FuncCall>, FoldExpr, PostfixOpExpr, MemberAccessExpr, MacroExpr> expr;
+    IndexExpr(std::unique_ptr<PostfixExpr> lhs,
+              std::unique_ptr<Expr> index)
+        : lhs(std::move(lhs)), index(std::move(index)) {}
+  };
 
-    PostfixExpression(LineRange pos, std::unique_ptr<PrimaryExpression> expr): BaseAST(pos), expr(std::move(expr)) {}
+  struct SliceExpr {
+    std::unique_ptr<PostfixExpr> obj;
+    std::optional<std::unique_ptr<Expr>> start;
+    std::optional<std::unique_ptr<Expr>> stop;
+    std::optional<std::unique_ptr<Expr>> step;
 
-    PostfixExpression(LineRange pos, std::unique_ptr<PostfixExpression> lhs, std::unique_ptr<Expression> index): BaseAST(pos), expr(std::make_tuple(std::move(lhs), std::move(index))) {}
+    SliceExpr(std::unique_ptr<PostfixExpr> obj,
+              std::optional<std::unique_ptr<Expr>> start,
+              std::optional<std::unique_ptr<Expr>> stop,
+              std::optional<std::unique_ptr<Expr>> step)
+        : obj(std::move(obj)), start(std::move(start)), stop(std::move(stop)),
+          step(std::move(step)) {}
+  };
 
-    PostfixExpression(LineRange pos, std::unique_ptr<PostfixExpression> lhs, std::optional<std::unique_ptr<Expression>> start, std::optional<std::unique_ptr<Expression>> stop, std::optional<std::unique_ptr<Expression>> step):
-        BaseAST(pos), expr(std::make_tuple(std::move(lhs), std::move(start), std::move(stop), std::move(step))) {}
+  struct FoldExpr {
+    std::unique_ptr<FuncCall> func;
+    std::unique_ptr<PostfixExpr> fold_expr;
 
-    PostfixExpression(LineRange pos, std::unique_ptr<FuncCall> func_call): BaseAST(pos), expr(std::move(func_call)) {}
+    FoldExpr(std::unique_ptr<FuncCall> func,
+             std::unique_ptr<PostfixExpr> fold_expr)
+        : func(std::move(func)), fold_expr(std::move(fold_expr)) {}
+  };
 
-    PostfixExpression(LineRange pos, std::unique_ptr<FuncCall> func_call, std::unique_ptr<PostfixExpression> postfix):
-        BaseAST(pos), expr(std::make_tuple(std::move(func_call), std::move(postfix))) {}
+  struct PostfixOpExpr {
+    std::unique_ptr<PostfixExpr> lhs;
+    PostfixOp op;
 
-    PostfixExpression(LineRange pos, std::unique_ptr<PostfixExpression> postfix, PostfixOp op):
-        BaseAST(pos), expr(std::make_tuple(std::move(postfix), op)) {}
+    PostfixOpExpr(std::unique_ptr<PostfixExpr> lhs, PostfixOp op)
+        : lhs(std::move(lhs)), op(op) {}
+  };
 
-    PostfixExpression(LineRange pos, std::unique_ptr<PostfixExpression> postfix, std::string to_access):
-        BaseAST(pos), expr(std::make_tuple(std::move(postfix), to_access)) {}
+  struct MemberAccessExpr {
+    std::unique_ptr<PostfixExpr> lhs;
+    std::string member;
 
-    PostfixExpression(LineRange pos, std::string str, std::vector<std::string> sub_strs):
-        BaseAST(pos), expr(std::make_tuple(str, sub_strs)) {}
+    MemberAccessExpr(std::unique_ptr<PostfixExpr> lhs, std::string member)
+        : lhs(std::move(lhs)), member(member) {}
+  };
 
-    json GetMetaData() const;
+  struct MacroExpr {
+    std::vector<std::string> qualifying_name;
+
+    MacroExpr(std::vector<std::string> qualifying_name) 
+        : qualifying_name(qualifying_name) {}
+  };
+
+ public:
+  std::variant<std::unique_ptr<PrimaryExpr>, IndexExpr, SliceExpr,
+               std::unique_ptr<FuncCall>, FoldExpr, PostfixOpExpr,
+               MemberAccessExpr, MacroExpr> expr;
+
+  PostfixExpr(LineRange pos, std::unique_ptr<PrimaryExpr> expr) 
+      : BaseAST(pos), expr(std::move(expr)) {}
+
+  PostfixExpr(LineRange pos, std::unique_ptr<PostfixExpr> lhs,
+              std::unique_ptr<Expr> index)
+      : BaseAST(pos), expr(IndexExpr(std::move(lhs), std::move(index))) {}
+
+  PostfixExpr(LineRange pos, std::unique_ptr<PostfixExpr> lhs,
+              std::optional<std::unique_ptr<Expr>> start,
+              std::optional<std::unique_ptr<Expr>> stop,
+              std::optional<std::unique_ptr<Expr>> step)
+      : BaseAST(pos), expr(SliceExpr(std::move(lhs), std::move(start),
+        std::move(stop), std::move(step))) {}
+
+  PostfixExpr(LineRange pos, std::unique_ptr<FuncCall> func_call)
+      : BaseAST(pos), expr(std::move(func_call)) {}
+
+  PostfixExpr(LineRange pos, std::unique_ptr<FuncCall> func,
+              std::unique_ptr<PostfixExpr> postfix)
+      : BaseAST(pos), expr(FoldExpr(std::move(func), std::move(postfix))) {}
+
+  PostfixExpr(LineRange pos, std::unique_ptr<PostfixExpr> postfix,
+              PostfixOp op)
+      : BaseAST(pos), expr(PostfixOpExpr(std::move(postfix), op)) {}
+
+  PostfixExpr(LineRange pos, std::unique_ptr<PostfixExpr> postfix,
+              std::string to_access)
+      : BaseAST(pos), expr(MemberAccessExpr(std::move(postfix), to_access)) {}
+
+  PostfixExpr(LineRange pos, std::vector<std::string> access)
+      : BaseAST(pos), expr(MacroExpr(access)) {}
+
+  json GetMetaData() const;
 };
 
-class UnaryExpression: public BaseAST {
-using PrefixOpExpr = std::tuple<std::unique_ptr<UnaryExpression>, PrefixOp>;
+class UnaryExpr : public BaseAST {
+  struct PrefixOpExpr {
+    std::unique_ptr<UnaryExpr> rhs;
+    PrefixOp op;
 
-public:
-    std::variant<std::unique_ptr<PostfixExpression>, PrefixOpExpr> expr;
+    PrefixOpExpr(std::unique_ptr<UnaryExpr> rhs, PrefixOp op)
+        : rhs(std::move(rhs)), op(op) {}
+  };
 
-    UnaryExpression(LineRange pos, std::unique_ptr<PostfixExpression> expr): expr(std::move(expr)), BaseAST(pos) {}
-    UnaryExpression(LineRange pos, std::unique_ptr<UnaryExpression> unary, PrefixOp op): expr(std::make_tuple(std::move(unary), op)), BaseAST(pos) {}
+ public:
+  std::variant<std::unique_ptr<PostfixExpr>, PrefixOpExpr> expr;
 
-    json GetMetaData() const;
+  UnaryExpr(LineRange pos, std::unique_ptr<PostfixExpr> expr)
+      : expr(std::move(expr)), BaseAST(pos) {}
+  UnaryExpr(LineRange pos, std::unique_ptr<UnaryExpr> unary, PrefixOp op)
+      : expr(PrefixOpExpr(std::move(unary), op)), BaseAST(pos) {}
+
+  json GetMetaData() const;
 };
 
-class PowerExpression: public BaseAST {
-using PowerOpExpr = std::tuple<std::unique_ptr<PowerExpression>, std::unique_ptr<UnaryExpression>>;
+class PowerExpr : public BaseAST {
+  struct OpExpr {
+    std::unique_ptr<PowerExpr> lhs;
+    std::unique_ptr<UnaryExpr> rhs;
 
-public:
-    std::variant<std::unique_ptr<UnaryExpression>, PowerOpExpr> expr;
+    OpExpr(std::unique_ptr<PowerExpr> lhs,
+           std::unique_ptr<UnaryExpr> rhs)
+        : lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+  };
 
-    PowerExpression(LineRange pos, std::unique_ptr<UnaryExpression> expr): expr(std::move(expr)), BaseAST(pos) {}
-    PowerExpression(LineRange pos, std::unique_ptr<PowerExpression> lhs, std::unique_ptr<UnaryExpression> rhs): expr(std::make_tuple(std::move(lhs), std::move(rhs))), BaseAST(pos) {}
+ public:
+  std::variant<std::unique_ptr<UnaryExpr>, OpExpr> expr;
 
-    json GetMetaData() const;
+  PowerExpr(LineRange pos, std::unique_ptr<UnaryExpr> expr)
+      : expr(std::move(expr)), BaseAST(pos) {}
+  PowerExpr(LineRange pos, std::unique_ptr<PowerExpr> lhs,
+            std::unique_ptr<UnaryExpr> rhs)
+      : expr(OpExpr(std::move(lhs), std::move(rhs))), BaseAST(pos) {}
+
+  json GetMetaData() const;
 };
 
-class MultiplicativeExpression: public BaseAST {
-using MulOpExpr = std::tuple<std::unique_ptr<MultiplicativeExpression>, MultiplicativeOp, std::unique_ptr<PowerExpression>>;
+class MultiplicativeExpr : public BaseAST {
+  struct OpExpr {
+    std::unique_ptr<MultiplicativeExpr> lhs;
+    MultiplicativeOp op;
+    std::unique_ptr<PowerExpr> rhs;
 
-public:
-    std::variant<std::unique_ptr<PowerExpression>, MulOpExpr> expr;
+    OpExpr(std::unique_ptr<MultiplicativeExpr> lhs,
+           MultiplicativeOp op, std::unique_ptr<PowerExpr> rhs)
+        : lhs(std::move(lhs)), op(op), rhs(std::move(rhs)) {}
+  };
 
-    MultiplicativeExpression(LineRange pos, std::unique_ptr<PowerExpression> expr): expr(std::move(expr)), BaseAST(pos) {}
-    MultiplicativeExpression(LineRange pos, std::unique_ptr<MultiplicativeExpression> lhs, MultiplicativeOp op, std::unique_ptr<PowerExpression> rhs): expr(std::make_tuple(std::move(lhs), op, std::move(rhs))), BaseAST(pos) {}
+ public:
+  std::variant<std::unique_ptr<PowerExpr>, OpExpr> expr;
 
-    json GetMetaData() const;
+  MultiplicativeExpr(LineRange pos, std::unique_ptr<PowerExpr> expr)
+      : expr(std::move(expr)), BaseAST(pos) {}
+  MultiplicativeExpr(LineRange pos,
+                     std::unique_ptr<MultiplicativeExpr> lhs,
+                     MultiplicativeOp op, std::unique_ptr<PowerExpr> rhs)
+      : expr(OpExpr(std::move(lhs), op, std::move(rhs))), BaseAST(pos) {}
+
+  json GetMetaData() const;
 };
 
-class AdditiveExpression: public BaseAST {
-using AddOpExpr = std::tuple<std::unique_ptr<AdditiveExpression>, AdditiveOp, std::unique_ptr<MultiplicativeExpression>>;
+class AdditiveExpr : public BaseAST {
+  struct OpExpr {
+    std::unique_ptr<AdditiveExpr> lhs;
+    AdditiveOp op;
+    std::unique_ptr<MultiplicativeExpr> rhs;
 
-public:
-    std::variant<std::unique_ptr<MultiplicativeExpression>, AddOpExpr> expr;
+    OpExpr(std::unique_ptr<AdditiveExpr> lhs, AdditiveOp op,
+           std::unique_ptr<MultiplicativeExpr> rhs)
+        : lhs(std::move(lhs)), op(op), rhs(std::move(rhs)) {}
+  };
 
-    AdditiveExpression(LineRange pos, std::unique_ptr<MultiplicativeExpression> expr): expr(std::move(expr)), BaseAST(pos) {}
-    AdditiveExpression(LineRange pos, std::unique_ptr<AdditiveExpression> lhs, AdditiveOp op, std::unique_ptr<MultiplicativeExpression> rhs): expr(std::make_tuple(std::move(lhs), op, std::move(rhs))), BaseAST(pos) {}
+ public:
+  std::variant<std::unique_ptr<MultiplicativeExpr>, OpExpr> expr;
 
-    json GetMetaData() const;
+  AdditiveExpr(LineRange pos, std::unique_ptr<MultiplicativeExpr> expr)
+      : expr(std::move(expr)), BaseAST(pos) {}
+  AdditiveExpr(LineRange pos, std::unique_ptr<AdditiveExpr> lhs,
+               AdditiveOp op, std::unique_ptr<MultiplicativeExpr> rhs)
+      : expr(OpExpr(std::move(lhs), op, std::move(rhs))), BaseAST(pos) {}
+
+  json GetMetaData() const;
 };
 
-class RelationalExpression: public BaseAST {
-using RelationalOpExpr = std::tuple<std::unique_ptr<RelationalExpression>, RelationalOp, std::unique_ptr<AdditiveExpression>>;
+class RelationalExpr : public BaseAST {
+  struct OpExpr {
+    std::unique_ptr<RelationalExpr> lhs;
+    RelationalOp op;
+    std::unique_ptr<AdditiveExpr> rhs;
 
-public:
-    std::variant<std::unique_ptr<AdditiveExpression>, RelationalOpExpr> expr;
+    OpExpr(std::unique_ptr<RelationalExpr> lhs, RelationalOp op,
+           std::unique_ptr<AdditiveExpr> rhs)
+        : lhs(std::move(lhs)), op(op), rhs(std::move(rhs)) {}
+  };
 
-    RelationalExpression(LineRange pos, std::unique_ptr<AdditiveExpression> expr): expr(std::move(expr)), BaseAST(pos) {}
-    RelationalExpression(LineRange pos, std::unique_ptr<RelationalExpression> lhs, RelationalOp op, std::unique_ptr<AdditiveExpression> rhs): expr(std::make_tuple(std::move(lhs), op, std::move(rhs))), BaseAST(pos) {}
+ public:
+  std::variant<std::unique_ptr<AdditiveExpr>, OpExpr> expr;
 
-    json GetMetaData() const;
+  RelationalExpr(LineRange pos, std::unique_ptr<AdditiveExpr> expr)
+      : expr(std::move(expr)), BaseAST(pos) {}
+  RelationalExpr(LineRange pos, std::unique_ptr<RelationalExpr> lhs,
+                 RelationalOp op, std::unique_ptr<AdditiveExpr> rhs)
+      : expr(OpExpr(std::move(lhs), op, std::move(rhs))),
+        BaseAST(pos) {}
+
+  json GetMetaData() const;
 };
 
-class EqualityExpression: public BaseAST {
-using EqualityOpExpr = std::tuple<std::unique_ptr<EqualityExpression>, EqualityOp, std::unique_ptr<RelationalExpression>>;
+class EqualityExpr : public BaseAST {
+  struct OpExpr {
+    std::unique_ptr<EqualityExpr> lhs;
+    EqualityOp op;
+    std::unique_ptr<RelationalExpr> rhs;
 
-public:
-    std::variant<std::unique_ptr<RelationalExpression>, EqualityOpExpr> expr;
+    OpExpr(std::unique_ptr<EqualityExpr> lhs, EqualityOp op,
+           std::unique_ptr<RelationalExpr> rhs)
+        : lhs(std::move(lhs)), op(op), rhs(std::move(rhs)) {}
+  };
 
-    EqualityExpression(LineRange pos, std::unique_ptr<RelationalExpression> expr): expr(std::move(expr)), BaseAST(pos) {}
-    EqualityExpression(LineRange pos, std::unique_ptr<EqualityExpression> lhs, EqualityOp op, std::unique_ptr<RelationalExpression> rhs): expr(std::make_tuple(std::move(lhs), op, std::move(rhs))), BaseAST(pos) {}
+ public:
+  std::variant<std::unique_ptr<RelationalExpr>, OpExpr> expr;
 
-    json GetMetaData() const;
+  EqualityExpr(LineRange pos, std::unique_ptr<RelationalExpr> expr)
+      : expr(std::move(expr)), BaseAST(pos) {}
+  EqualityExpr(LineRange pos, std::unique_ptr<EqualityExpr> lhs,
+               EqualityOp op, std::unique_ptr<RelationalExpr> rhs)
+      : expr(OpExpr(std::move(lhs), op, std::move(rhs))), BaseAST(pos) {}
+
+  json GetMetaData() const;
 };
 
-class LogicalAndExpression: public BaseAST {
-using LogicalAndExpr = std::tuple<std::unique_ptr<LogicalAndExpression>, std::unique_ptr<EqualityExpression>>;
+class LogicalAndExpr : public BaseAST {
+  struct OpExpr {
+    std::unique_ptr<LogicalAndExpr> lhs;
+    std::unique_ptr<EqualityExpr> rhs;
 
-public:
-    std::variant<std::unique_ptr<EqualityExpression>, LogicalAndExpr> expr;
+    OpExpr(std::unique_ptr<LogicalAndExpr> lhs,
+           std::unique_ptr<EqualityExpr> rhs)
+        : lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+  };
 
-    LogicalAndExpression(LineRange pos, std::unique_ptr<EqualityExpression> expr): expr(std::move(expr)), BaseAST(pos) {}
-    LogicalAndExpression(LineRange pos, std::unique_ptr<LogicalAndExpression> lhs, std::unique_ptr<EqualityExpression> rhs): expr(std::make_tuple(std::move(lhs), std::move(rhs))), BaseAST(pos) {}
+ public:
+  std::variant<std::unique_ptr<EqualityExpr>, OpExpr> expr;
 
-    json GetMetaData() const;
+  LogicalAndExpr(LineRange pos, std::unique_ptr<EqualityExpr> expr)
+      : expr(std::move(expr)), BaseAST(pos) {}
+  LogicalAndExpr(LineRange pos, std::unique_ptr<LogicalAndExpr> lhs,
+                 std::unique_ptr<EqualityExpr> rhs)
+      : expr(OpExpr(std::move(lhs), std::move(rhs))), BaseAST(pos) {}
+
+  json GetMetaData() const;
 };
 
-class LogicalOrExpression: public BaseAST {
-using LogicalOrExpr = std::tuple<std::unique_ptr<LogicalOrExpression>, std::unique_ptr<LogicalAndExpression>>;
+class LogicalOrExpr : public BaseAST {
+  struct OpExpr {
+    std::unique_ptr<LogicalOrExpr> lhs;
+    std::unique_ptr<LogicalAndExpr> rhs;
 
-public:
-    std::variant<std::unique_ptr<LogicalAndExpression>, LogicalOrExpr> expr;
+    OpExpr(std::unique_ptr<LogicalOrExpr> lhs,
+           std::unique_ptr<LogicalAndExpr> rhs)
+        : lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+  };
 
-    LogicalOrExpression(LineRange pos, std::unique_ptr<LogicalAndExpression> expr): expr(std::move(expr)), BaseAST(pos) {}
-    LogicalOrExpression(LineRange pos, std::unique_ptr<LogicalOrExpression> lhs, std::unique_ptr<LogicalAndExpression> rhs): expr(std::make_tuple(std::move(lhs), std::move(rhs))), BaseAST(pos) {}
+ public:
+  std::variant<std::unique_ptr<LogicalAndExpr>, OpExpr> expr;
 
-    json GetMetaData() const;
+  LogicalOrExpr(LineRange pos, std::unique_ptr<LogicalAndExpr> expr)
+      : expr(std::move(expr)), BaseAST(pos) {}
+  LogicalOrExpr(LineRange pos, std::unique_ptr<LogicalOrExpr> lhs,
+                std::unique_ptr<LogicalAndExpr> rhs)
+      : expr(OpExpr(std::move(lhs), std::move(rhs))), BaseAST(pos) {}
+
+  json GetMetaData() const;
 };
 
-class ConditionalExpression: public BaseAST {
-public:
-    std::unique_ptr<LogicalOrExpression> cond;
-    std::optional<std::unique_ptr<Expression>> ternary_true;
-    std::optional<std::unique_ptr<Expression>> ternary_false;
+class ConditionalExpr : public BaseAST {
+ public:
+  std::unique_ptr<LogicalOrExpr> cond;
+  std::optional<std::unique_ptr<Expr>> ternary_true;
+  std::optional<std::unique_ptr<Expr>> ternary_false;
 
-    ConditionalExpression(LineRange pos, std::unique_ptr<LogicalOrExpression> expr): cond(std::move(expr)),
-        ternary_true(std::nullopt), ternary_false(std::nullopt), BaseAST(pos) {}
-    
-    ConditionalExpression(LineRange pos, std::unique_ptr<LogicalOrExpression> expr,
-        std::unique_ptr<Expression> if_true, std::unique_ptr<Expression> if_false): BaseAST(pos),
-            cond(std::move(expr)), ternary_true(std::move(if_true)), ternary_false(std::move(if_false)) {}
+  ConditionalExpr(LineRange pos,
+                        std::unique_ptr<LogicalOrExpr> expr)
+      : cond(std::move(expr)), ternary_true(std::nullopt),
+        ternary_false(std::nullopt), BaseAST(pos) {}
+  
+  ConditionalExpr(LineRange pos,
+                  std::unique_ptr<LogicalOrExpr> expr,
+                  std::unique_ptr<Expr> if_true, std::unique_ptr<Expr> if_false)
+      : BaseAST(pos), cond(std::move(expr)), ternary_true(std::move(if_true)),
+        ternary_false(std::move(if_false)) {}
 
-    bool IsTernary() const { return this->ternary_true && this->ternary_false; }
+  bool IsTernary() const { return this->ternary_true && this->ternary_false; }
 
-    json GetMetaData() const;
+  json GetMetaData() const;
 };
 
-class Block: public BaseAST {
-public:
-    std::vector<std::unique_ptr<TopLevelExpression>> exprs;
+class Block : public BaseAST {
+ public:
+  std::vector<std::unique_ptr<TopLevelExpr>> exprs;
 
-    Block(LineRange pos, std::vector<std::unique_ptr<TopLevelExpression>> exprs): BaseAST(pos), exprs(std::move(exprs)) {}
+  Block(LineRange pos, std::vector<std::unique_ptr<TopLevelExpr>> exprs)
+      : BaseAST(pos), exprs(std::move(exprs)) {}
 
-    json GetMetaData() const;
+  json GetMetaData() const;
 };
 
-class Expression: public BaseAST {
-using FuncDefBlock = std::tuple<std::unique_ptr<FuncDefinition>, std::unique_ptr<Block>>;
-using TupleDefBlock = std::tuple<std::unique_ptr<TupleDefinition>, std::unique_ptr<Block>>;
-
-public:
-    std::variant<std::unique_ptr<ConditionalExpression>, FuncDefBlock, TupleDefBlock, std::unique_ptr<CompoundConditional>> expr;
-
-    template<typename T>
-    Expression(LineRange pos, std::unique_ptr<T> arg): expr(std::move(arg)), BaseAST(pos) {}
-
-    template<typename T>
-    Expression(LineRange pos, std::unique_ptr<T> arg, std::unique_ptr<Block> attached):
-        expr(std::make_tuple(std::move(arg), std::move(attached))), BaseAST(pos) {}
-
-    json GetMetaData() const;
-};
-
-class CompoundConditional: public BaseAST {
-public:
-    std::variant<std::unique_ptr<ForLoop>, std::unique_ptr<WhileLoop>, std::unique_ptr<IfBlock>> expr;
-
-    template<typename T>
-    CompoundConditional(LineRange pos, std::unique_ptr<T> arg): expr(std::move(arg)), BaseAST(pos) {}
-
-    json GetMetaData() const;
-};
-
-class WhileLoop: public BaseAST {
-public:
-    std::unique_ptr<ConditionalExpression> expr;
+class Expr : public BaseAST {
+  struct FuncBlock {
+    std::unique_ptr<FuncDefinition> def;
     std::unique_ptr<Block> block;
-    std::optional<std::unique_ptr<Block>> else_block;
 
-    WhileLoop(LineRange pos, std::unique_ptr<ConditionalExpression> expr, std::unique_ptr<Block> block):
-        BaseAST(pos), expr(std::move(expr)), block(std::move(block)), else_block(std::nullopt) {}
+    FuncBlock(std::unique_ptr<FuncDefinition> def,
+              std::unique_ptr<Block> block)
+        : def(std::move(def)), block(std::move(block)) {}
+  };
 
-    WhileLoop(LineRange pos, std::unique_ptr<ConditionalExpression> expr, std::unique_ptr<Block> block, std::unique_ptr<Block> else_block):
-        BaseAST(pos), expr(std::move(expr)), block(std::move(block)), else_block(std::move(else_block)) {}
-
-    json GetMetaData() const;
-};
-
-class ForLoopContents: public BaseAST {
-using ForIn = std::tuple<std::vector<std::string>, std::unique_ptr<ConditionalExpression>>;
-using ForTraditional = std::tuple<
-    std::optional<std::unique_ptr<AssignmentExpression>>,
-    std::optional<std::unique_ptr<ConditionalExpression>>,
-    std::optional<std::unique_ptr<ConditionalExpression>>>;
-
-public:
-    std::variant<ForIn, ForTraditional> expr;
-
-    ForLoopContents(LineRange pos, std::vector<std::string> ids, std::unique_ptr<ConditionalExpression> expr):
-        expr(std::make_tuple(ids, std::move(expr))), BaseAST(pos) {}
-
-    ForLoopContents(LineRange pos, std::optional<std::unique_ptr<AssignmentExpression>> start,
-        std::optional<std::unique_ptr<ConditionalExpression>> stop, std::optional<std::unique_ptr<ConditionalExpression>> step):
-            expr(std::make_tuple(std::move(start), std::move(stop), std::move(step))), BaseAST(pos) {}
-
-    json GetMetaData() const;
-};
-
-class ForLoop: public BaseAST {
-public:
-    ForLoopContents expr;
+  struct TupleBlock {
+    std::unique_ptr<TupleDefinition> def;
     std::unique_ptr<Block> block;
-    std::optional<std::unique_ptr<Block>> else_block;
 
-    ForLoop(LineRange pos, ForLoopContents expr, std::unique_ptr<Block> block):
-        BaseAST(pos), expr(std::move(expr)), block(std::move(block)), else_block(std::nullopt) {}
+    TupleBlock(std::unique_ptr<TupleDefinition> def,
+               std::unique_ptr<Block> block)
+        : def(std::move(def)), block(std::move(block)) {}
+  };
 
-    ForLoop(LineRange pos, ForLoopContents expr, std::unique_ptr<Block> block, std::unique_ptr<Block> else_block):
-        BaseAST(pos), expr(std::move(expr)), block(std::move(block)), else_block(std::move(else_block)) {}
+ public:
+  std::variant<std::unique_ptr<ConditionalExpr>, FuncBlock,
+               TupleBlock, std::unique_ptr<ForLoop>,
+               std::unique_ptr<WhileLoop>, std::unique_ptr<IfBlock>> expr;
 
-    json GetMetaData() const;
+  Expr(LineRange pos, std::unique_ptr<ConditionalExpr> arg)
+      : expr(std::move(arg)), BaseAST(pos) {}
+  Expr(LineRange pos, std::unique_ptr<ForLoop> arg)
+      : expr(std::move(arg)), BaseAST(pos) {}
+  Expr(LineRange pos, std::unique_ptr<WhileLoop> arg)
+      : expr(std::move(arg)), BaseAST(pos) {}
+  Expr(LineRange pos, std::unique_ptr<IfBlock> arg)
+      : expr(std::move(arg)), BaseAST(pos) {}
+  Expr(LineRange pos, std::unique_ptr<FuncDefinition> def,
+       std::unique_ptr<Block> block)
+      : BaseAST(pos), expr(FuncBlock(std::move(def), std::move(block))) {}
+  Expr(LineRange pos, std::unique_ptr<TupleDefinition> def,
+       std::unique_ptr<Block> block)
+      : BaseAST(pos), expr(TupleBlock(std::move(def), std::move(block))) {}
+
+  json GetMetaData() const;
 };
 
-class IfBlock: public BaseAST {
-public:
-    std::unique_ptr<ConditionalExpression> cond;
-    std::unique_ptr<Block> block;
-    std::optional<std::unique_ptr<ElseBlock>> else_block;
+class WhileLoop : public BaseAST {
+ public:
+  std::unique_ptr<ConditionalExpr> expr;
+  std::unique_ptr<Block> block;
+  std::optional<std::unique_ptr<Block>> else_block;
 
-    IfBlock(LineRange pos, std::unique_ptr<ConditionalExpression> cond, std::unique_ptr<Block> block): BaseAST(pos),
-        cond(std::move(cond)), block(std::move(block)) {}
+  WhileLoop(LineRange pos, std::unique_ptr<ConditionalExpr> expr,
+            std::unique_ptr<Block> block)
+      : BaseAST(pos), expr(std::move(expr)), block(std::move(block)),
+        else_block(std::nullopt) {}
 
-    IfBlock(LineRange pos, std::unique_ptr<ConditionalExpression> cond, std::unique_ptr<Block> block, std::unique_ptr<ElseBlock> else_block): BaseAST(pos),
-        cond(std::move(cond)), block(std::move(block)), else_block(std::move(else_block)) {}
+  WhileLoop(LineRange pos, std::unique_ptr<ConditionalExpr> expr,
+            std::unique_ptr<Block> block, std::unique_ptr<Block> else_block)
+      : BaseAST(pos), expr(std::move(expr)), block(std::move(block)),
+        else_block(std::move(else_block)) {}
 
-    json GetMetaData() const;
+  json GetMetaData() const;
 };
 
-class ElseBlock: public BaseAST {
-public:
-    std::variant<std::unique_ptr<IfBlock>, std::unique_ptr<Block>> expr;
+class ForLoopContents : public BaseAST {
+  struct ForIn {
+    std::vector<std::string> lhs;
+    std::unique_ptr<ConditionalExpr> rhs;
 
-    template<typename T>
-    ElseBlock(LineRange pos, std::unique_ptr<T> arg): expr(std::move(arg)), BaseAST(pos) {}
+    ForIn(std::vector<std::string> lhs,
+          std::unique_ptr<ConditionalExpr> rhs)
+        : lhs(std::move(lhs)), rhs(std::move(rhs)) {}
+  };
 
-    json GetMetaData() const;
+  struct ForTraditional {
+    std::optional<std::unique_ptr<AssignmentExpr>> start;
+    std::optional<std::unique_ptr<ConditionalExpr>> stop;
+    std::optional<std::unique_ptr<ConditionalExpr>> step;
+
+    ForTraditional(std::optional<std::unique_ptr<AssignmentExpr>> start,
+                   std::optional<std::unique_ptr<ConditionalExpr>> stop,
+                   std::optional<std::unique_ptr<ConditionalExpr>> step)
+        : start(std::move(start)), stop(std::move(stop)),
+          step(std::move(step)) {}
+  };
+
+ public:
+  std::variant<ForIn, ForTraditional> expr;
+
+  ForLoopContents(LineRange pos, std::vector<std::string> ids,
+                  std::unique_ptr<ConditionalExpr> expr)
+      : expr(ForIn(ids, std::move(expr))), BaseAST(pos) {}
+
+  ForLoopContents(LineRange pos,
+                  std::optional<std::unique_ptr<AssignmentExpr>> start,
+                  std::optional<std::unique_ptr<ConditionalExpr>> stop,
+                  std::optional<std::unique_ptr<ConditionalExpr>> step)
+      : expr(ForTraditional(std::move(start), std::move(stop),
+        std::move(step))), BaseAST(pos) {}
+
+  json GetMetaData() const;
 };
 
-class TupleMember: public BaseAST {
-public:
-    std::string id;
-    std::optional<std::unique_ptr<TypeExpression>> type;
+class ForLoop : public BaseAST {
+ public:
+  ForLoopContents expr;
+  std::unique_ptr<Block> block;
+  std::optional<std::unique_ptr<Block>> else_block;
 
-    TupleMember(LineRange pos, std::string id): id(id), type(std::nullopt), BaseAST(pos) {}
-    TupleMember(LineRange pos, std::string id, std::unique_ptr<TypeExpression> expr): id(id), type(std::move(expr)), BaseAST(pos) {}
+  ForLoop(LineRange pos, ForLoopContents expr, std::unique_ptr<Block> block)
+      : BaseAST(pos), expr(std::move(expr)), block(std::move(block)),
+        else_block(std::nullopt) {}
 
-    json GetMetaData() const;
+  ForLoop(LineRange pos, ForLoopContents expr, std::unique_ptr<Block> block,
+          std::unique_ptr<Block> else_block)
+      : BaseAST(pos), expr(std::move(expr)), block(std::move(block)),
+        else_block(std::move(else_block)) {}
+
+  json GetMetaData() const;
 };
 
-class TupleDefinition: public BaseAST {
-public:
-    std::vector<std::unique_ptr<TupleMember>> members;
+class IfBlock : public BaseAST {
+ public:
+  std::unique_ptr<ConditionalExpr> cond;
+  std::unique_ptr<Block> block;
+  std::optional<std::unique_ptr<ElseBlock>> else_block;
 
-    TupleDefinition(LineRange pos, std::vector<std::unique_ptr<TupleMember>> members): BaseAST(pos), members(std::move(members)) {}
+  IfBlock(LineRange pos, std::unique_ptr<ConditionalExpr> cond,
+          std::unique_ptr<Block> block)
+      : BaseAST(pos), cond(std::move(cond)), block(std::move(block)) {}
 
-    json GetMetaData() const;
+  IfBlock(LineRange pos, std::unique_ptr<ConditionalExpr> cond,
+          std::unique_ptr<Block> block, std::unique_ptr<ElseBlock> else_block)
+      : BaseAST(pos), cond(std::move(cond)), block(std::move(block)),
+        else_block(std::move(else_block)) {}
+
+  json GetMetaData() const;
 };
 
-class TypeMember: public BaseAST {
-public:
-    std::variant<std::unique_ptr<FuncCall>, std::string, std::unique_ptr<FuncDefinition>, std::unique_ptr<TupleDefinition>,
-        std::tuple<std::unique_ptr<TypeExpression>, std::optional<std::unique_ptr<TypeExpression>>>> expr;
+class ElseBlock : public BaseAST {
+ public:
+  std::variant<std::unique_ptr<IfBlock>, std::unique_ptr<Block>> expr;
 
-    template<typename T>
-    TypeMember(LineRange pos, std::unique_ptr<T> arg): expr(std::move(arg)), BaseAST(pos) {}
+  ElseBlock(LineRange pos, std::unique_ptr<IfBlock> arg)
+      : expr(std::move(arg)), BaseAST(pos) {}
+  ElseBlock(LineRange pos, std::unique_ptr<Block> arg)
+      : expr(std::move(arg)), BaseAST(pos) {}
 
-    TypeMember(LineRange pos, std::unique_ptr<TypeExpression> lhs, std::optional<std::unique_ptr<TypeExpression>> rhs):
-        BaseAST(pos), expr(std::make_tuple(std::move(lhs), std::move(rhs))) {}
-
-    json GetMetaData() const;
+  json GetMetaData() const;
 };
 
-class TypeExpression: public BaseAST {
-public:
-    std::variant<std::unique_ptr<TypeMember>, std::tuple<std::unique_ptr<TypeExpression>, std::optional<std::unique_ptr<TypeMember>>, std::optional<std::unique_ptr<TypeMember>>>> expr;
+class TupleMember : public BaseAST {
+ public:
+  std::string id;
+  std::optional<std::unique_ptr<TypeExpr>> type;
 
-    TypeExpression(LineRange pos, std::unique_ptr<TypeMember> expr): BaseAST(pos), expr(std::move(expr)) {}
-    TypeExpression(LineRange pos, std::unique_ptr<TypeExpression> lhs, std::optional<std::unique_ptr<TypeMember>> or_expr, std::optional<std::unique_ptr<TypeMember>> impl_expr):
-        BaseAST(pos), expr(std::make_tuple(std::move(lhs), std::move(or_expr), std::move(impl_expr))) {}
+  TupleMember(LineRange pos, std::string id)
+      : id(id), type(std::nullopt), BaseAST(pos) {}
+  TupleMember(LineRange pos, std::string id,
+              std::unique_ptr<TypeExpr> expr)
+      : id(id), type(std::move(expr)), BaseAST(pos) {}
 
-    json GetMetaData() const;
+  json GetMetaData() const;
 };
 
-class FuncDefinition: public BaseAST {
-public:
-    std::optional<std::unique_ptr<TupleDefinition>> args;
-    std::optional<std::unique_ptr<TypeExpression>> ret_type;
+class TupleDefinition : public BaseAST {
+ public:
+  std::vector<std::unique_ptr<TupleMember>> members;
 
-    FuncDefinition(LineRange pos): BaseAST(pos), args(std::nullopt), ret_type(std::nullopt) {}
-    FuncDefinition(LineRange pos, std::unique_ptr<TupleDefinition> args): BaseAST(pos), args(std::move(args)), ret_type(std::nullopt) {}
-    FuncDefinition(LineRange pos, std::unique_ptr<TupleDefinition> args, std::unique_ptr<TypeExpression> ret_type): BaseAST(pos), args(std::move(args)), ret_type(std::move(ret_type)) {}
+  TupleDefinition(LineRange pos,
+                  std::vector<std::unique_ptr<TupleMember>> members)
+      : BaseAST(pos), members(std::move(members)) {}
 
-    json GetMetaData() const;
+  json GetMetaData() const;
 };
 
-class Constant: public BaseAST {
-public:
-    std::variant<std::unique_ptr<ArrayConstant>, std::unique_ptr<MapConstant>, double, long int, std::string, char> data;
+class TypeMember : public BaseAST {
+  struct ArrayOrMapType {
+    std::unique_ptr<TypeExpr> first_type;
+    std::optional<std::unique_ptr<TypeExpr>> second_type;
 
-    template<typename T>
-    Constant(LineRange pos, T arg): data(arg), BaseAST(pos) {}
+    ArrayOrMapType(std::unique_ptr<TypeExpr> first_type,
+                   std::optional<std::unique_ptr<TypeExpr>> second_type)
+        : first_type(std::move(first_type)),
+          second_type(std::move(second_type)) {}
+  };
 
-    json GetMetaData() const;
+ public:
+  std::variant<std::unique_ptr<FuncCall>, std::string,
+               std::unique_ptr<FuncDefinition>,
+               std::unique_ptr<TupleDefinition>, ArrayOrMapType> expr;
+
+  TypeMember(LineRange pos, std::unique_ptr<FuncCall> arg)
+      : expr(std::move(arg)), BaseAST(pos) {}
+  TypeMember(LineRange pos, std::string arg) : expr(arg), BaseAST(pos) {}
+  TypeMember(LineRange pos, std::unique_ptr<FuncDefinition> arg)
+      : expr(std::move(arg)), BaseAST(pos) {}
+    TypeMember(LineRange pos, std::unique_ptr<TupleDefinition> arg)
+      : expr(std::move(arg)), BaseAST(pos) {}
+  TypeMember(LineRange pos, std::unique_ptr<TypeExpr> lhs,
+             std::optional<std::unique_ptr<TypeExpr>> rhs)
+      : BaseAST(pos), expr(ArrayOrMapType(std::move(lhs), std::move(rhs))) {}
+
+  bool IsMap() const;
+
+  json GetMetaData() const;
 };
 
-class MapConstant: public BaseAST {
-public:
-    std::vector<std::unique_ptr<Expression>> keys;
-    std::vector<std::unique_ptr<Expression>> values;
+class TypeExpr : public BaseAST {
+  struct ComplexExpr {
+    std::unique_ptr<TypeExpr> lhs;
+    std::optional<std::unique_ptr<TypeMember>> or_expr;
+    std::optional<std::unique_ptr<TypeMember>> implements_expr;
 
-    MapConstant(LineRange pos, std::vector<std::unique_ptr<Expression>> keys, std::vector<std::unique_ptr<Expression>> values):
-        BaseAST(pos), keys(std::move(keys)), values(std::move(values)) {}
+    ComplexExpr(std::unique_ptr<TypeExpr> lhs,
+                std::optional<std::unique_ptr<TypeMember>> or_expr,
+                std::optional<std::unique_ptr<TypeMember>> implements_expr)
+        : lhs(std::move(lhs)), or_expr(std::move(or_expr)),
+          implements_expr(std::move(implements_expr)) {}
+  };
+ public:
+  std::variant<std::unique_ptr<TypeMember>, ComplexExpr> expr;
 
-    json GetMetaData() const;
+  TypeExpr(LineRange pos, std::unique_ptr<TypeMember> expr)
+      : BaseAST(pos), expr(std::move(expr)) {}
+  TypeExpr(LineRange pos, std::unique_ptr<TypeExpr> lhs,
+           std::optional<std::unique_ptr<TypeMember>> or_expr,
+           std::optional<std::unique_ptr<TypeMember>> impl_expr)
+      : BaseAST(pos), expr(ComplexExpr(std::move(lhs), std::move(or_expr),
+        std::move(impl_expr))) {}
+
+  json GetMetaData() const;
 };
 
-class ArrayConstant: public BaseAST {
-public:
-    std::vector<std::unique_ptr<Expression>> values;
+class FuncDefinition : public BaseAST {
+ public:
+  std::optional<std::unique_ptr<TupleDefinition>> args;
+  std::optional<std::unique_ptr<TypeExpr>> ret_type;
 
-    ArrayConstant(LineRange pos, std::vector<std::unique_ptr<Expression>> values):
-        BaseAST(pos), values(std::move(values)) {}
+  FuncDefinition(LineRange pos)
+      : BaseAST(pos), args(std::nullopt), ret_type(std::nullopt) {}
+  FuncDefinition(LineRange pos, std::unique_ptr<TupleDefinition> args)
+      : BaseAST(pos), args(std::move(args)), ret_type(std::nullopt) {}
+  FuncDefinition(LineRange pos, std::unique_ptr<TupleDefinition> args,
+                 std::unique_ptr<TypeExpr> ret_type)
+      : BaseAST(pos), args(std::move(args)), ret_type(std::move(ret_type)) {}
 
-    json GetMetaData() const;
+  json GetMetaData() const;
+};
+
+class Constant : public BaseAST {
+ public:
+  std::variant<std::unique_ptr<ArrayConstant>, std::unique_ptr<MapConstant>,
+               double, i64, std::string, char> data;
+
+  Constant(LineRange pos, std::unique_ptr<ArrayConstant> arg)
+      : data(std::move(arg)), BaseAST(pos) {}
+  Constant(LineRange pos, std::unique_ptr<MapConstant> arg)
+      : data(std::move(arg)), BaseAST(pos) {}
+  Constant(LineRange pos, double arg) : data(arg), BaseAST(pos) {}
+  Constant(LineRange pos, i64 arg) : data(arg), BaseAST(pos) {}
+  Constant(LineRange pos, std::string arg) : data(arg), BaseAST(pos) {}
+  Constant(LineRange pos, char arg) : data(arg), BaseAST(pos) {}
+
+  json GetMetaData() const;
+};
+
+class MapConstant : public BaseAST {
+ public:
+  std::vector<std::unique_ptr<Expr>> keys;
+  std::vector<std::unique_ptr<Expr>> values;
+
+  MapConstant(LineRange pos, std::vector<std::unique_ptr<Expr>> keys,
+              std::vector<std::unique_ptr<Expr>> values)
+      : BaseAST(pos), keys(std::move(keys)), values(std::move(values)) {}
+
+  json GetMetaData() const;
+};
+
+class ArrayConstant : public BaseAST {
+ public:
+  std::vector<std::unique_ptr<Expr>> values;
+
+  ArrayConstant(LineRange pos, std::vector<std::unique_ptr<Expr>> values)
+      : BaseAST(pos), values(std::move(values)) {}
+
+  json GetMetaData() const;
 };
 
 #endif
