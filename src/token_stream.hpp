@@ -12,6 +12,8 @@
 #include "reader.hpp"
 #include "defs.hpp"
 
+namespace porc::internals {
+
 enum class TokenType {
 #include "token_list.inc"
   NUM_TOKENS,
@@ -115,5 +117,7 @@ class TokenStream {
 
   TokenStream(std::unique_ptr<Reader> reader);
 };
+
+}
 
 #endif

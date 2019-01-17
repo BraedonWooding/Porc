@@ -1,23 +1,6 @@
 #ifndef PRINTER_HELPERS_HPP
 #define PRINTER_HELPERS_HPP
 
-/*
-  This is a gigantic file!
-*/
-
-// This is predominantly based upon the EBNF
-// of course changes will occur
-// i.e. ArgumentExpressionList => Vector(Expression)
-
-// @TODO: I'm a bit lazy rn so I've used template<typename T>
-// in place of copy + pasting the constructor multiple times while in effect
-// it shouldn't impact performance/codesize it will impact compile times
-// (though I would presume a relatively negligible amount)
-// regardless should be replaced as it isn't very explicit
-
-// more just till I lose my laziness to not add proper lines
-#define NULL_RANGE (lineRange){0}
-
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include "defs.hpp"

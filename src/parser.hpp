@@ -4,6 +4,8 @@
 #include "token_stream.hpp"
 #include "ast.hpp"
 
+namespace porc::internals {
+
 class Parser {
 private:
   TokenStream stream;
@@ -42,5 +44,7 @@ public:
   std::unique_ptr<ArrayConstant> ParseArrayConstant();
   std::unique_ptr<MapConstant> ParseMapConstant();
 };
+
+}
 
 #endif

@@ -18,6 +18,8 @@ using json = nlohmann::json;
 
 #include "printer_helpers.hpp"
 
+namespace porc::internals {
+
 class BaseAST {
  protected:
   BaseAST(LineRange pos) : pos(pos) {}
@@ -804,5 +806,7 @@ class ArrayConstant : public BaseAST {
 
   json GetMetaData() const;
 };
+
+}
 
 #endif

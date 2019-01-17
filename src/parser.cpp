@@ -1,5 +1,7 @@
 #include "parser.hpp"
 
+namespace porc::internals {
+
 std::unique_ptr<FileLevelExpr> Parser::ParseFileLevelExp() {}
 std::unique_ptr<TopLevelExpr> Parser::ParseTopLevelExpr() {}
 std::unique_ptr<PrimaryExpr> Parser::ParserPrimaryExpr() {}
@@ -30,3 +32,5 @@ std::unique_ptr<FuncDefinition> Parser::ParseFuncDef() {}
 std::unique_ptr<Constant> Parser::ParseConstant() {}
 std::unique_ptr<ArrayConstant> Parser::ParseArrayConstant() {}
 std::unique_ptr<MapConstant> Parser::ParseMapConstant() {}
+
+}

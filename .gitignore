@@ -65,6 +65,7 @@ build/
 release/
 debug/
 lib/
+cpplint.py
 
 # configuration files
 .vscode/

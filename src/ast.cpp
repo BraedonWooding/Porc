@@ -10,6 +10,8 @@ template <class T, class... Ts>
 inline constexpr bool is_any =
     std::bool_constant<(std::is_same_v<T, Ts> || ...)>::value;
 
+namespace porc::internals {
+
 const char *AssignmentOpToStr(AssignmentOp op) {
   switch (op) {
     case AssignmentOp::AdditionEqual: return "+=";
@@ -77,21 +79,6 @@ const char *EqualityOpToStr(EqualityOp op) {
     case EqualityOp::NotEqual: return "!=";
     default: throw __FILE__":EqualityOpToStr() Unhandled case";
   }
-}
-
-std::ostream &operator <<(std::ostream &out, const LineRange &pos) {
-  // 0:1 -> 1:2
-  out << pos.line_start << ":" << pos.col_start
-      << " -> "
-      << pos.line_end << ":" << pos.col_end;
-  return out;
-}
-
-json LineRange::GetMetaData() const {
-  return {
-    { this->line_start, this->col_start },
-    { this->line_end, this->col_end }
-  };
 }
 
 json FileLevelExpr::GetMetaData() const {
@@ -633,4 +620,6 @@ json ArrayConstant::GetMetaData() const {
     data.push_back(val->GetMetaData());
   }
   return data;
+}
+
 }

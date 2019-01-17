@@ -1,25 +1,30 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <csignal>
+
+#include <CLI11.hpp>
+#include <rang.hpp>
 
 #include "token_stream.hpp"
-#include <CLI11.hpp>
+#include "defs.hpp"
 
-/* this is an example of a custom error handler for when we want nicer crash messages */
-// char *get_error_name(int err) {
-//     if (err == IO_FILE_INVALID) {
-//         return "File not found";
-//     } else {
-//         return "Unknown Error";
-//     }
-// }
+void signal_handler(int s);
 
 int main(int argc, char *argv[]) {
+  struct sigaction sigIntHandler;
+  sigIntHandler.sa_handler = signal_handler;
+  sigemptyset(&sigIntHandler.sa_mask);
+  sigIntHandler.sa_flags = 0;
+  sigaction(SIGINT, &sigIntHandler, nullptr);
+
   CLI::App app{"Porc, the compiler/interpreter for Porc"};
   std::vector<std::string> filenames;
   app.add_option("input files,-i", filenames, "Input Files")
     ->required(true)->check(CLI::ExistingFile);
   app.require_subcommand(1);
+  bool verbose;
+  app.add_flag("-v,--verbose", verbose, "Verbose output");
 
   auto run = app.add_subcommand("run", "Run the given porc script")
     ->ignore_case()->fallthrough();
@@ -27,11 +32,14 @@ int main(int argc, char *argv[]) {
     ->ignore_case()->fallthrough();
   auto dev = app.add_subcommand("dev", "A series of development options")
     ->ignore_case()->fallthrough();
-  auto token_stream = dev->add_subcommand("token_stream",
-      "Shows the output of the tokenizer then exits")
+  auto tokens = dev->add_subcommand("tokens", "Tokenizes the files")
     ->ignore_case()->fallthrough();
-  token_stream->callback([&](){
+  tokens->callback([&](){
+    if (verbose) std::cout << "Running subcommand `dev/tokens`";
+
     for (auto file: filenames) {
+      using namespace porc::internals;
+
       std::cout << "\t== " << file << " ==" << std::endl;
       TokenStream stream(std::make_unique<CFileReader>(file.c_str()));
       for (auto tok = stream.Next(); !stream.IsDone(); tok = stream.Next()) {
@@ -46,6 +54,27 @@ int main(int argc, char *argv[]) {
     }
   });
 
-  CLI11_PARSE(app, argc, argv);
+  app.callback([&]{
+    if (verbose) {
+      std::cout << "Porc (CC) version " << porc::kVersion << "\n"
+                << "Verbose mode activated" << "\n";
+    }
+  });
+
+  std::atexit([](){std::cout << rang::style::reset;});
+  try {
+      app.parse(argc, argv);
+  } catch (const CLI::ParseError &e) {
+      // We will personally add colour to it since this makes it so ugly
+      // std::cout << (e.get_exit_code()==0 ? rang::fg::blue : rang::fg::red);
+      return app.exit(e);
+  }
+
   return 0;
+}
+
+void signal_handler(int s) {
+  std::cout << std::endl << rang::style::reset << rang::fg::red << rang::style::bold;
+  std::cout << "Control-C detected, exiting..." << rang::style::reset << std::endl;
+  std::exit(1); // will call the correct exit func, no unwinding of the stack though
 }

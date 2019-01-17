@@ -5,8 +5,6 @@
 #include <optional>
 #include "helper.hpp"
 
-#include "token_data.inc"
-
 /*
   Helpful notes:
   This is mostly here since our nature of reading is a little odd perhaps?
@@ -43,6 +41,10 @@
 
   @TODO:  decouple these functions
 */
+
+namespace porc::internals {
+
+#include "token_data.inc"
 
 TokenStream::TokenStream(std::unique_ptr<Reader> reader): reader(std::move(reader)) {
   cur.type = TokenType::Undefined;
@@ -546,4 +548,6 @@ std::string Token::ToString() {
 
 const char *Token::ToName() {
   return tokenToNameMap[(int)type];
+}
+
 }
