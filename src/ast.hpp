@@ -143,7 +143,10 @@ using ExprType = std::variant<std::unique_ptr<AssignmentExpr>,
   ExprType expr;
   bool ret; // 'return' Expr
 
-  TopLevelExpr(LineRange pos, ExprType expr, bool ret)
+  TopLevelExpr(LineRange pos, std::unique_ptr<AssignmentExpr> expr)
+      : BaseAST(pos), ret(false), expr(std::move(expr)) {}
+
+  TopLevelExpr(LineRange pos, std::unique_ptr<Expr> expr, bool ret)
       : BaseAST(pos), ret(ret), expr(std::move(expr)) {}
 
   json GetMetaData() const;

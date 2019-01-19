@@ -26,8 +26,9 @@ struct Token {
   TokenType type;
   LineRange pos;
 
-  const char *ToName();
-  std::string ToString();
+  const char *ToName() const;
+  std::string ToString() const;
+  const char *ToErrorMsg() const;
 
   Token() : pos(LineRange::NullRange()) {};
   Token(TokenType type, LineRange pos): pos(pos), type(type) { }

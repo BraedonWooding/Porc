@@ -10,6 +10,7 @@
 #include "defs.hpp"
 
 void signal_handler(int s);
+void print_version();
 
 int main(int argc, char *argv[]) {
   struct sigaction sigIntHandler;
@@ -56,21 +57,27 @@ int main(int argc, char *argv[]) {
 
   app.callback([&]{
     if (verbose) {
-      std::cout << "Porc (CC) version " << porc::kVersion << "\n"
-                << "Verbose mode activated" << "\n";
+      std::cout << "Verbose mode activated" << "\n";
     }
   });
 
   std::atexit([](){std::cout << rang::style::reset;});
   try {
-      app.parse(argc, argv);
+    app.parse(argc, argv);
   } catch (const CLI::ParseError &e) {
-      // We will personally add colour to it since this makes it so ugly
-      // std::cout << (e.get_exit_code()==0 ? rang::fg::blue : rang::fg::red);
-      return app.exit(e);
+    if (verbose) print_version();
+
+    // We will personally add colour to it since this makes it so ugly
+    // std::cout << (e.get_exit_code()==0 ? rang::fg::blue : rang::fg::red);
+    return app.exit(e);
   }
 
   return 0;
+}
+
+void print_version() {
+  std::cout << rang::style::reset << rang::fg::blue << "Porc (CC) Version "
+            << porc::kVersion << rang::style::reset << "\n";
 }
 
 void signal_handler(int s) {

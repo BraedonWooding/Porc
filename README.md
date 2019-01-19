@@ -50,6 +50,7 @@ Are you interested?  Maybe check out the [Language Guide](docs/LanguageGuide.md)
   - [CLI11](https://github.com/CLIUtils/CLI11)
   - [expected](https://github.com/TartanLlama/expected)
   - [json](https://github.com/nlohmann/json)
+  - [rang](https://github.com/agauniyal/rang)
 
 ## Roadmap
 

@@ -529,7 +529,7 @@ void TokenStream::Read(uint len, uint offset) {
   read_buf[offset + len] = '\0';
 }
 
-std::string Token::ToString() {
+std::string Token::ToString() const {
   if (type == TokenType::Str || type == TokenType::Identifier) return std::get<std::string>(data);
   char *out = NULL;
   if (type == TokenType::LineComment) {
@@ -546,8 +546,15 @@ std::string Token::ToString() {
   Unreachable("Case not handled");
 }
 
-const char *Token::ToName() {
+const char *Token::ToErrorMsg() const {
+  if (tokenToStrMap[(int)type] != NULL) return tokenToStrMap[(int)type];
+  if (tokenToNameMap[(int)type] != NULL) return tokenToNameMap[(int)type];
+  Unreachable("Case not handled");
+}
+
+const char *Token::ToName() const {
   return tokenToNameMap[(int)type];
+  Unreachable("Case not handled");
 }
 
 }
