@@ -97,7 +97,7 @@ IntPositive = (data: int) :: {
     new = fn (data) => {
         // this allows it to pick some errors up at compile time rather than
         // just at runtime.
-        @comp_assert(data >= 0);
+        @CompAssert(data >= 0);
         // last statement always returned unless ends with `;`
         // this does mean that in things like `add_no_return = (a, b) => a + b;;`
         // you need the double `;` to not return you could also just write it as

@@ -75,7 +75,10 @@ Macro               "@"
 Ternary             "?"
 
 // Reserved names
+Const               "const"
+Struct              "struct"
 Func                "fn"
+Let                 "let"
 Return              "return"
 While               "while"
 For                 "for"

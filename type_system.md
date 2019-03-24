@@ -1,184 +1,201 @@
-# Porc's Type System
+# Porc's Typing
 
-Porc has a type system that most likely you haven't interfaced with previously.  Before we discuss it first I want to note that Porc was built and designed around having a properly dynamic language without the type problems it typically brings.
+Porc's type system is meant to allow you to code in a dynamic way while having everything statically defined.  Of course you can add types (and it is recommended to do so for function definitions for readability purposes) but for a quick script you don't have to worry about it!
 
-## Q: Is it dynamic or static
+## Example
 
-Well I think the problem lays in the fact that both those words aren't really properly defined and some things blur the lines between them typically though dynamic resolves type references at runtime where as static resolves type references at compile time, typically 'runtime' refers to the last point required to resolve it (i.e. wait as long as we can).
+```rust
+// note: n is 0 indexed
+// no need for return in this case
+fib = fn (n) => n <= 1 ? 1 : fib(n - 1) + fib(n - 2);
+```
 
-Porc carries a bit of both as you'll see, how about you judge for yourself :) (I'll add my opinion of which one it is at the end).
+> What is the type of `n`?
 
-## Problem it aimed to solve
+It isn't int and actually nothing mandates that it has to be defined as a primative.  It actually is defined as;
 
-I want to give you a good reasoning of why I approached the problem this way (really should help you understand the type system).
+`n: any ^ ops.sub(n, n(int) ? n(int) : int) ^ ops.lte(n, n(int) ?? int)`.
 
-I aimed to solve the following;
+Now you may ask why it isn't defined in terms of `ops.add`?  Well since fib() always returns an int `n` doesn't necessarily have to implement the addition operand.  So what can we call fib with?
 
-### Side-effects
+- `fib(1) = fib(0) = 1`
+- `fib(4) = 5`
+- `fib(3.9) = 5`
+- `fib(3.3) = 5`
 
-For example;
+Now the fact you can pass a float may surprise you!  But in reality since these operations are defined well on both it is fine.  To break down the type...
 
-```C
-add = (a, b) => {
-    c = a + b;
-    stdout = std.stdout();
-    stdout.write_ln("\{a\} + \{b\} = \{c\}");
-    return c;
+- `any` just means any type, similar to `Object` in Java/C# all objects are 'any'
+- `^` just means implements
+- `ops.add(a, b)` (when used in a type and with `^`) means that the type has to implement the interface ops.add 'adding' types a and b.
+- `n(int)` just means cast `int` to `n`
+  - `n(int) ? n(int) : int` just means if you can cast `int` to `n` then it is type `n(int)` else it is `int`
+  - `a ?? b` just means `a ? a : b` so in this case it is identical to above
+- `lte` just means less than or equal.
+
+So we could create a type to use in fib like this;
+
+```rust
+// note: just MVP you may want more methods or whatevs
+// represents something in the form of coeff * 10 ^ exp.
+factor = (coeff: int, exp: int) :: {
+    @implement(ops.sub, fn (a: factor, b: int) => {
+        new_data = a.coeff * 10 ** a.exp - b;
+        new_exp = int(math.log10(new_data));
+        return factor(new_data / 10 ** exp, new_exp);
+    })
+
+    @implement(ops.lte, fn (a: factor, b: int) bool => {
+        return a.coeff * 10 ** a.exp <= b;
+    })
 };
 ```
 
-Now what if we fail to open `stdout`?  Also the fact that this prints out to stdout is a side-effect of this function ('subjective' yes) so we want to represent these side effects in the type system.  That way we can control them if need be, for example change stdout to stderr or a file or maybe just an array.  This is a boon to testing mainly and promotes better code design (want to change that file out to a database, just requires a short line or two rather than a redesign)
+> Slight note: a struct/type is just a tuple bounded to some methods/static members so in this case `factor(a, b)` is really just `factor((a, b))` (that is cast the tuple `(a, b)` to `factor`) however you can leave out the extraneous tuple parentheses in this case.
 
-### Incorrect Types
+You could of course overload ops.sub (you can only overload operators in Porc) with ones for subtracting factors for one another and other operations.
 
-Passing in wrong types should be handled properly!  We shouldn't need to have checkers with comments and so on (like python).
+Now if we said `fib(factor(2, 1))` we would get `17711`!
 
-This helps massively with big projects as it not only prevents the classic python bugs where you pass an incorrect type for example `get_centre_from_id(centre)` rather than `get_centre_from_id(centre.id)` (actually happened to me in an assignment :( our tests didn't pickup on this since our tests were just backend).
+## Generic Methods/Type Structures
 
-### Slow
+Generic methods are just simply not needed since in essence they are generic already!  However often we want generic type structures for example let's say we want a vector (that is something that is closed over addition and that snizz not the growable array from C++) and in actual fact we could use our vector in our fib example too!
 
-Typically dynamic languages are slow (python mainly in this and LUA - non jit to a degree) but why is this??
-
-Well it is mainly that when I do `c = a + b` I need to really transpose it down to `c = a.__add__(b)` (happens with lua meta-tables, though there are also addition commands that are more optimised) typically people say stuff like python can convert this to fast arithmetic operations and that's true but its still overhead and in this example `c = a.doX(b, d)` it has to somehow look up this `doX` method on `a` rather than having it already mapped.  All these little things I think are to blame for the speed!
-
-So Porc aims to provide the compiler/byte code VM with as much information as it can this causes shortcuts to be faster and typically eliminates a lot of these calls.
-
-For example `c = a + b` (where `a` and `b` are integers) creates the following bytecode rep
-
-```assembly
-new_var $c %int
-arith_add %int 2 $a $b $c
-```
-
-Which literally just decomposes to something like (in C);
-
-```C
-int c;
-c = a + b;
-```
-
-We follow LUA in the fact that our interpreter is extremely simple (and built in C!).
-
-## The solution
-
-Hopefully all this background will help reduce questions you may have about the implementation.  Keep in mind a lot of this syntax is EXTREMELY experimental and as usual syntax is really irrelevant when talking about type systems.
-
-First we have a bit of terminology; `type variants` is just a fancy way of saying that a type can be either one of the types (i.e. `int | float` means int or float), `type invariant` means that rather than explicitly restricting the type you are restricting the 'view' of the type that is `int ^ float` means that the type can either be int and/or float.  Now this and/or is the tricky part of the type system but actually is extremely powerful.
-
-For example let's say we want to build a generic 'add' function;
+Well let's start with a naive implementation;
 
 ```rust
-add = (a, b) => a + b;
-```
+Vec = (x, y, z) :: {
+    @implement(ops.add, fn (a: vec, b: vec) => {
+        return vec(a.x + b.x, a.y + b.y, a.z + b.z);
+    })
 
-Now what are the types of this?  Well if you leave out types Porc automatically 'tries' to fit the types as much as it can and in this case will come up with this maybe?
+    @implement(ops.sub, fn (a: vec, b: vec) => {
+        return vec(a.x - b.x, a.y - b.y, a.z - b.z);
+    })
 
-```rust
-add = (a: any ^ op.add, b: any ^ op.add) any => a + b;
-```
+    // and so on...
 
-Now in actual fact this isn't exactly what it would produce, since this would allow `add(1, "hello")` and so we need to make sure that add binds to both (while also allowing `a` and `b` to be different types to allow `add(1, 2.5)` and `add("hello", 'h')`).  Now if we could just make `b` `b: any ^ op.add ^ a` but that would require `b` to be viewed as the same type as `a` which would break the second case, in this case we just want an `op.add` that supports `a` and `b`.
+    @implement(ops.add, fn (a: vec, b: int) => {
+        // presuming the `int` as a one dimensional vector
+        return a + vec(b, 0, 0);
+    })
 
-```rust
-add = (a: any ^ op.add, b: any ^ op.add(a, b)) op.add(a, b) => a + b;
-```
-
-Yes that is a little bit of a recursive function but it's allowed since the compiler can clearly see you are just applying a function check.
-
-Basically if you have something like `a: type ^ function` then it know's what you are trying to do and just makes sure that the type implements that function (that is the type is 'viewable' as that function), if you call the function then you aren't actually calling the function but rather making sure that the function *is* callable with those types, this in fact actually returns a type which in this case we can use as the return value!  Now as a human this is a bit verbose so you can simplify it like;
-
-```rust
-add = (a: any ^ op.add(a, b), b: |a) ~a => a + b;
-```
-
-Now `~a` means unary complement in this case we are saying the type is `any` that implements `op.add(a, b)` so the complement is `op.add(a, b)` that implements `any` (`op.add(a, b) ^ any`) which is equivalent to `op.add(a, b)`.
-
-> And yes that does mean that the order of `^` matters you should read it as 'implements' so `int ^ float` means `int` that implements `float` which means that you can take in integers but you can also manipulate them as floats (more useful when talking about it in terms of `type ^ str`).
-
-What does `|a` mean?  Well sometimes we want to 'refresh' the type of a constraint in this case we want to let `b` have a different type (but be under the same constraints as `a`) how do we do this?  Well we want to create a parallel type, and well `|` means parallel.
-
-In reality I probably wouldn't have used `~a` here since the way it works is a little 'magic' in this instance (there are more reasonable uses) but I felt it was wortht o show that you don't need to always add a lot of verbosity to add types.
-
-Okay so this solves the 'incorrect' type problem for example in my original problem I had something like;
-
-```python
-def centre_by_id(self, centre_id):
-    for centre in self._centres:
-        if centre.id == centre_id: return centre
-    return None
-```
-
-> Yes I know this isn't very pythonic but I want it to be readable by those who don't know python so I'm going to avoid using a list comprehension and `or` or some kind of function.
-
-In Porc it would look like;
-
-```rust
-centre_by_id = (self, centre_id) => {
-    for centre in self._centres {
-        if centre.id == centre_id  break centre;
-    } else null // if for loop doesn't break
-    // last statement without semi-colon returns
+    // and so on...
 };
 ```
 
-And adding types (going to leave out self since that's irrelevant in this case) and presuming `centre.id` is an int...
+> We will come back to a better implementation in a minute just first another question!
+
+Now that is a lot of typing, also what are the types of x, y, and z??  If they are the crazy weird `any ^ ...` stuff above then if we wanted to print it how would we?  Or how would you access the `x` member as an int?  And so on.
+
+A better example to illustrate this would be if we had a priority queue and wanted to grab an element, what would be the type of that element?  You couldn't put an int into the structure and get an int out.  Well there are two ways of accomplishing this...
+
+### First way - call site based
+
+Let's say that the method `queue.dequeue()` returns some object and in this case we have put a sequence of integers into the queue how would we get them out?
 
 ```rust
-centre_by_id = (self, centre_id: any ^ int) Null | Centre => { /* ... */ };
+while (!queue.is_empty()) {
+    obj = queue.dequeue;
+    // I can't just do `print(obj);`
+    // I can either do a cast (unsafe cast)
+    print(unsafe(int(obj))); // raises runtime error if fails
+    // or I can check the type
+    // `is` effectively checks if the obj can be an int not necessarily if it is
+    // use `==` to check if it is explicitly an int
+    if (obj is int) {
+        print(int(obj));
+    } else {
+        // do whatever error checking you want
+    }
+}
 ```
 
-Note: how we also fix the 'null' problem by making it part of the type system, null is the only type that you can't '^' (well currently) since you can't 'view' a type as nothing that makes no sense.  Also note that while this fixes the case where you pass an incompatible type it doesn't fix the case where you do `centre_by_id(3.02)` since that'll just find the one with id == 3.  However this case is a lot rarer and may even pass static type checks (atleast errors, will exist in warnings), we can force more strict rules by compiling Porc with `--strict-types` which will just do `centre_id: int` as that is the 'lowest' point it can resolve, it won't effect the above add function since it can't resolve lower.
+A few things to note:
 
-Basically Porc by default tries to make the types as wide as possible to allow you to be as dynamic as you wish, however dependent upon your style you may want to narrow that using `--strict-types`.
+- Implements and variants (we will get to these soon) are compile time only
+  - So you **can't** say `if (obj is any ^ ops.add(obj, obj))` or similar
+  - You can only compare concrete types i.e. `if (obj is vec)` or `if (obj is int)`.
+- Type checking is pretty free (each object carries a typetag with it so it is just an integer comparison)
+- Unsafe blocks are useful in some cases to reduce verbosity but aren't recommended
+  - `--Wno-unsafe` flag turns on errors for any unsafe blocks.
+  - Unsafe can either be used like a function (like this) or a block i.e. `unsafe { /* ... */ }`
 
-### Recap
+### Second way - embed type into the structure
 
-So we fix types by basically having 2 kinds of types that the compiler does mostly automatically (you of course can do itself if you want) `invariants`, `variants`.  Technically `a: int` is a variant just with no other 'variants'.
+Since type tags exist we can embed a typetag into a structure and thus use that as the type for all the contents.
 
-But what about side effects...?
-
-### Side-Effects
-
-I haven't really covered side-effects because they are actually just covered by the type system really simply.  I'll just begin with an example;
+This can be used like; `Queue(int)` for example it would look something like this;
 
 ```rust
-add = (a, b) => {
-    c = a + b;
-    println("{a} + {b} = {c}");
-    return c;
+// Just a MVP implementation
+// note: giving default value to contents so that you could pass your own array if you want
+Queue = (T: Type, contents: [...]T = []) :: {
+    // note: we have the void return here so we don't get any weird
+    //       returns from the append typically the style is that if a function
+    //       is void you add the void return type!
+    enqueue = (self, val: T) void => self.contents.append(val);
+    dequeue = (self) => self.contents.pop();
 };
+
+// Using it like
+queue = Queue(int);
+queue.enqueue(4);
+queue.enqueue(9);
+// you could also write it as (more of a side-effect of contents being in the tuple)
+queue = Queue(int, [4, 9]);
+print(queue.dequeue()); // 4
+print(queue.dequeue()); // 9
 ```
 
-In this case we have used a function `println`, how is the function defined well it looks something like this;
+## Back To Vec
+
+Now we are going to take this and apply it to our vector and also apply some better ways to write out the vector;
 
 ```rust
-println = (msg: any ^ str) => {
-    out = @context(GLOBAL, main_out);
-    out.write_ln(msg);
+// @auto_type() can be used in the case where you don't want the api user to have
+// to type out the type each time if you can get it from the variables
+// Note: You could also just say `T: Type` but then require user's to give
+// the type every time.
+Vec = (x: T, y: T, z: T, @auto_type(T)) :: {
+    // element_wise just applies the operation on each of the given values
+    // i.e. Vec(a.x + b.x, a.y + b.y, a.z + b.z);
+    @implements.element_wise(ops.add, x, y, z);
+    @implements.element_wise(ops.sub, x, y, z);
+    // so on
+
+    // note: we are stating that the comparison is purely between the first member
+    @implements.func(ops.lte, (a: Vec, b: int) => {
+        return a.x <= b;
+    });
+
+    // methods/variables starting with `_` are private
+    // in this case we are stating that an integer value is 1D vector
+    _from_int = @conv_from(int, (a) => vec(a, 0, 0));
+
+    // .cast just casts the second type to the 'struct type' i.e. Vec(int)
+    // then just applies the operator.
+    @implements.cast(ops.add, int);
+    @implements.cast(ops.sub, int);
+    @implements.cast(ops.lte, int);
+    // and so on...
 };
+
+// it can be deducted
+flt_vec = Vec(2.5, 3.9, 2.1);
+// if we want these to be floats we have to specify else it'll be ints
+needs_type = Vec(2, 3, 4, flt);
+fib(Vec(1, 2, 3)); // 1
+fib(Vec(4, 2, 0)); // 5
 ```
 
-> In reality there is a bit of code to not re-open stdout if it is already open in the current block but I left that out for readability.
+> You could also apply `@auto_type` to Queue for the cases where you pass an array.
 
-The string interpolation is handled at a higher level so we just have to write out the line.  `@context` is the 'magic' here that handles our context quite well!  Basically we have characterised that there are two types of effects;
+Now I implemented some of the functions just so it would work for fib in reality a lot of these are malformed so take it as what it was meant to be an example to show that our structs are kinda duck typed (but statically so).
 
-- 'unconventional' side effects (like it writes the change to the database or updates some other person's 'ability')
-- 'conventional' side effects it just does some kind of 'IO' work that we may want to re-route.
+## Side Note: why no `<T>` generics
 
-In reality the second one is the only one we care about!  The other one can be handled by context but typically is just handled but having comments or just having better defined functions.
+Syntatically having something like `queue = Queue<int>()` would be perfectly fine however `<T>` is insanely complicated to parse especially with our complicated types for example `a < b ? 1 : 2 > c` is perfectly valid Porc and adding generics here would require some lexical analysis to detect exactly what you are trying to do.
 
-Context is quite simple; it is kinda similar to the `global meta table` for LUA, but you can actually make different context tables.  For example a bootloader for Porc could look like;
+Also type tags in functions really should be avoided are maybe will eventually be removed so the generic syntax would be for structs only which already do a good job of having the type tag like is `queue = Queue<int>()` really much nicer than `queue = Queue(int)`?
 
-```rust
-GLOBAL = @create_context();
-@export_full(GLOBAL); // make it available to all programs
-@set_context(main_out, std.io.stdout());
-@set_context(main_in, std.io.stdin());
-@set_context(err_out, std.io.stderr());
-@resolve_late(LAST, @resolve_context_links(GLOBAL))
-res = @resolve_late(LAST) <- main;
-@drop_context(GLOBAL);
-return res; // or set ret_val properly
-```
-
-Context is actually just a dictionary, `@resolve_late` just lets you set the resolution time for a component, in this case we want to link up main/`@resolve_context_links` as late as we can (since well the compilation of the bootloader will occur possibly much before the compilation of your program) also note that what resolving links does is sets `out` and so on to the location of the variable `main_out`, this means that we DON'T need a hash or something like that since we have the location of `main_out` (not what it holds) meaning we'll update along with all context changes.  Also note that contexts AREN'T garbage collected (garbage collection is actually quite a complex topic that is covered under [memory](memory.md))

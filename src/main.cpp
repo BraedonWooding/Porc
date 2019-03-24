@@ -43,8 +43,8 @@ int main(int argc, char *argv[]) {
 
       std::cout << "\t== " << file << " ==" << std::endl;
       TokenStream stream(std::make_unique<CFileReader>(file.c_str()));
-      for (auto tok = stream.Next(); !stream.IsDone(); tok = stream.Next()) {
-        if (tok.type == TokenType::Undefined) {
+      for (auto tok = stream.PopCur(); tok; tok = stream.PopCur()) {
+        if (tok.type == Token::Kind::Undefined) {
           std::cerr << "ERROR: Undefined token" << std::endl;
           break;
         }
@@ -56,9 +56,7 @@ int main(int argc, char *argv[]) {
   });
 
   app.callback([&]{
-    if (verbose) {
-      std::cout << "Verbose mode activated" << "\n";
-    }
+    if (verbose) std::cout << "Verbose mode activated" << "\n";
   });
 
   std::atexit([](){std::cout << rang::style::reset;});

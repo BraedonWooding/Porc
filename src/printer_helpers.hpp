@@ -37,7 +37,7 @@ public:
     this->col_end = col_end;
   }
 
-  static LineRange NullRange() {
+  static LineRange Null() {
     return LineRange(0, 0, 0, 0);
   }
 };

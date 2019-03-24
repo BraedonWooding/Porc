@@ -1,12 +1,5 @@
 # EBNF
 
-## TODO
-
-Small todo section
-
-- `where`
-- `block` on while/for can be empty
-
 ## Actual grammar
 
 This is more to make sure we something to make sure our parser is consistent.
@@ -16,9 +9,10 @@ A few notes:
 - `[a]` is identical to `(a)?` (i.e. 0 or 1)
 - `(a)+` means `a` repeated (1+)
 - `(a)*` means `a` repeated or not (0+)
-  - Basically identical to `[(a)+]` (which is `((a)+)?`)
-- Semicolons are kinda implemented incorrectly here, basically the rules follow the 'expression language' return rules followed by languages like rust i.e. `return` returns but also the last statement which doesn't have a `;` (note this works inside if statements)
-  - i.e. `if (x) 1 else 2` is identical to `if (x) return 1 else return 2;` and `return if (x) 1 else 2;`
+- Basically identical to `[(a)+]` (which is `((a)+)?`)
+- Semicolons are kinda implemented incorrectly here, basically the rules follow the 'expr language' return rules followed by languages like rust i.e. `return` returns but also the last statement which doesn't have a `;` (note this works inside if statements)
+- i.e. `if (x) 1 else 2` is identical to `if (x) return 1 else return 2;` and `return if (x) 1 else 2;`
+- Rules should never define required symbols for that rule to be formed those should be outside i.e. a block shouldn't include the `{` `}` required for it's definition they should be defined outside the block
 
 ```ebnf
 // Fragments
@@ -30,15 +24,16 @@ DigitSeq ::= Digit (Digit | '_')*
 Identifier ::= (Letter | '_') | (Letter | Digit | '_')*
 Int ::= DigitSeq
 Float ::= FloatDecimal FloatExponent?
-      | DigitSeq FloatExponent
+    | DigitSeq FloatExponent
 // @TODO: too lazy to write this out properly
 // just typical string rules with /" and so on
 String ::= " ANY* "
 Char ::= ' ANY '
+Bool ::= 'true' | 'false';
 
 // @Q: do we want to allow `0.`
 FloatDecimal ::= DigitSeq? '.' DigitSeq
-              | DigitSeq '.'
+            | DigitSeq '.'
 
 FloatExponent ::= ('e' | 'E') [Sign] DigitSeq
 
@@ -46,179 +41,206 @@ FloatExponent ::= ('e' | 'E') [Sign] DigitSeq
 
 AssignmentOp ::= '=' | '*=' | '/=' | '**=' | '%/=' | '%=' | '+=' | '-='
 
-// Main Expressions
+// - `block` means a scope definition
+// - `decl` stands for declaration
+// - `expr` stands for expression
+// - `list` is translated to an array construct
 
-fileLevelExpression
-    : (topLevelExpression ';'?)*
-    ;
+// == Blocks ==
 
-topLevelExpression
-    : assignmentExpression
-    | expression
-    | 'return' expression
-    ;
+file_block
+  : var_decl ';'
+  | 'fn' Identifier tuple_decl type_expr? '{' func_block* '}'
+  | 'struct' Identifier tuple_decl '{' file_block* '}'
+  | macro_expr ';'
+  ;
 
-primaryExpression
-    : '(' expression ')'
-    | Identifier
-    | constant
-    | type_expression
-    ;
-
-assignmentExpression
-    : tuple_definition ['=' expression]
-    | expression AssignmentOp expression
-    ;
-
-/*
-    1 + a -> b() + 1 ==== 1 + b(a) + 1
-    1 + a() <- b() <- c + 1 ==== 1 + a(b(c)) + 1
-*/
-
-func_call
-    : postfixExpression '(' argumentExpressionList? ')'
-    ;
-
-// @Q: I'm like 99% sure these bindings are correct (consult the above diagram)
-// However they could still be wrong if I'm considering a case incorrectly :).
-postfixExpression
-    : primaryExpression
-    | '@' Identifier {'.' Identifier}
-    | postfixExpression '[' expression ']'
-    // i.e. array[1] or array[1:] or array[1::] or array[1:2:]
-    // or array[] (lexical error) or array[:2:] ... and so on
-    | postfixExpression '[' expression? [ ':' expression? [':' expression?] ] ']'
-    | func_call
-    | func_call '<-' postfixExpression
-    | postfixExpression '->' func_call
-    | postfixExpression '.' Identifier
-    | postfixExpression '++'
-    | postfixExpression '--'
-    ;
-
-argumentExpressionList
-    : expression
-    | argumentExpressionList ',' expression
-    ;
-
-unaryExpression
-    : postfixExpression
-    | ('+' | '-' | '!' | '++' | '--') unaryExpression
-    ;
-
-powerExpression
-    : unaryExpression
-    | powerExpression '**' unaryExpression
-
-multiplicativeExpression
-    : powerExpression
-    | multiplicativeExpression ('*' | '/' | '%' | '%/') powerExpression
-
-additiveExpression
-    : multiplicativeExpression
-    | additiveExpression ('+' | '-') multiplicativeExpression
-    ;
-
-relationalExpression
-    : additiveExpression
-    | relationalExpression ('<' | '>' | '>=' | '<=') additiveExpression
-    ;
-
-equalityExpression
-    : relationalExpression
-    | equalityExpression ('==' | '!=') relationalExpression
-    ;
-
-logicalAndExpression
-    : equalityExpression
-    | logicalAndExpression '&&' equalityExpression
-    ;
-
-logicalOrExpression
-    : logicalAndExpression
-    | logicalOrExpression '||' logicalAndExpression
-
-conditionalExpression
-    // ternary support as well
-    : logicalOrExpression ['?' expression ':' expression]
-    ;
-
-block
-    : '{' (topLevelExpression ';'?)* '}'
-    | topLevelExpression
-    ;
-
-expression
-    : conditionalExpression
-    | func_definition '=>' block
-    | tuple_definition '::' block
-    | compound_conditionals
-    ;
-
-compound_conditionals
-    : for_loop
-    | while_loop
-    | if_block
-    ;
-
-while_loop
-    : 'while' '(' conditionalExpression ')' block ['else' block]
-    | 'while' conditionalExpression block ['else' block]
-    ;
-
-for_loop_contents
-    : Identifier [',' Identifier] 'in' conditionalExpression
-    | assignmentExpression? ';' conditionalExpression? ';' conditionalExpression?
-    ;
-
-for_loop
-    : 'for' '(' for_loop_contents ')' block ['else' block]
-    | 'for' for_loop_contents block ['else' block]
-    ;
-
-else_block
-    : 'else' if_block
-    | 'else' block
-    ;
+func_block
+  // you can leave it out for auto return
+  // also don't need it for control flow exprs
+  : ['return'] expr [';']
+  | var_decl ';'
+  | assignment_expr ';'
+  ;
 
 if_block
-    : 'if' '(' conditionalExpression ')' block else_block?
-    | 'if' conditionalExpression block else_block?
-    ;
+  : 'if' expr simple_block ('else if' expr simple_block)* ['else' simple_block]
+  ;
 
-tuple_member
-    : Identifier [ ':' type_expression ]
-    ;
+for_block
+  : 'for' '(' identifier_list 'in' expr_list ')' simple_block
+  | 'for' identifier_list 'in' expr_list simple_block
+  ;
 
-tuple_definition
-    : tuple_member (',' tuple_member)*
-    ;
+while_block
+  : 'while' expr simple_block
+  ;
 
-type_member
-    : func_call
-    | Identifier
-    | func_definition
-    | '(' tuple_definition? ')'
-    // array / map
-    | '[' type_expression [ ':' type_expression ] ']'
-    ;
+simple_block
+  : '{' func_block* '}'
+  | func_block
+  ;
 
-type_expression
-    : type_member
-    | type_expression ['|' type_member] ['^' type_member]
-    ;
+// == Declarations ==
 
-func_definition
-    : 'fn' '(' tuple_definition? ')' type_expression?
+arg_decl
+  : ['const'] Identifier [':' type_expr] ['=' expr]
+  ;
+
+tuple_decl
+  : '(' [arg_decl (',' arg_decl)*] ')'
+  ;
+
+var_decl
+  : const_identifier_list ':' type_expr_list '=' expr_list
+  | const_identifier_list '=' expr_list
+  | const_identifier_list ':' type_expr_list
+  ;
+
+// == Expressions ==
+
+macro_expr
+  : '@' identifier_access '(' expr_list? ')'
+  ;
+
+typed_tuple_arg
+  : ['const'] [Identifier ':'] type_expr
+  ;
+
+type_expr
+  : '(' 'void'? ')'
+  | '(' typed_tuple_arg ',' ')'
+  | '(' typed_tuple_arg (',' typed_tuple_arg)+ ')'
+  | 'fn' Identifier? tuple_decl type_expr?
+  | type_expr ('[' (type_expr | Int | '...') ']')*
+  | type_expr ('|' type_expr)+
+  | identifier_access
+  ;
+
+assignment_expr
+  : expr_list AssignmentOp expr_list
+  ;
+
+expr
+  : logical_or_expr                // arithmetic
+  | 'let' var_decl
+  | logical_or_expr '..' '='? logical_or_expr [':' logical_or_expr] // range
+  | struct_decl
+  | func_decl
+  | map_expr | array_expr | tuple_expr
+  | if_block | while_block | for_block
+  | '{' func_block* '}'
+  ;
+
+func_decl
+  : tuple_decl type_expr? '=>' simple_block
+  ;
+
+struct_decl
+  : tuple_decl '::' '{' file_block* '}'
+  ;
+
+tuple_expr
+  : '(' ')'
+  | '(' expr ',' ')'
+  | '(' expr_list ')' // has to have 2 or more (otherwise will match above)
+  ;
+
+array_expr
+  : '[' expr_list ']'
+  ;
+
+map_expr
+  : '[' expr_pair_list ']'
+  ;
+
+func_call
+  : postfix_expr '(' expr_list ')
+  ;
+
+postfix_expr
+  : '(' expr ')'
+  | '@' Identifier {'.' Identifier}
+  | postfix_expr '[' expr ']'
+  // i.e. array[1] or array[1:] or array[1::] or array[1:2:]
+  // or array[] (lexical error) or array[:2:] ... and so on
+  | postfix_expr '[' expr? [ ':' expr? [':' expr?] ] ']'
+  | func_call
+  | func_call '<-' postfix_expr
+  | postfix_expr '->' func_call
+  | postfix_expr '.' Identifier
+  | postfix_expr '++'
+  | postfix_expr '--'
+  | type_expr
+  | Identifier
+  | constant
+  ;
+
+unary_expr
+  : postfix_expr
+  | ('+' | '-' | '!' | '++' | '--') unary_expr
+  ;
+
+power_expr
+  : unary_expr ('**' unary_expr)*
+
+multiplicative_expr
+  : power_expr (('*' | '/' | '%' | '%/') power_expr)*
+
+additive_expr
+  : multiplicative_expr (('+' | '-') multiplicative_expr)*
+  ;
+
+relational_expr
+  : additive_expr (('<' | '>' | '>=' | '<=') additive_expr)*
+  ;
+
+equality_expr
+  : relational_expr (('==' | '!=') relational_expr)*
+  ;
+
+logical_and_expr
+  : equality_expr ('&&' equality_expr)*
+  ;
+
+logical_or_expr
+  : logical_and_expr ('||' logical_and_expr)*
+  ;
 
 constant
-    : array_constant
-    | map_constant
-    | Float
-    | Int
-    | String
-    | Char
+  : Float | Int | String | Char | Bool
+  ;
 
-array_constant: '[' expression (',' expression)* ']'
-map_constant: '[' expression ':' expression (',' expression ':' expression)* ']'
+// == Lists ==
+
+identifier_access
+  : Identifier ('.' Identifier)*
+  ;
+
+identifier_access_list
+  : identifier_access (',' identifier_access)*
+  ;
+
+identifier_list
+  : Identifier (',' Identifier)*
+  ;
+
+const_identifier_list
+  : ['const'] Identifier (',' ['const'] Identifier)*
+  ;
+
+type_expr_list
+  : type_expr (',' type_expr)*
+  ;
+
+expr_list
+  : expr (',' expr)*
+  ;
+
+expr_pair_lsit
+  : expr ':' expr (',' expr ':' expr)*
+
+var_decl_list
+  : var_decl (',' var_decl)*
+  ;
 ```

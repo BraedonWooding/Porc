@@ -4,6 +4,7 @@
 #include <locale>
 #include <optional>
 #include "helper.hpp"
+#include "token_data.hpp"
 
 /*
   Helpful notes:
@@ -44,39 +45,43 @@
 
 namespace porc::internals {
 
-#include "token_data.inc"
-
-TokenStream::TokenStream(std::unique_ptr<Reader> reader): reader(std::move(reader)) {
-  cur.type = TokenType::Undefined;
-  ret_cur = false;
-  cur_index = read_size = line = col = 0;
-}
-
 void TokenStream::ReadAll() {
-  Read(BUF_SIZE, 0);
+  Read(BufSize, 0);
 }
 
-bool TokenStream::IsDone() const {
-  return read_size == 0 && !ret_cur;
+Token TokenStream::PeekCur() {
+  if (tokens.size() == 0) Next();
+  return tokens.at(tokens.size() - 1);
+}
+
+Token TokenStream::PopCur() {
+  if (tokens.size() == 0) Next();
+
+  Token tok = tokens.at(tokens.size() - 1);
+  tokens.pop_back();
+  return tok;
 }
 
 void TokenStream::Push(Token tok) {
-  if (ret_cur) throw __FILE__":Tokenizer::Push can't push onto token stream with pushed token";
-  cur = tok;
-  ret_cur = true;
+  if (tokens.size() == MaxLookaheads)
+    Unreachable("Can't `Push()` consecutively more than `Lookaheads`");
+
+  tokens.push_back(tok);
 }
 
-Token TokenStream::Next() {
-  if (ret_cur) {
-    ret_cur = false;
-    return cur;
-  }
+bool TokenStream::Next() {
+  if (tokens.size() == MaxLookaheads)
+    Unreachable("Can't `Next()` consecutively more than `Lookaheads`");
 
-  return Parse();
+  Token tok = Parse();
+  tokens.push_back(tok);
+  return tok;
 }
 
 void TokenStream::SkipWs() {
-  Assert(read_size == 0 || cur_index < read_size, "Precondition failed", "cur_index: ", cur_index, ", read_size: ", read_size);
+  Assert(read_size == 0 || cur_index < read_size,
+         "Precondition failed",
+         "cur_index: ", cur_index, ", read_size: ", read_size);
 
   while(read_size != 0 && std::isspace(read_buf[cur_index])) {
     if (read_buf[cur_index] == '\n') {
@@ -88,7 +93,9 @@ void TokenStream::SkipWs() {
     if (cur_index == read_size) ReadAll();
   }
 
-  Assert(cur_index < read_size || read_size == 0, "Postcondition failed", "cur_index: ", cur_index, read_size, ", read_size: ", read_size);
+  Assert(cur_index < read_size || read_size == 0,
+         "Postcondition failed",
+         "cur_index: ", cur_index, read_size, ", read_size: ", read_size);
 }
 
 std::string TokenStream::ParseLineComment() {
@@ -140,9 +147,11 @@ std::optional<std::string> TokenStream::ParseBlockComment() {
   return buf;
 }
 
-void TokenStream::ParseSimpleToken() {
+Token TokenStream::ParseSimpleToken() {
   char *buf = &read_buf[cur_index];
   size_t len = read_size - cur_index;
+  Token cur;
+  cur.type = Token::Kind::Undefined;
 
   // @OPTIMISATION: these will be more common so maybe we should put these above the others
   // or we should see if we can jump straight to the first token easily
@@ -157,7 +166,7 @@ void TokenStream::ParseSimpleToken() {
   // have a precendence for tokens, I think it is fine though for now.
   while (true) {
     if (cur_index + i == read_size) {
-      Assert(cur_index != 0, "We can't have a token with a length more than buf_size", cur_index);
+      Assert(cur_index != 0, "We can't have a token with a length more than BufSize", cur_index);
       // This is incase I ever change things and break this offcase
       // We should never get to this point and to not have iterated i
       // Since that would mean that our buf is full which can't be the case at this pt
@@ -180,7 +189,7 @@ void TokenStream::ParseSimpleToken() {
         // it if it can be regarded as an identifier/number, again test/check
         read_buf[i + 1] = 0;
         std::cerr << "Possibly incorrect trigger read text so far is " << read_buf + cur_index << std::endl;
-        cur = Token(TokenType::Undefined, LineRange(line, line, col, col + i));
+        cur = Token(Token::Kind::Undefined, LineRange(line, line, col, col + i));
         break;
       }
     }
@@ -193,14 +202,14 @@ void TokenStream::ParseSimpleToken() {
                           current_set->child_tokens[buf[i]].tokens == NULL)) {
       // We hit a dead end but can we find a value node either in our current node
       // or go back one token
-      if (current_set->tokens != NULL && current_set->tokens[buf[i]] != (int)TokenType::Undefined) {
-        cur = Token((TokenType)current_set->tokens[buf[i]], LineRange(line, line, col, col + i));
+      if (current_set->tokens != NULL && current_set->tokens[buf[i]] != static_cast<int>(Token::Kind::Undefined)) {
+        cur = Token((Token::Kind)current_set->tokens[buf[i]], LineRange(line, line, col, col + i));
         cur_index += i + 1;
         col += i + 1;
       } else {
         // i.e. parse `<!` as `<` and `!`
-        if (previous_set != NULL && previous_set->tokens != NULL && previous_set->tokens[buf[i - 1]] != (int)TokenType::Undefined) {
-          cur = Token((TokenType)previous_set->tokens[buf[i - 1]], LineRange(line, line, col, col + i - 1));
+        if (previous_set != NULL && previous_set->tokens != NULL && previous_set->tokens[buf[i - 1]] != static_cast<int>(Token::Kind::Undefined)) {
+          cur = Token((Token::Kind)previous_set->tokens[buf[i - 1]], LineRange(line, line, col, col + i - 1));
           cur_index += i;
           col += i;
         }
@@ -216,52 +225,53 @@ void TokenStream::ParseSimpleToken() {
   }
 
   Assert(read_size == 0 || cur_index < read_size, "Postcondition Failed", "read_size: ", read_size, ", cur_index: ", cur_index);
+  return cur;
 }
 
-void TokenStream::ParseChar() {
+Token TokenStream::ParseChar() {
   Unreachable("TODO");
 }
 
 Token TokenStream::Parse() {
   // reset cur, we don't really care about 'resetting' data
-  cur.type = TokenType::Undefined;
+  Token cur;
+  cur.type = Token::Kind::Undefined;
 
   if (cur_index == read_size) ReadAll();
   SkipWs();
 
   // postcondition of ws could mean read_size == 0
-  if (read_size == 0) return cur = Token::EndOfFile();
+  if (read_size == 0) return cur = Token::EndOfFile;
 
   // parse complicated tokens
   switch (read_buf[cur_index]) {
-    case '"': ParseStr(); break;
-    case '\'': ParseChar(); break;
-    default: ParseNum(); break;
+    case '"': cur = ParseStr(); break;
+    case '\'': cur = ParseChar(); break;
+    default: cur = ParseNum(); break;
   }
 
-  if (cur.type != TokenType::Undefined) return cur;
-  ParseSimpleToken();
+  if (cur.type != Token::Kind::Undefined) return cur;
+  cur = ParseSimpleToken();
 
-  if (cur.type == TokenType::LineComment) {
+  if (cur.type == Token::Kind::LineComment) {
     // read till \n
     cur.data = ParseLineComment();
-  } else if (cur.type == TokenType::BlockComment) {
+  } else if (cur.type == Token::Kind::BlockComment) {
     // read till */
     int old_line = line;
     int old_col = col;
     auto comment = ParseBlockComment();
     if (!comment) {
       // missing `*/`
-      return cur = Token(TokenType::Undefined, LineRange(old_line, line, old_col, col));
+      return cur = Token(Token::Kind::Undefined, LineRange(old_line, line, old_col, col));
     }
     cur.data = comment.value();
   }
 
-  if (cur.type == TokenType::Undefined) ParseId();
-  return cur;
-}
+  if (cur.type == Token::Kind::Undefined) cur = ParseId();
+  Assert(cur.type < Token::Kind::NumTokens, "cur type must be valid",
+         static_cast<int>(cur.type));
 
-Token TokenStream::GetCurrent() const {
   return cur;
 }
 
@@ -348,7 +358,8 @@ void TokenStream::ConvEscapeCodes(std::string &str) {
   cur_index++;
 }
 
-void TokenStream::ParseStr() {
+Token TokenStream::ParseStr() {
+  Token cur;
   char *buf = &read_buf[cur_index];
   Assert(buf[0] == '"', "Expecting buf to begin with \"", buf[0]);
 
@@ -368,8 +379,8 @@ void TokenStream::ParseStr() {
       ReadAll();
       if (read_size == 0) {
         // if we are EOF then just set the undefined token and ret
-        cur.type = TokenType::Undefined;
-        return;
+        cur.type = Token::Kind::Undefined;
+        return cur;
       }
 
       // reset
@@ -391,7 +402,8 @@ void TokenStream::ParseStr() {
 
   // +2 since +1 for each `"`
   col += cur_index += i + 2;
-  cur = Token(TokenType::Str, LineRange(old_line, line, old_col, col - 1), str);
+  cur = Token(Token::Kind::Str, LineRange(old_line, line, old_col, col - 1), str);
+  return cur;
 }
 
 bool valid_char(char c) {
@@ -404,8 +416,9 @@ bool is_num(char c) {
   return c >= '0' && c <= '9';
 }
 
-void TokenStream::ParseNum() {
+Token TokenStream::ParseNum() {
   char *buf = &read_buf[cur_index];
+  Token cur;
 
   /*
     @TEST:
@@ -421,13 +434,14 @@ void TokenStream::ParseNum() {
     if (cur_index >= read_size - 2) {
       // since we need at most three to see
       // should be rare enough that this doesn't matter
-      Read(BUF_SIZE - 2, cur_index + 2);
+      Read(BufSize - 2, cur_index + 2);
       buf = read_buf;
       cur_index = 0;
     }
 
     if (buf[0] != '.' || !is_num(buf[1])) {
-      return;
+      cur.type = Token::Kind::Undefined;
+      return cur;
     }
   }
 
@@ -485,12 +499,13 @@ void TokenStream::ParseNum() {
   cur_index += i;
 
   if (handled_dot || handled_exp) {
-    cur.type = TokenType::Flt;
+    cur.type = Token::Kind::Flt;
     cur.data = std::stof(str);
   } else {
-    cur.type = TokenType::Int;
+    cur.type = Token::Kind::Int;
     cur.data = static_cast<std::int64_t>(std::stol(str));
   }
+  return cur;
 }
 
 bool valid_id_char_starting(char c) {
@@ -510,51 +525,26 @@ bool not_newline(char *c) {
   return *c != '\n';
 }
 
-void TokenStream::ParseId() {
-  if (!valid_id_char_starting(read_buf[cur_index])) return;
+Token TokenStream::ParseId() {
+  if (!valid_id_char_starting(read_buf[cur_index]))
+    return Token(Token::Kind::Undefined, LineRange::Null());
 
+  Token cur;
   std::string str = std::string();
   str.push_back(read_buf[cur_index++]);
 
   while (valid_id_char(read_buf[cur_index])) {
     str.push_back(read_buf[cur_index++]);
   }
-  cur.type = TokenType::Identifier;
+  cur.type = Token::Kind::Identifier;
   cur.data = str;
+  return cur;
 }
 
 void TokenStream::Read(uint len, uint offset) {
   read_size = reader->Read(static_cast<char*>(read_buf) + offset, len);
   cur_index = offset;
   read_buf[offset + len] = '\0';
-}
-
-std::string Token::ToString() const {
-  if (type == TokenType::Str || type == TokenType::Identifier) return std::get<std::string>(data);
-  char *out = NULL;
-  if (type == TokenType::LineComment) {
-    return std::string("//").append(std::get<std::string>(data));
-  }
-  if (type == TokenType::BlockComment) {
-    return std::string("/*").append(std::get<std::string>(data)).append("*/");
-  }
-  if (type == TokenType::Flt) return std::to_string(std::get<double>(data));
-  if (type == TokenType::Int) return std::to_string(std::get<std::int64_t>(data));
-  if (out != NULL) return out;
-  if (tokenToStrMap[(int)type] != NULL) return std::string(tokenToStrMap[(int)type]);
-
-  Unreachable("Case not handled");
-}
-
-const char *Token::ToErrorMsg() const {
-  if (tokenToStrMap[(int)type] != NULL) return tokenToStrMap[(int)type];
-  if (tokenToNameMap[(int)type] != NULL) return tokenToNameMap[(int)type];
-  Unreachable("Case not handled");
-}
-
-const char *Token::ToName() const {
-  return tokenToNameMap[(int)type];
-  Unreachable("Case not handled");
 }
 
 }

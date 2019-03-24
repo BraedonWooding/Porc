@@ -101,7 +101,7 @@ Basically the conversions that occur are;
 An example of the following program is shown in each of the outputs below;
 
 ```rust
-number_guesser = fn (to_guess: uint, bounds: std.range) uint => {
+numberGuesser = fn (to_guess: uint, bounds: std.range) uint => {
     guesses = 0;
     guess = to_guess + 1;
     while (guess != to_guess) {
@@ -117,11 +117,48 @@ number_guesser = fn (to_guess: uint, bounds: std.range) uint => {
 }
 
 main = fn (void) => {
-    guesses = number_guesser(std.rand.int(0, 100), std.range(0, 100));
+    guesses = numberGuesser(std.rand.int(0, 100), std.range(0, 100));
     println("You got it in ${guesses}!");
 }
 ```
 
+## Reasoning behind type system
 
+There are a few key patterns about programming in dynamic/ducktyped languages;
 
+- Variants are often kept to groups i.e. integers and floats or a group of strings (UTF-8/16/32/...)
+  - Exception would be applying a method to an argument but that is often handled as a first case use-case and so is not typically encountered in the same way.
+- Often interfaces are simple and consist of methods rather than members
+- In the case where you want to mix groups you check the type anyway so in reality you are creating two variants of the function so the first applies.
+- The most common operators are arithmetic/comparison on numbers as well as string manipulation very rarely will custom classes use overload heavy implementations (vector/matricies are key exceptions).
+- Adding type hints are often recommended for structure/class members and function arguments (but not typically locals)
+- Local types can often be derived from constants or arguments vary rarely will they depend on factors outside the function.
 
+So we came up with the following;
+
+- All argument types are purely compiler based, in reality an argument just has a single concrete type that is dependent upon the caller that is the language has a duck type fallback
+  - We can often optimise functions even if a type isn't supplied by either at runtime observing the type (JIT based) or deducing the type at compile time by observing what functions it calls and what methods it applies.
+- You can construct variants by using `|` i.e. `int | flt` by default all types are `any`.
+- You can state that a type must have a method by just stating the method i.e. `animal: fn speak(self)str` the casting to the method is done automatically and really just maps to a tuple like `(animal: any, animal_speak: fn (self)str)`, this works also for supplying interfaces i.e. `animal: Speakable` where Speakable is defined like;
+
+```rust
+// can also write as `struct Speakable(noise: str) { /* ... */ }`
+Speakable = (noise: str) :: {
+    @Abstract();
+    speak: fn (self)str; // we could give a default method if we wanted to
+};
+```
+
+Note how we don't have to denote it is an interface, we just add the `@abstract` call to denote that you can't construct this type (just removes the ability to convert from `noise`) it also allows you to have undefined members/methods (like speak in this case).  When you map to an interface (or rather an abstract struct) it will just nicely expand speakable into the function i.e.
+
+```rust
+fn makeNoise(obj: Speakable) {
+    println(obj.speak());
+}
+// is really just
+fn makeNoise(obj: any, obj_speak: fn (self)str) {
+    println(obj_speak(obj));
+}
+```
+
+It may also just do a function lookup on the object.  Furthermore we support conversions between primative types automatically not requiring you to do the cast in the condition that the cast is always valid for example all types can be castable to string automatically (if they contain such a cast) as that cast is always supported but not all types can be cast from strings for example ints don't have a valid representation for all strings.
