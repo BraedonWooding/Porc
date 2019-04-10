@@ -17,6 +17,9 @@ class Token {
 #include "token_list.inc"
     NumTokens,
   };
+  // @TODO: @FIXME: @WHY: this needs to support unicode
+  // probably a mixture of utf-32/utf-16 encoding to be fast
+  // ditch utf-8 cause its shit.
   std::variant<std::string, double, std::int64_t, char> data;
 
   Token::Kind type;

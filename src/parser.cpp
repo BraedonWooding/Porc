@@ -905,30 +905,141 @@ expected_expr<IfBlock> Parser::ParseIfBlock() {
       auto expr = ParseExpr();
       if (!expr) return unexpected(expr.error());
       return std::make_unique<IfBlock>(LineRange::Null(), std::move(statements),
-                                       std::move(expr));
+                                       std::move(*expr));
     }
   }
   return std::make_unique<IfBlock>(LineRange::Null(), std::move(statements));
 }
 
 expected_expr<WhileBlock> Parser::ParseWhileBlock() {
-  return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "TODO 'while'", Token::If));
+  if (!ConsumeToken(Token::Kind::While)) {
+      return unexpected(ParseError(ParseError::Kind::MissingToken,
+                                   "Expected 'while'", Token::While));
+  }
+
+  auto cond = ParseExpr();
+  if (!cond) return unexpected(cond.error());
+
+  auto expr = ParseExpr();
+  if (!expr) return unexpected(expr.error());
+
+  LineRange pos = LineRange((*cond)->pos, (*expr)->pos);
+  return std::make_unique<WhileBlock>(pos, std::move(*cond), std::move(*expr));
 }
 
 expected_expr<ForBlock> Parser::ParseForBlock() {
-  return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "TODO 'forblock'", Token::If));
+  LineRange start = stream.PeekCur().pos;
+  if (!ConsumeToken(Token::Kind::For)) {
+      return unexpected(ParseError(ParseError::Kind::MissingToken,
+                                   "Expected 'for'", Token::For));
+  }
+
+  // to support parenthesis around the `ident_list list 'in' expr_list`
+  // we just do it manually, and track if we consumed the '(' so that we
+  // can expect the ')'
+  bool consumed_lparen = false;
+  if (stream.PeekCur().type == Token::Kind::LeftParen) {
+    consumed_lparen = true;
+    if (!ConsumeToken(Token::Kind::LeftParen)) {
+      return unexpected(ParseError(ParseError::Kind::MissingToken,
+                                   "Expected '('", Token::LeftParen));
+    }
+  }
+
+  // the assignments i.e. for x, y in z => x, y are the idents
+  // @QUESTION: arguably we should also support the `const` / type modifiers
+  //            on these but I haven't decided to keep const yet so I want
+  //            to decide on that before I impact this
+  // @FIXME: decide
+  std::vector<std::string> idents;
+  while (stream.PeekCur().type == Token::Kind::Identifier) {
+    idents.push_back(std::get<std::string>(stream.PopCur().data));
+  }
+
+  if (!ConsumeToken(Token::Kind::In)) {
+      return unexpected(ParseError(ParseError::Kind::MissingToken,
+                                   "Expected 'in'", Token::In));
+  }
+
+  std::vector<std::unique_ptr<Expr>> exprs;
+  auto push_back = [&exprs](int index, std::unique_ptr<Expr> expr) {
+    exprs.push_back(std::move(expr));
+  };
+
+  if (auto err = ParseList(&Parser::ParseExpr, push_back))
+    return unexpected(*err);
+
+  if (consumed_lparen && !ConsumeToken(Token::Kind::RightParen)) {
+    return unexpected(ParseError(ParseError::Kind::MissingToken,
+                                  "Expected ')'", Token::RightParen));
+  }
+
+  auto expr = ParseExpr();
+  if (!expr) return unexpected(expr.error());
+
+  LineRange pos = LineRange(start, (*expr)->pos);
+  return std::make_unique<ForBlock>(pos, std::move(idents), std::move(*exprs),
+                                    std::move(*expr));
 }
 
 expected_expr<FuncCall> Parser::ParseFuncCall() {
-  return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "TODO 'funccall'", Token::If));
+  auto func = ParsePostfixExpr();
+  if (!func) return unexpected(func.error());
+
+  if (!ConsumeToken(Token::Kind::LeftParen)) {
+    return unexpected(ParseError(ParseError::Kind::MissingToken,
+                                  "Expected '('", Token::LeftParen));
+  }
+
+  // parse arguments
+  std::vector<std::unique_ptr<Expr>> args;
+  auto push_back = [&args](int index, std::unique_ptr<Expr> expr) {
+    args.push_back(std::move(expr));
+  };
+
+  if (auto err = ParseList(&Parser::ParseExpr, push_back))
+    return unexpected(*err);
+
+  if (!ConsumeToken(Token::Kind::RightParen)) {
+    return unexpected(ParseError(ParseError::Kind::MissingToken,
+                                  "Expected ')'", Token::RightParen));
+  }
+
+  LineRange pos = LineRange((*func)->pos, args.back()->pos);
+  return std::make_unique<FuncCall>(pos, std::move(*func), std::move(args));
 }
 
 expected_expr<Constant> Parser::ParseConstant() {
-  return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "TODO 'cnst'", Token::If));
+  // can be float, int, string, char, or bool
+  // luckily for us this should already be parsed except for bool
+  Token tok = stream.PopCur();
+  // @SPEED we should be able to make this even faster!!
+  // by just forwarding on the data for all cases but bool where we need
+  // to just evaluate
+  switch (tok.type) {
+    case Token::Kind::Int: {
+      return std::make_unique<Constant>(tok.pos, std::get<std::int64_t>(tok.data));
+    } break;
+    case Token::Kind::Flt: {
+      return std::make_unique<Constant>(tok.pos, std::get<double>(tok.data));
+    } break;
+    case Token::Kind::Str: {
+      return std::make_unique<Constant>(tok.pos, std::get<std::string>(tok.data));
+    } break;
+    case Token::Kind::Char: {
+      return std::make_unique<Constant>(tok.pos, std::get<char>(tok.data));
+    } break;
+    case Token::Kind::True: {
+      return std::make_unique<Constant>(tok.pos, true);
+    } break;
+    case Token::Kind::False: {
+      return std::make_unique<Constant>(tok.pos, false);
+    } break;
+    default: {
+      return unexpected(ParseError(ParseError::Kind::InvalidToken,
+                                   "Was expecting a constant", tok));
+    }
+  }
 }
 
 expected_expr<MacroExpr> Parser::ParseMacroExpr() {
@@ -948,7 +1059,7 @@ expected_expr<MacroExpr> Parser::ParseMacroExpr() {
   while (stream.PeekCur().type != Token::Kind::RightParen) {
     auto expr = ParseExpr();
     if (!expr) return unexpected(expr.error());
-    exprs.push_back(*expr);
+    exprs.push_back(std::move(*expr));
 
     tok = stream.PeekCur();
     if (tok.type == Token::Kind::Comma) {
@@ -969,8 +1080,29 @@ expected_expr<MacroExpr> Parser::ParseMacroExpr() {
 }
 
 expected_expr<TypeExpr> Parser::ParseTypeExpr() {
-  return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "TODO 'typexpr'", Token::If));
+  Token tok = stream.PeekCur();
+  LineRange start = tok.pos;
+  if (tok.type == Token::Kind::LeftParen) {
+    // tuple
+    // could be empty, void, a series of typed tuple args
+    // an can be a subset of that
+    stream.PopCur();
+    tok = stream.PeekCur();
+    if (tok.type == Token::Kind::RightParen || tok.type == Token::Kind::Void) {
+      // empty tuple
+      if (!ConsumeToken(Token::Kind::RightParen))
+        return unexpected(ParseError(ParseError::Kind::MissingToken,
+                                     "Missing right paren", Token::RightParen));
+      return std::make_unique<TypeExpr>(LineRange(start, tok.pos),
+                                        TypeExpr::TupleType());
+    }
+
+  } else if (tok.type == Token::Kind::Func) {
+    // fn pointer/signature
+
+  } else {
+    // identifier access or it is an actual expression
+  }
 }
 
 expected_expr<AssignmentExpr> Parser::ParseAssignmentExpr() {

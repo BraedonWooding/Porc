@@ -35,7 +35,7 @@ Hello World
 // you can also use the type system (explained later)
 // you may prefer this to types so I felt I should include it here
 // you need to have the `{` after where by the way.
-fib = fn (n) => where n > 0 && n->@is(int) {
+fib = fn (n) => where n > 0 && n |> @is(int) {
     if (n <= 1) return 1;
     return fib(n - 1) + fib(n - 2);
 };

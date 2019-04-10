@@ -13,7 +13,7 @@ WOw
 
 // our package manager at work
 @import_package("BraedonWooding/cmd-porc", *);
-echo(stdout()) <- grep("A") <- wget("http://some_address.com/some_file.txt") -> sort(.Reverse);
+print(wget("http://some_address.com/some_file.txt") |> sort(.Reverse) |> grep("A"));
 println("This is a \" and a '");
 
 3_4

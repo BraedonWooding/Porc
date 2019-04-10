@@ -357,6 +357,7 @@ class TupleDecl : public BaseAST {
 };
 
 class MacroExpr : public BaseAST {
+ public:
   std::vector<std::string> qualifying_name;
   std::vector<std::unique_ptr<Expr>> args;
 
@@ -834,6 +835,7 @@ class TypeExpr : public BaseAST {
     std::vector<TypedTupleArg> types;
 
     TupleType(std::vector<TypedTupleArg> types): types(std::move(types)) {}
+    TupleType(void) {}
   };
 
   struct FunctionType {

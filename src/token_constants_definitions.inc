@@ -1,11 +1,8 @@
 /* Auto Generated File */
 static const Token Undefined;
-static const Token Nil;
-static const Token Bool;
 static const Token Identifier;
 static const Token Str;
 static const Token Flt;
-static const Token Err;
 static const Token Int;
 static const Token Char;
 static const Token EndOfFile;
@@ -56,6 +53,9 @@ static const Token Dot;
 static const Token Range;
 static const Token Macro;
 static const Token Ternary;
+static const Token True;
+static const Token False;
+static const Token Void;
 static const Token Const;
 static const Token Struct;
 static const Token Func;
@@ -65,5 +65,6 @@ static const Token While;
 static const Token For;
 static const Token Break;
 static const Token Continue;
+static const Token In;
 static const Token If;
 static const Token Else;

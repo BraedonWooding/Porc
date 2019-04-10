@@ -6,13 +6,10 @@
 
 // Void Tokens
 Undefined
-Nil
-Bool
 // variable or function name or macro or something
 Identifier
 Str
 Flt
-Err
 Int
 Char
 EndOfFile
@@ -63,8 +60,8 @@ ModulusAssign       "%="
 
 // Special Symbols
 FatArrow            "=>"
-LeftArrow           "<-"
-RightArrow          "->"
+LeftArrow           "<|"
+RightArrow          "|>"
 Colon               ":"
 DoubleColon         "::"
 Implements          "^"
@@ -73,6 +70,15 @@ Dot                 "."
 Range               ".."
 Macro               "@"
 Ternary             "?"
+
+// Resolved Values
+// More efficient to do it this way (then force a double conversion)
+// Arguably this isn't amazing because these shouldn't be required
+// Since they are really just identifiers but for the sake of some things
+// it makes it much more efficient this way.
+True                "true"
+False               "false"
+Void                "void"
 
 // Reserved names
 Const               "const"
@@ -84,5 +90,6 @@ While               "while"
 For                 "for"
 Break               "break"
 Continue            "continue"
+In                  "in"
 If                  "if"
 Else                "else"

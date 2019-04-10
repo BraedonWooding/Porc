@@ -64,21 +64,16 @@ func_block
   ;
 
 if_block
-  : 'if' expr simple_block ('else if' expr simple_block)* ['else' simple_block]
+  : 'if' expr expr ('else if' expr expr)* ['else' expr]
   ;
 
 for_block
-  : 'for' '(' identifier_list 'in' expr_list ')' simple_block
-  | 'for' identifier_list 'in' expr_list simple_block
+  : 'for' '(' identifier_list 'in' expr_list ')' expr
+  | 'for' identifier_list 'in' expr_list expr
   ;
 
 while_block
-  : 'while' expr simple_block
-  ;
-
-simple_block
-  : '{' func_block* '}'
-  | func_block
+  : 'while' expr expr
   ;
 
 // == Declarations ==
@@ -133,7 +128,7 @@ expr
   ;
 
 func_decl
-  : tuple_decl type_expr? '=>' simple_block
+  : tuple_decl type_expr? '=>' expr
   ;
 
 struct_decl
@@ -166,8 +161,8 @@ postfix_expr
   // or array[] (lexical error) or array[:2:] ... and so on
   | postfix_expr '[' expr? [ ':' expr? [':' expr?] ] ']'
   | func_call
-  | func_call '<-' postfix_expr
-  | postfix_expr '->' func_call
+  | func_call '<|' postfix_expr
+  | postfix_expr '|>' func_call
   | postfix_expr '.' Identifier
   | postfix_expr '++'
   | postfix_expr '--'

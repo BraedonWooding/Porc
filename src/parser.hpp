@@ -61,6 +61,14 @@ private:
 
   expected_expr<Expr> ParseExprFuncOrStruct(std::unique_ptr<TupleDecl> decl);
 
+  /*
+
+    These could be improved, I haven't yet been able to find a method to do this
+    my belief is that I can use fold expressions to partially eval all them
+    But I don't know if it is possible.
+
+  */
+
   template<typename Fn, typename ForEach>
   std::optional<ParseError> ParseListConjugate(Fn fn, ForEach for_each,
                                       Token pair_sep = Token::Colon,
@@ -89,7 +97,6 @@ private:
   std::optional<ParseError> ParseList(Fn fn, ForEach for_each,
                                       Token continuer = Token::Comma) {
     int index = 0;
-    // auto(Parser::*func_pointer) = fn;
     while (true) {
       auto res = (this->*fn)();
       if (!res) return res.error();

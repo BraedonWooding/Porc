@@ -46,8 +46,8 @@ static const char *tokenToStrMap[(int)Token::Kind::NumTokens] = {
   [(int)Token::Kind::IntegerDivideAssign] = "%/=",
   [(int)Token::Kind::ModulusAssign] = "%=",
   [(int)Token::Kind::FatArrow] = "=>",
-  [(int)Token::Kind::LeftArrow] = "<-",
-  [(int)Token::Kind::RightArrow] = "->",
+  [(int)Token::Kind::LeftArrow] = "<|",
+  [(int)Token::Kind::RightArrow] = "|>",
   [(int)Token::Kind::Colon] = ":",
   [(int)Token::Kind::DoubleColon] = "::",
   [(int)Token::Kind::Implements] = "^",
@@ -56,6 +56,9 @@ static const char *tokenToStrMap[(int)Token::Kind::NumTokens] = {
   [(int)Token::Kind::Range] = "..",
   [(int)Token::Kind::Macro] = "@",
   [(int)Token::Kind::Ternary] = "?",
+  [(int)Token::Kind::True] = "true",
+  [(int)Token::Kind::False] = "false",
+  [(int)Token::Kind::Void] = "void",
   [(int)Token::Kind::Const] = "const",
   [(int)Token::Kind::Struct] = "struct",
   [(int)Token::Kind::Func] = "fn",
@@ -65,18 +68,16 @@ static const char *tokenToStrMap[(int)Token::Kind::NumTokens] = {
   [(int)Token::Kind::For] = "for",
   [(int)Token::Kind::Break] = "break",
   [(int)Token::Kind::Continue] = "continue",
+  [(int)Token::Kind::In] = "in",
   [(int)Token::Kind::If] = "if",
   [(int)Token::Kind::Else] = "else",
 };
 
 static const char *tokenToNameMap[(int)Token::Kind::NumTokens] = {
   [(int)Token::Kind::Undefined] = "Undefined",
-  [(int)Token::Kind::Nil] = "Nil",
-  [(int)Token::Kind::Bool] = "Bool",
   [(int)Token::Kind::Identifier] = "Identifier",
   [(int)Token::Kind::Str] = "Str",
   [(int)Token::Kind::Flt] = "Flt",
-  [(int)Token::Kind::Err] = "Err",
   [(int)Token::Kind::Int] = "Int",
   [(int)Token::Kind::Char] = "Char",
   [(int)Token::Kind::EndOfFile] = "EndOfFile",
@@ -127,6 +128,9 @@ static const char *tokenToNameMap[(int)Token::Kind::NumTokens] = {
   [(int)Token::Kind::Range] = "Range",
   [(int)Token::Kind::Macro] = "Macro",
   [(int)Token::Kind::Ternary] = "Ternary",
+  [(int)Token::Kind::True] = "True",
+  [(int)Token::Kind::False] = "False",
+  [(int)Token::Kind::Void] = "Void",
   [(int)Token::Kind::Const] = "Const",
   [(int)Token::Kind::Struct] = "Struct",
   [(int)Token::Kind::Func] = "Func",
@@ -136,6 +140,7 @@ static const char *tokenToNameMap[(int)Token::Kind::NumTokens] = {
   [(int)Token::Kind::For] = "For",
   [(int)Token::Kind::Break] = "Break",
   [(int)Token::Kind::Continue] = "Continue",
+  [(int)Token::Kind::In] = "In",
   [(int)Token::Kind::If] = "If",
   [(int)Token::Kind::Else] = "Else",
 };
@@ -196,7 +201,7 @@ static const TokenSet tokenFromStrMap = {
     ['<'] = {
       (int[ASCII_SET]){
         ['='] = (int)Token::Kind::LessThanEqual,
-        ['-'] = (int)Token::Kind::LeftArrow,
+        ['|'] = (int)Token::Kind::LeftArrow,
       },
       NULL,
     },
@@ -215,6 +220,7 @@ static const TokenSet tokenFromStrMap = {
     ['|'] = {
       (int[ASCII_SET]){
         ['|'] = (int)Token::Kind::Or,
+        ['>'] = (int)Token::Kind::RightArrow,
       },
       NULL,
     },
@@ -229,7 +235,6 @@ static const TokenSet tokenFromStrMap = {
       (int[ASCII_SET]){
         ['-'] = (int)Token::Kind::Decrement,
         ['='] = (int)Token::Kind::SubtractAssign,
-        ['>'] = (int)Token::Kind::RightArrow,
       },
       NULL,
     },
@@ -272,6 +277,67 @@ static const TokenSet tokenFromStrMap = {
         ['.'] = (int)Token::Kind::Range,
       },
       NULL,
+    },
+    ['t'] = {
+      NULL,
+      (TokenSet[ASCII_SET]){
+        ['r'] = {
+          NULL,
+          (TokenSet[ASCII_SET]){
+            ['u'] = {
+              (int[ASCII_SET]){
+                ['e'] = (int)Token::Kind::True,
+              },
+              NULL,
+            },
+          },
+        },
+      },
+    },
+    ['f'] = {
+      (int[ASCII_SET]){
+        ['n'] = (int)Token::Kind::Func,
+      },
+      (TokenSet[ASCII_SET]){
+        ['a'] = {
+          NULL,
+          (TokenSet[ASCII_SET]){
+            ['l'] = {
+              NULL,
+              (TokenSet[ASCII_SET]){
+                ['s'] = {
+                  (int[ASCII_SET]){
+                    ['e'] = (int)Token::Kind::False,
+                  },
+                  NULL,
+                },
+              },
+            },
+          },
+        },
+        ['o'] = {
+          (int[ASCII_SET]){
+            ['r'] = (int)Token::Kind::For,
+          },
+          NULL,
+        },
+      },
+    },
+    ['v'] = {
+      NULL,
+      (TokenSet[ASCII_SET]){
+        ['o'] = {
+          NULL,
+          (TokenSet[ASCII_SET]){
+            ['i'] = {
+              (int[ASCII_SET]){
+                ['d'] = (int)Token::Kind::Void,
+              },
+              NULL,
+            },
+          },
+        },
+      },
     },
     ['c'] = {
       NULL,
@@ -338,19 +404,6 @@ static const TokenSet tokenFromStrMap = {
               },
             },
           },
-        },
-      },
-    },
-    ['f'] = {
-      (int[ASCII_SET]){
-        ['n'] = (int)Token::Kind::Func,
-      },
-      (TokenSet[ASCII_SET]){
-        ['o'] = {
-          (int[ASCII_SET]){
-            ['r'] = (int)Token::Kind::For,
-          },
-          NULL,
         },
       },
     },
@@ -435,6 +488,7 @@ static const TokenSet tokenFromStrMap = {
     },
     ['i'] = {
       (int[ASCII_SET]){
+        ['n'] = (int)Token::Kind::In,
         ['f'] = (int)Token::Kind::If,
       },
       NULL,
