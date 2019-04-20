@@ -14,69 +14,69 @@
 
 // std::optional<AssignmentOp> AssignmentOp::FromToken(Token tok) {
 //   switch (tok.type) {
-//     case Token::Kind::AddAssign: return AssignmentOp::AdditionEqual;
-//     case Token::Kind::SubtractAssign: return AssignmentOp::SubtractionEqual;
-//     case Token::Kind::Equal: return AssignmentOp::Equal;
-//     case Token::Kind::DivideAssign: return AssignmentOp::DivisionEqual;
-//     case Token::Kind::PowerAssign: return AssignmentOp::PowerEqual;
-//     case Token::Kind::ModulusAssign: return AssignmentOp::ModulusEqual;
-//     case Token::Kind::MultiplyAssign: return AssignmentOp::MultiplyEqual;
-//     case Token::Kind::IntegerDivideAssign: return AssignmentOp::IntDivisionEqual;
+//     case Token::AddAssign: return AssignmentOp::AdditionEqual;
+//     case Token::SubtractAssign: return AssignmentOp::SubtractionEqual;
+//     case Token::Equal: return AssignmentOp::Equal;
+//     case Token::DivideAssign: return AssignmentOp::DivisionEqual;
+//     case Token::PowerAssign: return AssignmentOp::PowerEqual;
+//     case Token::ModulusAssign: return AssignmentOp::ModulusEqual;
+//     case Token::MultiplyAssign: return AssignmentOp::MultiplyEqual;
+//     case Token::IntegerDivideAssign: return AssignmentOp::IntDivisionEqual;
 //     default: return std::nullopt;
 //   }
 // }
 
 // std::optional<PostfixOp> PostfixOp::FromToken(Token tok) {
 //   switch (tok.type) {
-//     case Token::Kind::Increment: return PostfixOp::Increment;
-//     case Token::Kind::Decrement: return PostfixOp::Decrement;
+//     case Token::Increment: return PostfixOp::Increment;
+//     case Token::Decrement: return PostfixOp::Decrement;
 //     default: return std::nullopt;
 //   }
 // }
 
 // std::optional<PrefixOp> PrefixOp::FromToken(Token tok) {
 //   switch (tok.type) {
-//     case Token::Kind::Increment: return PrefixOp::Increment;
-//     case Token::Kind::Decrement: return PrefixOp::Decrement;
-//     case Token::Kind::Negate: return PrefixOp::Negate;
-//     case Token::Kind::Subtract: return PrefixOp::Negative;
-//     case Token::Kind::Add: return PrefixOp::Positive;
+//     case Token::Increment: return PrefixOp::Increment;
+//     case Token::Decrement: return PrefixOp::Decrement;
+//     case Token::Negate: return PrefixOp::Negate;
+//     case Token::Subtract: return PrefixOp::Negative;
+//     case Token::Add: return PrefixOp::Positive;
 //     default: return std::nullopt;
 //   }
 // }
 
 // std::optional<MultiplicativeOp> MultiplicativeOp::FromToken(Token tok) {
 //   switch (tok.type) {
-//     case Token::Kind::Multiply: return MultiplicativeOp::Multiplication;
-//     case Token::Kind::Divide: return MultiplicativeOp::Division;
-//     case Token::Kind::Modulus: return MultiplicativeOp::Modulus;
-//     case Token::Kind::IntegerDivide: return MultiplicativeOp::IntDivision;
+//     case Token::Multiply: return MultiplicativeOp::Multiplication;
+//     case Token::Divide: return MultiplicativeOp::Division;
+//     case Token::Modulus: return MultiplicativeOp::Modulus;
+//     case Token::IntegerDivide: return MultiplicativeOp::IntDivision;
 //     default: return std::nullopt;
 //   }
 // }
 
 // std::optional<AdditiveOp> AdditiveOp::FromToken(Token tok) {
 //   switch (tok.type) {
-//     case Token::Kind::Add: return AdditiveOp::Addition;
-//     case Token::Kind::Subtract: return AdditiveOp::Subtraction;
+//     case Token::Add: return AdditiveOp::Addition;
+//     case Token::Subtract: return AdditiveOp::Subtraction;
 //     default: return std::nullopt;
 //   }
 // }
 
 // std::optional<RelationalOp> RelationalOp::FromToken(Token tok) {
 //   switch (tok.type) {
-//     case Token::Kind::GreaterThan: return RelationalOp::GreaterThan;
-//     case Token::Kind::GreaterThanEqual: return RelationalOp::LessThan;
-//     case Token::Kind::LessThan: return RelationalOp::GreaterThanEqual;
-//     case Token::Kind::LessThanEqual: return RelationalOp::LessThanEqual;
+//     case Token::GreaterThan: return RelationalOp::GreaterThan;
+//     case Token::GreaterThanEqual: return RelationalOp::LessThan;
+//     case Token::LessThan: return RelationalOp::GreaterThanEqual;
+//     case Token::LessThanEqual: return RelationalOp::LessThanEqual;
 //     default: return std::nullopt;
 //   }
 // }
 
 // std::optional<EqualityOp> EqualityOp::FromToken(Token tok) {
 //   switch (tok.type) {
-//     case Token::Kind::Equal: return EqualityOp::Equal;
-//     case Token::Kind::NotEqual: return EqualityOp::NotEqual;
+//     case Token::Equal: return EqualityOp::Equal;
+//     case Token::NotEqual: return EqualityOp::NotEqual;
 //     default: return std::nullopt;
 //   }
 // }

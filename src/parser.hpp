@@ -3,55 +3,30 @@
 
 #include "token_stream.hpp"
 #include "ast.hpp"
+#include "err_stream.hpp"
 
-#include <expected.hpp>
 #include <string>
 
 namespace porc::internals {
 
-template<typename T, typename E>
-using expected_unique_ptr = tl::expected<std::unique_ptr<T>, E>;
-
 template<typename T>
-using optional_unique_ptr = std::optional<std::unique_ptr<T>>;
-
-struct ParseError {
-  enum class Kind {
-    MissingToken, // missing a token (not EOF)
-    InvalidToken, // wasn't expecting this token
-    ValidEOF,     // not really an error more just info that we ran out
-    InvalidEOF,   // wasn't expecting EOF
-  };
-
-public:
-  Kind kind;
-  std::string extra_info;
-  Token related_token;
-
-  ParseError(Kind kind) : kind(kind) {}
-  ParseError(Kind kind, std::string extra_info)
-      : kind(kind), extra_info(extra_info) {}
-  ParseError(Kind kind, std::string extra_info, Token related_token)
-      : kind(kind), extra_info(extra_info), related_token(related_token) {}
-};
+using optional_unique_ptr  = std::optional<std::unique_ptr<T>>;
 
 class Parser {
-  template<typename T>
-  using expected_expr = expected_unique_ptr<T, ParseError>;
-
 private:
   TokenStream stream;
+  ErrStream err;
 
   void UnexpectedToken(Token actual, Token expected);
   void UnexpectedEndOfFile(Token::Kind expected);
   void UnexpectedToken(Token actual, std::string msg);
   bool ConsumeToken(Token::Kind type);
 
-  tl::expected<std::vector<std::string>, ParseError>
+  std::optional<std::vector<std::string>>
     ParseIdentifierAccess(Token::Kind continuer);
 
-  tl::expected<std::variant<std::vector<VarDecl::Declaration>,
-           std::vector<std::unique_ptr<Expr>>>, ParseError>
+  std::optional<std::variant<std::vector<VarDecl::Declaration>,
+           std::vector<std::unique_ptr<Expr>>>>
     ParseAssignmentIdentifierList(Token::Kind continuer);
 
   std::unique_ptr<Expr> ConvIdentToExpr(std::string id, LineRange pos);
@@ -59,7 +34,7 @@ private:
                            std::vector<std::unique_ptr<Expr>> &exprs);
   std::unique_ptr<Expr> ParenthesiseExpr(std::unique_ptr<Expr> expr);
 
-  expected_expr<Expr> ParseExprFuncOrStruct(std::unique_ptr<TupleDecl> decl);
+  optional_unique_ptr<Expr> ParseExprFuncOrStruct(std::unique_ptr<TupleDecl> decl);
 
   /*
 
@@ -70,7 +45,7 @@ private:
   */
 
   template<typename Fn, typename ForEach>
-  std::optional<ParseError> ParseListConjugate(Fn fn, ForEach for_each,
+  bool ParseListConjugate(Fn fn, ForEach for_each,
                                       Token pair_sep = Token::Colon,
                                       Token next_pair = Token::Comma) {
     int index = 0;
@@ -90,11 +65,11 @@ private:
         break;
       }
     }
-    return std::nullopt;
+    return true;
   }
 
   template<typename Fn, typename ForEach>
-  std::optional<ParseError> ParseList(Fn fn, ForEach for_each,
+  bool ParseList(Fn fn, ForEach for_each,
                                       Token continuer = Token::Comma) {
     int index = 0;
     while (true) {
@@ -108,52 +83,56 @@ private:
         break;
       }
     }
-    return std::nullopt;
+    return true;
   }
 
-  tl::expected<TupleDecl::ArgDecl, ParseError> ParseTupleDeclSegment();
-  expected_expr<Expr> ParseExprOrTupleDecl();
-  expected_expr<TupleDecl> ParseRestTupleDeclExpr(
+  template<typename To>
+  std::optional<To> TryTokenCast(Token tok);
+
+  std::optional<TupleDecl::ArgDecl> ParseTupleDeclSegment();
+  optional_unique_ptr<Expr> ParseExprOrTupleDecl();
+  optional_unique_ptr<TupleDecl> ParseRestTupleDeclExpr(
     std::vector<TupleDecl::ArgDecl> declarations);
-  tl::expected<IfBlock::IfStatement, ParseError> ParseIfStatement();
+  std::optional<IfBlock::IfStatement> ParseIfStatement();
 
 public:
-  Parser(TokenStream stream) : stream(std::move(stream)) {}
+  Parser(TokenStream stream, std::ostream &out = std::cerr)
+      : stream(std::move(stream)), err(out) {}
 
-  expected_expr<VarDecl> ParseFileFuncDecl();
-  expected_expr<VarDecl> ParseFileStructDecl();
+  optional_unique_ptr<VarDecl> ParseFileFuncDecl();
+  optional_unique_ptr<VarDecl> ParseFileStructDecl();
 
-  expected_expr<FileDecl> ParseFileDecl();
-  expected_expr<TupleDecl> ParseTupleDecl();
-  expected_expr<VarDecl> ParseVarDecl();
-  expected_expr<VarDecl>
+  optional_unique_ptr<FileDecl> ParseFileDecl();
+  optional_unique_ptr<TupleDecl> ParseTupleDecl();
+  optional_unique_ptr<VarDecl> ParseVarDecl();
+  optional_unique_ptr<VarDecl>
     ParseVarDeclWithDeclList(std::vector<VarDecl::Declaration> lhs);
 
-  expected_expr<FileBlock> ParseFileBlock();
-  expected_expr<FuncBlock> ParseFuncBlock();
-  expected_expr<IfBlock> ParseIfBlock();
-  expected_expr<WhileBlock> ParseWhileBlock();
-  expected_expr<ForBlock> ParseForBlock();
+  optional_unique_ptr<FileBlock> ParseFileBlock();
+  optional_unique_ptr<FuncBlock> ParseFuncBlock();
+  optional_unique_ptr<IfBlock> ParseIfBlock();
+  optional_unique_ptr<WhileBlock> ParseWhileBlock();
+  optional_unique_ptr<ForBlock> ParseForBlock();
 
-  expected_expr<FuncCall> ParseFuncCall();
-  expected_expr<Constant> ParseConstant();
+  optional_unique_ptr<FuncCall> ParseFuncCall();
+  optional_unique_ptr<Constant> ParseConstant();
 
-  expected_expr<MacroExpr> ParseMacroExpr();
-  expected_expr<TypeExpr> ParseTypeExpr();
-  expected_expr<AssignmentExpr> ParseAssignmentExpr();
-  expected_expr<Expr> ParseExpr();
-  expected_expr<Expr::MapExpr> ParseMapExpr();
-  expected_expr<Expr::CollectionExpr> ParseArrayExpr();
-  expected_expr<Expr::CollectionExpr> ParseTupleExpr();
-  expected_expr<PostfixExpr> ParsePostfixExpr();
-  expected_expr<UnaryExpr> ParseUnaryExpr();
-  expected_expr<PowerExpr> ParsePrefixExpr();
-  expected_expr<MultiplicativeExpr> ParseMultiplicativeExpr();
-  expected_expr<AdditiveExpr> ParseAdditiveExpr();
-  expected_expr<RelationalExpr> ParseRelationalExpr();
-  expected_expr<EqualityExpr> ParseEqualityExpr();
-  expected_expr<LogicalAndExpr> ParseLogicalAndExpr();
-  expected_expr<LogicalOrExpr> ParseLogicalOrExpr();
+  optional_unique_ptr<MacroExpr> ParseMacroExpr();
+  optional_unique_ptr<TypeExpr> ParseTypeExpr();
+  optional_unique_ptr<AssignmentExpr> ParseAssignmentExpr();
+  optional_unique_ptr<Expr> ParseExpr();
+  optional_unique_ptr<Expr::MapExpr> ParseMapExpr();
+  optional_unique_ptr<Expr::CollectionExpr> ParseArrayExpr();
+  optional_unique_ptr<Expr::CollectionExpr> ParseTupleExpr();
+  optional_unique_ptr<PostfixExpr> ParsePostfixExpr();
+  optional_unique_ptr<UnaryExpr> ParseUnaryExpr();
+  optional_unique_ptr<PowerExpr> ParsePrefixExpr();
+  optional_unique_ptr<MultiplicativeExpr> ParseMultiplicativeExpr();
+  optional_unique_ptr<AdditiveExpr> ParseAdditiveExpr();
+  optional_unique_ptr<RelationalExpr> ParseRelationalExpr();
+  optional_unique_ptr<EqualityExpr> ParseEqualityExpr();
+  optional_unique_ptr<LogicalAndExpr> ParseLogicalAndExpr();
+  optional_unique_ptr<LogicalOrExpr> ParseLogicalOrExpr();
 };
 
 }

@@ -4,7 +4,6 @@
 // You can give it multiple data tags all separated by tabs
 // It will generate the appropriate data classes given the tags
 
-// Void Tokens
 Undefined
 // variable or function name or macro or something
 Identifier
@@ -23,7 +22,7 @@ LeftBrace           "{"
 RightBrace          "}"
 LeftBracket         "["
 RightBracket        "]"
-LineComment         "//"
+LineComment         "#"
 BlockComment        "/*"
 
 // comparison
@@ -38,15 +37,13 @@ And                 "&&"
 Or                  "||"
 
 // math
-Increment           "++"
-Decrement           "--"
 Add                 "+"
 Subtract            "-"
 Divide              "/"
 Multiply            "*"
 Power               "**"
 Modulus             "%"
-IntegerDivide       "%/"
+IntegerDivide       "//"
 
 // assignment
 Assign              "="
@@ -62,6 +59,7 @@ ModulusAssign       "%="
 FatArrow            "=>"
 LeftArrow           "<|"
 RightArrow          "|>"
+ReturnType          "->"
 Colon               ":"
 DoubleColon         "::"
 Implements          "^"
@@ -69,7 +67,6 @@ Variant             "|"
 Dot                 "."
 Range               ".."
 Macro               "@"
-Ternary             "?"
 
 // Resolved Values
 // More efficient to do it this way (then force a double conversion)
@@ -84,7 +81,7 @@ Void                "void"
 Const               "const"
 Struct              "struct"
 Func                "fn"
-Let                 "let"
+Var                 "var"
 Return              "return"
 While               "while"
 For                 "for"

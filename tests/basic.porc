@@ -1,7 +1,7 @@
-// Just a basic Porc test
+# Just a basic Porc test
 
-fib = (n) => { if (n <= 1) 1 else fib(n - 1) + fib(n - 2) };
+const fib = (n) => { if (n <= 1) 1 else fib(n - 1) + fib(n - 2) };
 
-main = () => {
+const main = () => {
   println(fib(2));
 }

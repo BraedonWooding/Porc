@@ -33,6 +33,7 @@ class BaseAST {
   virtual json GetMetaData() const = 0;
 };
 
+class IdentifierAccess;
 class FileDecl;
 class FileBlock;
 class AssignmentExpr;
@@ -97,35 +98,12 @@ class AssignmentOp {
   Kind value;
 };
 
-class PostfixOp {
- public:
-  enum Kind {
-    Increment,
-    Decrement,
-  };
-
-  PostfixOp() = default;
-  constexpr PostfixOp(Kind kind) : value(kind) {}
-
-  bool operator==(PostfixOp a) const { return value == a.value; }
-  bool operator!=(PostfixOp a) const { return value != a.value; }
-
-  const char *ToStr() const;
-  static const char *AllMsg();
-  static std::optional<PostfixOp> FromToken(Token tok);
-
- private:
-  Kind value;
-};
-
 class PrefixOp {
  public:
   enum Kind {
     Negate,
     Negative,
     Positive,
-    Increment,
-    Decrement,
   };
 
   PrefixOp() = default;
@@ -230,11 +208,21 @@ class EqualityOp {
   Kind value;
 };
 
+class IdentifierAccess : public BaseAST {
+ public:
+  std::vector<std::string> idents;
+
+  IdentifierAccess(LineRange pos, std::vector<std::string> idents)
+      : idents(std::move(idents)), BaseAST(pos) {}
+
+  json GetMetaData() const;
+};
+
 class FileDecl : public BaseAST {
  public:
-  std::vector<std::unique_ptr<FileBlock>> exprs;
+  std::vector<std::unique_ptr<FuncBlock>> exprs;
 
-  FileDecl(LineRange pos, std::vector<std::unique_ptr<FileBlock>> exprs)
+  FileDecl(LineRange pos, std::vector<std::unique_ptr<FuncBlock>> exprs)
       : exprs(std::move(exprs)), BaseAST(pos) {}
 
   json GetMetaData() const;
@@ -243,51 +231,37 @@ class FileDecl : public BaseAST {
 class VarDecl : public BaseAST {
  public:
   struct Declaration {
-      bool is_const;
       std::string id;
       std::optional<std::unique_ptr<TypeExpr>> type;
       std::optional<std::unique_ptr<Expr>> expr;
 
-      Declaration(bool is_const, std::string id,
-                  std::unique_ptr<TypeExpr> type)
-          : is_const(is_const), id(id), type(std::move(type)), expr(std::nullopt) {}
-
-      Declaration(bool is_const, std::string id,
-                  std::unique_ptr<Expr> expr)
-          : is_const(is_const), id(id), expr(std::move(expr)), type(std::nullopt) {}
-
-      Declaration(bool is_const, std::string id,
-                  std::unique_ptr<TypeExpr> type,
-                  std::unique_ptr<Expr> expr)
-          : is_const(is_const), id(id), type(std::move(type)),
-            expr(std::move(expr)) {}
-
-      Declaration(bool is_const, std::string id,
+      Declaration(std::string id,
                   std::optional<std::unique_ptr<TypeExpr>> type,
                   std::optional<std::unique_ptr<Expr>> expr)
-          : is_const(is_const), id(id), type(std::move(type)),
-            expr(std::move(expr)) {}
+          : id(id), type(std::move(type)), expr(std::move(expr)) {}
   };
   std::vector<Declaration> decls;
+  bool is_const;
 
-  VarDecl(LineRange pos, std::vector<Declaration> decls)
-      : decls(std::move(decls)), BaseAST(pos) {}
+  VarDecl(LineRange pos, bool is_const, std::vector<Declaration> decls)
+      : decls(std::move(decls)), is_const(is_const), BaseAST(pos) {}
 
   json GetMetaData() const;
 };
 
-class FileBlock : public BaseAST {
+// @TODO: Expr is only valid for func/struct decls
+class StructBlock : public BaseAST {
  public:
   std::variant<std::unique_ptr<Expr>, std::unique_ptr<VarDecl>,
                std::unique_ptr<MacroExpr>> expr;
 
-  FileBlock(LineRange pos, std::unique_ptr<Expr> expr)
+  StructBlock(LineRange pos, std::unique_ptr<Expr> expr)
       : BaseAST(pos), expr(std::move(expr)) {}
 
-  FileBlock(LineRange pos, std::unique_ptr<VarDecl> expr)
+  StructBlock(LineRange pos, std::unique_ptr<VarDecl> expr)
       : BaseAST(pos), expr(std::move(expr)) {}
 
-  FileBlock(LineRange pos, std::unique_ptr<MacroExpr> expr)
+  StructBlock(LineRange pos, std::unique_ptr<MacroExpr> expr)
       : BaseAST(pos), expr(std::move(expr)) {}
 
   json GetMetaData() const;
@@ -324,27 +298,15 @@ class TupleDecl : public BaseAST {
  public:
   struct ArgDecl {
     std::optional<std::unique_ptr<TypeExpr>> type;
-    bool is_const;
+    bool is_mut;
     std::string id;
+    bool generic_id;
     std::optional<std::unique_ptr<Expr>> expr;
 
-    ArgDecl(bool is_const, std::string id, std::unique_ptr<TypeExpr> type,
-            std::unique_ptr<Expr> expr)
-        : id(id), type(std::move(type)), is_const(is_const),
-          expr(std::move(expr)) {}
-    ArgDecl(bool is_const, std::string id, std::unique_ptr<Expr> expr)
-        : id(id), type(std::nullopt), is_const(is_const),
-          expr(std::move(expr)) {}
-    ArgDecl(std::unique_ptr<TypeExpr> type, bool is_const, std::string id)
-        : id(id), type(std::move(type)), is_const(is_const),
-          expr(std::nullopt) {}
-    ArgDecl(bool is_const, std::string id)
-        : id(id), type(std::nullopt), is_const(is_const),
-          expr(std::nullopt) {}
-    ArgDecl(bool is_const, std::string id,
+    ArgDecl(bool is_mut, bool generic, std::string id,
             std::optional<std::unique_ptr<TypeExpr>> type,
             std::optional<std::unique_ptr<Expr>> expr)
-        : id(id), type(std::move(type)), is_const(is_const),
+        : id(id), generic_id(generic), type(std::move(type)), is_mut(is_mut),
           expr(std::move(expr)) {}
   };
 
@@ -358,10 +320,10 @@ class TupleDecl : public BaseAST {
 
 class MacroExpr : public BaseAST {
  public:
-  std::vector<std::string> qualifying_name;
+  IdentifierAccess qualifying_name;
   std::vector<std::unique_ptr<Expr>> args;
 
-  MacroExpr(LineRange pos, std::vector<std::string> qualifying_name,
+  MacroExpr(LineRange pos, IdentifierAccess qualifying_name,
             std::vector<std::unique_ptr<Expr>> args)
       : BaseAST(pos), qualifying_name(qualifying_name), args(std::move(args)) {}
 
@@ -427,14 +389,6 @@ class PostfixExpr : public BaseAST {
         : func(std::move(func)), fold_expr(std::move(fold_expr)) {}
   };
 
-  struct PostfixOpExpr {
-    std::unique_ptr<PostfixExpr> lhs;
-    PostfixOp op;
-
-    PostfixOpExpr(std::unique_ptr<PostfixExpr> lhs, PostfixOp op)
-        : lhs(std::move(lhs)), op(op) {}
-  };
-
   struct MemberAccessExpr {
     std::unique_ptr<PostfixExpr> lhs;
     std::string member;
@@ -444,15 +398,12 @@ class PostfixExpr : public BaseAST {
   };
 
   std::variant<IndexExpr, SliceExpr, std::unique_ptr<FuncCall>, FoldExpr,
-               PostfixOpExpr, std::unique_ptr<Expr>, std::unique_ptr<TypeExpr>,
-               MemberAccessExpr, std::unique_ptr<MacroExpr>,
-               std::unique_ptr<Constant>, std::string> expr;
+               std::unique_ptr<Expr>, MemberAccessExpr,
+               std::unique_ptr<MacroExpr>, std::unique_ptr<Constant>,
+               std::string> expr;
 
   PostfixExpr(LineRange pos, std::string expr) 
       : BaseAST(pos), expr(expr) {}
-
-  PostfixExpr(LineRange pos, std::unique_ptr<TypeExpr> expr) 
-      : BaseAST(pos), expr(std::move(expr)) {}
 
   PostfixExpr(LineRange pos, std::unique_ptr<Expr> expr) 
       : BaseAST(pos), expr(std::move(expr)) {}
@@ -474,10 +425,6 @@ class PostfixExpr : public BaseAST {
   PostfixExpr(LineRange pos, std::unique_ptr<FuncCall> func,
               std::unique_ptr<PostfixExpr> postfix)
       : BaseAST(pos), expr(FoldExpr(std::move(func), std::move(postfix))) {}
-
-  PostfixExpr(LineRange pos, std::unique_ptr<PostfixExpr> postfix,
-              PostfixOp op)
-      : BaseAST(pos), expr(PostfixOpExpr(std::move(postfix), op)) {}
 
   PostfixExpr(LineRange pos, std::unique_ptr<PostfixExpr> postfix,
               std::string to_access)
@@ -757,11 +704,11 @@ class WhileBlock : public BaseAST {
 
 class ForBlock : public BaseAST {
  public:
-  std::vector<std::string> id_list;
+  IdentifierAccess id_list;
   std::vector<std::unique_ptr<Expr>> expr_list;
   std::vector<std::unique_ptr<FuncBlock>> block;
 
-  ForBlock(LineRange pos, std::vector<std::string> id_list,
+  ForBlock(LineRange pos, IdentifierAccess id_list,
            std::vector<std::unique_ptr<Expr>> expr_list,
            std::vector<std::unique_ptr<FuncBlock>> block)
       : BaseAST(pos), id_list(std::move(id_list)),
@@ -798,15 +745,14 @@ class IfBlock : public BaseAST {
 
 class TypeExpr : public BaseAST {
  public:
-  struct CollectionType {
-    std::unique_ptr<TypeExpr> first_type;
-    // if `int` == -1 then it is growable
-    std::vector<std::variant<std::unique_ptr<TypeExpr>, int>> second_type;
-
-    CollectionType(std::unique_ptr<TypeExpr> first_type,
-                   std::vector<std::variant<std::unique_ptr<TypeExpr>, int>> t2)
-        : first_type(std::move(first_type)),
-          second_type(std::move(t2)) {}
+  using GenericId = std::string;
+  struct GenericType {
+    IdentifierAccess ident;
+    // @NOTE: could be empty, though I can't of don't want
+    // it to be empty just for style reasons since
+    // Array[] should really not be Array since its like idk uglier
+    // and possibly misguiding
+    std::unique_ptr<TupleDecl> args;
   };
 
   struct VariantType {
@@ -816,26 +762,6 @@ class TypeExpr : public BaseAST {
     VariantType(std::unique_ptr<TypeExpr> lhs,
                 std::vector<std::unique_ptr<TypeExpr>> rhs)
         : lhs(std::move(lhs)), rhs(std::move(rhs)) {}
-  };
-
-  struct TupleType {
-    struct TypedTupleArg {
-      bool is_const;
-      std::optional<std::string> id;
-      std::unique_ptr<TypeExpr> expr;
-
-      TypedTupleArg(bool is_const, std::string id,
-                    std::unique_ptr<TypeExpr> expr)
-          : is_const(is_const), id(id), expr(std::move(expr)) {}
-
-      TypedTupleArg(bool is_const, std::unique_ptr<TypeExpr> expr)
-          : is_const(is_const), id(std::nullopt), expr(std::move(expr)) {}
-    };
-
-    std::vector<TypedTupleArg> types;
-
-    TupleType(std::vector<TypedTupleArg> types): types(std::move(types)) {}
-    TupleType(void) {}
   };
 
   struct FunctionType {
@@ -859,10 +785,13 @@ class TypeExpr : public BaseAST {
         : id(std::nullopt), args(std::move(args)), ret_type(std::nullopt) {}
   };
 
-  std::variant<CollectionType, VariantType, std::vector<std::string>, TupleType,
-               FunctionType> expr;
+  std::variant<GenericType, VariantType, IdentifierAccess,
+               std::unique_ptr<TupleDecl>, FunctionType, GenericId> expr;
 
-  TypeExpr(LineRange pos, std::vector<std::string> id)
+  TypeExpr(LineRange pos, GenericId id)
+      : BaseAST(pos), expr(std::move(id)) {}
+
+  TypeExpr(LineRange pos, IdentifierAccess id)
       : BaseAST(pos), expr(std::move(id)) {}
 
   TypeExpr(LineRange pos, FunctionType func_type)
@@ -871,10 +800,10 @@ class TypeExpr : public BaseAST {
   TypeExpr(LineRange pos, VariantType variant_type)
       : BaseAST(pos), expr(std::move(variant_type)) {}
 
-  TypeExpr(LineRange pos, CollectionType collection_type)
-      : BaseAST(pos), expr(std::move(collection_type)) {}
+  TypeExpr(LineRange pos, GenericType generic_type)
+      : BaseAST(pos), expr(std::move(generic_type)) {}
 
-  TypeExpr(LineRange pos, TupleType tuple_type)
+  TypeExpr(LineRange pos, std::unique_ptr<TupleDecl> tuple_type)
       : BaseAST(pos), expr(std::move(tuple_type)) {}
 
   json GetMetaData() const;

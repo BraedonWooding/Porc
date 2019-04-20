@@ -10,7 +10,12 @@
 class Reader {
  public:
   using ItemType = char;
+
   const size_t kItemSize = sizeof(ItemType);
+
+  const std::string file_name;
+
+  Reader(std::string file_name) : file_name(file_name) {}
 
   /*
       Try to read *len* in groups of *kItemSize* bytes into *buf*.
@@ -32,7 +37,7 @@ class CFileReader : public Reader {
   FILE *fp;
 
  public:
-  CFileReader(const char *&&file_name) {
+  CFileReader(const char *&&file_name) : Reader(file_name) {
     fp = fopen(file_name, "r");
   }
 

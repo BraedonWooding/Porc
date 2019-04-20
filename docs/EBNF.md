@@ -10,9 +10,10 @@ A few notes:
 - `(a)+` means `a` repeated (1+)
 - `(a)*` means `a` repeated or not (0+)
 - Basically identical to `[(a)+]` (which is `((a)+)?`)
-- Semicolons are kinda implemented incorrectly here, basically the rules follow the 'expr language' return rules followed by languages like rust i.e. `return` returns but also the last statement which doesn't have a `;` (note this works inside if statements)
 - i.e. `if (x) 1 else 2` is identical to `if (x) return 1 else return 2;` and `return if (x) 1 else 2;`
 - Rules should never define required symbols for that rule to be formed those should be outside i.e. a block shouldn't include the `{` `}` required for it's definition they should be defined outside the block
+- Semicolons aren't really parsed like this, basically you can leave them out whenever you use `{}` or when it is the last statement in a block (in that case it auto returns that from the expr).
+  - Also we take the case of returning values in ambiguous cases; `x = () => 1;` is unclear if it returns a value or not but we will return the `1` unless the return type speaks differently.
 
 ```ebnf
 // Fragments
@@ -48,18 +49,25 @@ AssignmentOp ::= '=' | '*=' | '/=' | '**=' | '%/=' | '%=' | '+=' | '-='
 
 // == Blocks ==
 
-file_block
+struct_block
   : var_decl ';'
-  | 'fn' Identifier tuple_decl type_expr? '{' func_block* '}'
-  | 'struct' Identifier tuple_decl '{' file_block* '}'
-  | macro_expr ';'
+  | func_decl
+  | struct_decl
+  | macro_expr [';']
+  ;
+
+file_decl
+  : func_block*
   ;
 
 func_block
-  // you can leave it out for auto return
-  // also don't need it for control flow exprs
-  : ['return'] expr [';']
+// you can leave it out for auto return
+// also don't need it for control flow exprs
+  :
   | var_decl ';'
+  | func_decl
+  | struct_decl
+  | ['return'] expr [';']
   | assignment_expr ';'
   ;
 
@@ -68,6 +76,7 @@ if_block
   ;
 
 for_block
+// we have to explicitly allow the '(' ')' since the inside statement isn't an expr
   : 'for' '(' identifier_list 'in' expr_list ')' expr
   | 'for' identifier_list 'in' expr_list expr
   ;
@@ -78,18 +87,22 @@ while_block
 
 // == Declarations ==
 
-arg_decl
-  : ['const'] Identifier [':' type_expr] ['=' expr]
+tuple_value_decl
+  : tuple_type_decl ['=' expr]
+  ;
+
+tuple_type_decl
+  : ['mut'] ['$'] Identifier [':' type_expr]
   ;
 
 tuple_decl
-  : '(' [arg_decl (',' arg_decl)*] ')'
+  : '(' [tuple_value_decl (',' tuple_value_decl)*] ')'
   ;
 
 var_decl
-  : const_identifier_list ':' type_expr_list '=' expr_list
-  | const_identifier_list '=' expr_list
-  | const_identifier_list ':' type_expr_list
+  : ['const' | 'mut'] identifier_list ':' type_expr_list '=' expr_list
+  | ['const' | 'mut'] identifier_list '=' expr_list
+  | ['const' | 'mut'] identifier_list ':' type_expr_list
   ;
 
 // == Expressions ==
@@ -98,17 +111,23 @@ macro_expr
   : '@' identifier_access '(' expr_list? ')'
   ;
 
-typed_tuple_arg
-  : ['const'] [Identifier ':'] type_expr
+typed_tuple_arg_list
+// @TODO: maybe allow extraneous comma
+// @FIX: currently we allow you to have values in your tuple types
+//       this is just since it requires semantic analysis otherwise
+//       and I don't know if I actually possibly want this anyways
+  : [tuple_type_decl (',' tuple_type_decl)*]
   ;
 
 type_expr
-  : '(' 'void'? ')'
-  | '(' typed_tuple_arg ',' ')'
-  | '(' typed_tuple_arg (',' typed_tuple_arg)+ ')'
-  | 'fn' Identifier? tuple_decl type_expr?
-  | type_expr ('[' (type_expr | Int | '...') ']')*
+  : '(' typed_tuple_arg_list ')'
+  | 'fn' Identifier? '(' type_tuple_arg_list ')' ['->' type_expr]
+// @TODO: decide if we want to just allow idents or if we want to allow exprs
+//        for example `Array[int] | List[int]` vs `(Array | List)[int]`
+//        I'm leaning towards the first but I'm not sure
+  | identifier_access '[' typed_tuple_arg_list ']'
   | type_expr ('|' type_expr)+
+  | '$' identifier
   | identifier_access
   ;
 
@@ -118,21 +137,29 @@ assignment_expr
 
 expr
   : logical_or_expr                // arithmetic
-  | 'let' var_decl
+  | var_decl
   | logical_or_expr '..' '='? logical_or_expr [':' logical_or_expr] // range
-  | struct_decl
-  | func_decl
+  | anonymous_struct_decl
+  | lambda_decl
   | map_expr | array_expr | tuple_expr
   | if_block | while_block | for_block
   | '{' func_block* '}'
   ;
 
+lambda_decl
+  : tuple_decl ['->' type_expr] '=>' expr
+  ;
+
 func_decl
-  : tuple_decl type_expr? '=>' expr
+  : 'fn' Identifier tuple_decl ['->' type_expr] '{' func_block* '}'
+  ;
+
+anonymous_struct_decl
+  : tuple_decl '::' '{' struct_block* '}'
   ;
 
 struct_decl
-  : tuple_decl '::' '{' file_block* '}'
+  : 'struct' Identifier tuple_decl '{' struct_block* '}'
   ;
 
 tuple_expr
@@ -164,23 +191,20 @@ postfix_expr
   | func_call '<|' postfix_expr
   | postfix_expr '|>' func_call
   | postfix_expr '.' Identifier
-  | postfix_expr '++'
-  | postfix_expr '--'
-  | type_expr
   | Identifier
   | constant
   ;
 
 unary_expr
   : postfix_expr
-  | ('+' | '-' | '!' | '++' | '--') unary_expr
+  | ('+' | '-' | '!') unary_expr
   ;
 
 power_expr
   : unary_expr ('**' unary_expr)*
 
 multiplicative_expr
-  : power_expr (('*' | '/' | '%' | '%/') power_expr)*
+  : power_expr (('*' | '/' | '%' | '//') power_expr)*
 
 additive_expr
   : multiplicative_expr (('+' | '-') multiplicative_expr)*
@@ -218,10 +242,6 @@ identifier_access_list
 
 identifier_list
   : Identifier (',' Identifier)*
-  ;
-
-const_identifier_list
-  : ['const'] Identifier (',' ['const'] Identifier)*
   ;
 
 type_expr_list

@@ -5,21 +5,21 @@
 namespace porc::internals {
 
 Token::operator bool() const {
-  return type != Token::Kind::Undefined && type != Token::Kind::EndOfFile;
+  return type != Token::Undefined && type != Token::EndOfFile;
 }
 
 std::string Token::ToString() const {
-  if (type == Token::Kind::Str || type == Token::Kind::Identifier)
+  if (type == Token::Str || type == Token::Identifier)
     return std::get<std::string>(data);
   char *out = NULL;
-  if (type == Token::Kind::LineComment) {
+  if (type == Token::LineComment) {
     return std::string("//").append(std::get<std::string>(data));
   }
-  if (type == Token::Kind::BlockComment) {
+  if (type == Token::BlockComment) {
     return std::string("/*").append(std::get<std::string>(data)).append("*/");
   }
-  if (type == Token::Kind::Flt) return std::to_string(std::get<double>(data));
-  if (type == Token::Kind::Int) return std::to_string(std::get<i64>(data));
+  if (type == Token::Flt) return std::to_string(std::get<double>(data));
+  if (type == Token::Int) return std::to_string(std::get<i64>(data));
   if (out != NULL) return out;
   int type = static_cast<int>(type);
   if (tokenToStrMap[type] != NULL) return std::string(tokenToStrMap[type]);
@@ -28,7 +28,11 @@ std::string Token::ToString() const {
 }
 
 const char *Token::ToErrorMsg() const {
-  int type = static_cast<int>(type);
+  return GetKindErrorMsg(type);
+}
+
+const char *Token::GetKindErrorMsg(Token::Kind kind) {
+  int type = static_cast<int>(kind);
   if (tokenToStrMap[type] != NULL) return tokenToStrMap[type];
   if (tokenToNameMap[type] != NULL) return tokenToNameMap[type];
   Unreachable("Case not handled");
@@ -41,24 +45,14 @@ const char *Token::ToName() const {
 
 bool Token::IsAssignmentOp() const {
   switch (type) {
-    case Token::Kind::AddAssign:
-    case Token::Kind::SubtractAssign:
-    case Token::Kind::Equal:
-    case Token::Kind::DivideAssign:
-    case Token::Kind::PowerAssign:
-    case Token::Kind::ModulusAssign:
-    case Token::Kind::MultiplyAssign:
-    case Token::Kind::IntegerDivideAssign:
-      return true;
-    default:
-      return false;
-  }
-}
-
-bool Token::IsPostfixOp() const {
-  switch (type) {
-    case Token::Kind::Increment:
-    case Token::Kind::Decrement:
+    case Token::AddAssign:
+    case Token::SubtractAssign:
+    case Token::Equal:
+    case Token::DivideAssign:
+    case Token::PowerAssign:
+    case Token::ModulusAssign:
+    case Token::MultiplyAssign:
+    case Token::IntegerDivideAssign:
       return true;
     default:
       return false;
@@ -67,11 +61,9 @@ bool Token::IsPostfixOp() const {
 
 bool Token::IsPrefixOp() const {
   switch (type) {
-    case Token::Kind::Increment:
-    case Token::Kind::Decrement:
-    case Token::Kind::Negate:
-    case Token::Kind::Subtract:
-    case Token::Kind::Add:
+    case Token::Negate:
+    case Token::Subtract:
+    case Token::Add:
       return true;
     default:
       return false;
@@ -80,10 +72,10 @@ bool Token::IsPrefixOp() const {
 
 bool Token::IsMultiplicativeOp() const {
   switch (type) {
-    case Token::Kind::Multiply:
-    case Token::Kind::Divide:
-    case Token::Kind::Modulus:
-    case Token::Kind::IntegerDivide:
+    case Token::Multiply:
+    case Token::Divide:
+    case Token::Modulus:
+    case Token::IntegerDivide:
       return true;
     default:
       return false;
@@ -92,8 +84,8 @@ bool Token::IsMultiplicativeOp() const {
 
 bool Token::IsAdditiveOp() const {
   switch (type) {
-    case Token::Kind::Add:
-    case Token::Kind::Subtract:
+    case Token::Add:
+    case Token::Subtract:
       return true;
     default:
       return false;
@@ -102,10 +94,10 @@ bool Token::IsAdditiveOp() const {
 
 bool Token::IsRelationalOp() const {
   switch (type) {
-    case Token::Kind::GreaterThan:
-    case Token::Kind::GreaterThanEqual:
-    case Token::Kind::LessThan:
-    case Token::Kind::LessThanEqual:
+    case Token::GreaterThan:
+    case Token::GreaterThanEqual:
+    case Token::LessThan:
+    case Token::LessThanEqual:
       return true;
     default:
       return false;
@@ -114,8 +106,8 @@ bool Token::IsRelationalOp() const {
 
 bool Token::IsEqualityOp() const {
   switch (type) {
-    case Token::Kind::Equal:
-    case Token::Kind::NotEqual:
+    case Token::Equal:
+    case Token::NotEqual:
       return true;
     default:
       return false;

@@ -5,6 +5,7 @@
 #include <variant>
 #include <string>
 #include <optional>
+
 #include "printer_helpers.hpp"
 #include "reader.hpp"
 #include "token.hpp"
@@ -34,7 +35,7 @@ namespace porc::internals {
     for (tok = stream.PopCur(); tok; tok = stream.PopCur()) { ... }
 
     // at the end you may want to check if Undefined compared to EndOfFile
-    if (tok.type == Token::Kind::Undefined) {
+    if (tok.type == Token::Undefined) {
       // handle error case
     }
 
@@ -43,9 +44,10 @@ namespace porc::internals {
 class TokenStream {
  private:
   static const int BufSize = 1024;
-  const int MaxLookaheads = 2;
+  static const int MaxLookaheads = 2;
 
-  std::vector<Token> tokens;
+  std::array<Token, MaxLookaheads> tokens;
+  int cur_token_size = 0;
 
   /* For storing the data read into the stream */
   char read_buf[BufSize + 1];
@@ -62,6 +64,9 @@ class TokenStream {
   /* Current horizontal height */
   uint col = 0;
 
+  uint old_line = 0;
+  uint old_col = 0;
+
   /* The reader to read in data */
   std::unique_ptr<Reader> reader;
 
@@ -71,6 +76,21 @@ class TokenStream {
   // Equivalent to Read(BufSize, 0);
   void ReadAll();
   Token Parse();
+
+  // setup the old line / col
+  inline void BeginLineRange();
+
+  // finalise the position
+  // col offset is used to adjust col before
+  // i.e. EndLineRange(-1) == LineRange(old_line, line, old_col, col -1)
+  inline LineRange EndLineRange(int col_offset = 0) const;
+
+  /*
+    NOTE: should only call this after calling a read function
+          this is because for example at the very start it'll be true
+          as we will have read nothing.
+  */
+  bool IsEOF() const { return read_size == 0; }
 
   /*
 
@@ -124,10 +144,10 @@ class TokenStream {
   bool Next();
   void Push(Token tok);
 
+  const std::string &GetFileName() const { return reader->file_name; };
+
   TokenStream(std::unique_ptr<Reader> reader, int max_lookaheads=2)
-      : reader(std::move(reader)), MaxLookaheads(max_lookaheads) {
-    tokens.reserve(max_lookaheads);
-  }
+      : reader(std::move(reader)), tokens{} {}
 };
 
 }
