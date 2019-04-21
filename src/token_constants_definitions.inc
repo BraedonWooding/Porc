@@ -51,6 +51,7 @@ static const Token Variant;
 static const Token Dot;
 static const Token Range;
 static const Token Macro;
+static const Token Generic;
 static const Token True;
 static const Token False;
 static const Token Void;

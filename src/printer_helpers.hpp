@@ -25,7 +25,7 @@ public:
   json GetMetaData() const;
 
 
-  LineRange(LineRange &a, LineRange &b) {
+  LineRange(const LineRange &a, const LineRange &b) {
     Assert(a.file_name == b.file_name,
           "File names for merging ranges must be the same",
           a.file_name, b.file_name);
@@ -37,7 +37,8 @@ public:
     this->file_name = a.file_name;
   }
 
-  LineRange(int line_start, int line_end, int col_start, int col_end, std::string file) {
+  LineRange(const int line_start, const int line_end, const int col_start,
+            const int col_end, std::string file) {
     Assert(line_start >= 0, "Must be positive (or 0)", line_start);
     Assert(line_end >= 0, "Must be positive (or 0)", line_end);
     Assert(col_start >= 0, "Must be positive (or 0)", col_start);

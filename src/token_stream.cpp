@@ -51,7 +51,7 @@ inline void TokenStream::BeginLineRange() {
   old_col = col;
 }
 
-inline LineRange TokenStream::EndLineRange(int col_offset = 0) const {
+inline LineRange TokenStream::EndLineRange(int col_offset) const {
   return LineRange(old_line, line, old_col, col + col_offset, GetFileName());
 }
 
@@ -402,6 +402,10 @@ void TokenStream::ConvEscapeCodes(std::string &str) {
         std::cerr << "Invalid oct str lit!!!  TODO: better errors" << std::endl;
       }
     } break;
+    // @TODO: currently this allows stuff like; `\k` where it just
+    //        outputs `k`, this is not suitable and really should error
+    //        but since errors aren't handled well by the tokenizer yet
+    //        I'm gonna push that back
     default: str.push_back(read_buf[cur_index]);
   }
 }

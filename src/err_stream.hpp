@@ -8,49 +8,32 @@
 
 namespace porc::internals {
 
-template<typename T, typename E>
-using expected_unique_ptr = tl::expected<std::unique_ptr<T>, E>;
-
-template<typename T>
-using optional_unique_ptr = std::optional<std::unique_ptr<T>>;
-
-struct ParseError {
-  enum class Kind {
-    MissingToken, // missing a token (not EOF)
-    InvalidToken, // wasn't expecting this token
-    ValidEOF,     // not really an error more just info that we ran out
-    InvalidEOF,   // wasn't expecting EOF
-  };
-
-public:
-  Kind kind;
-  std::string extra_info;
-  Token related_token;
-
-  ParseError(Kind kind) : kind(kind) {}
-  ParseError(Kind kind, std::string extra_info)
-      : kind(kind), extra_info(extra_info) {}
-  ParseError(Kind kind, std::string extra_info, Token related_token)
-      : kind(kind), extra_info(extra_info), related_token(related_token) {}
-};
-
 class ErrStream {
 private:
   std::ostream &out;
-  int tokenizer_errors;
-  int syntax_errors;
-  int lexical_errors;
+  int tokenizer_errors = 0;
+  int syntax_errors = 0;
+  int lexical_errors = 0;
+  int semantic_errors = 0;
   // and so on
 
 public:
-  ErrStream(std::ostream &out)
-      : out(out), syntax_errors(0), lexical_errors(0) {}
+  enum ErrType {
+    TokenErr,
+    SyntaxErr,
+    LexicalErr,
+    SemanticErr
+  };
 
-  int TokenizerErrors() { return tokenizer_errors; }
+  ErrStream(std::ostream &out) : out(out) {}
 
-  int SyntaxErrors() { return syntax_errors; }
+  int TokenizerErrors() const { return tokenizer_errors; }
 
-  int LexicalErrors() { return lexical_errors; }
+  int SyntaxErrors() const { return syntax_errors; }
+
+  int LexicalErrors() const { return lexical_errors; }
+
+  int SemanticErrors() const { return semantic_errors; }
 
   /*
     Logs the error for when you have an undefined token;
@@ -77,6 +60,12 @@ public:
     so we can error and we can't tell which token we were looking for.
   */
   void ReportInvalidToken(Token invalid);
+
+  /*
+    For when you want to report a custom error that isn't really nicely grouped.
+  */
+  void ReportCustomErr(std::string msg, std::optional<LineRange> pos,
+                       ErrType type);
 
   /*
     For when you try to narrow a tokens type for example to get an assignment

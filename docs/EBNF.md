@@ -63,26 +63,25 @@ file_decl
 func_block
 // you can leave it out for auto return
 // also don't need it for control flow exprs
-  :
-  | var_decl ';'
-  | func_decl
+  : func_decl
   | struct_decl
-  | ['return'] expr [';']
   | assignment_expr ';'
+  | ['return'] expr [';']
   ;
 
 if_block
-  : 'if' expr expr ('else if' expr expr)* ['else' expr]
+  : 'if' expr func_block ('else if' expr func_block)* ['else' func_block]
   ;
 
 for_block
-// we have to explicitly allow the '(' ')' since the inside statement isn't an expr
-  : 'for' '(' identifier_list 'in' expr_list ')' expr
-  | 'for' identifier_list 'in' expr_list expr
+// we have to explicitly allow the '(' ')'
+// since the inside statement isn't an expr
+  : 'for' '(' identifier_list 'in' expr_list ')' func_block
+  | 'for' identifier_list 'in' expr_list func_block
   ;
 
 while_block
-  : 'while' expr expr
+  : 'while' expr func_block
   ;
 
 // == Declarations ==
@@ -147,7 +146,7 @@ expr
   ;
 
 lambda_decl
-  : tuple_decl ['->' type_expr] '=>' expr
+  : tuple_decl ['->' type_expr] '=>' func_block
   ;
 
 func_decl
@@ -252,7 +251,7 @@ expr_list
   : expr (',' expr)*
   ;
 
-expr_pair_lsit
+expr_pair_list
   : expr ':' expr (',' expr ':' expr)*
 
 var_decl_list

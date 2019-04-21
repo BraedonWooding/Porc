@@ -1,13 +1,19 @@
 #ifndef PARSER_HPP
 #define PARSER_HPP
 
+#include <expected.hpp>
+
+#include <type_traits>
+
 #include "token_stream.hpp"
 #include "ast.hpp"
 #include "err_stream.hpp"
 
-#include <string>
-
 namespace porc::internals {
+
+static const char *DoubleReturnErrMsg =
+    "Can't have a return followed by another return.\n"
+    "This applies to implicit returns as well.";
 
 template<typename T>
 using optional_unique_ptr  = std::optional<std::unique_ptr<T>>;
@@ -17,21 +23,12 @@ private:
   TokenStream stream;
   ErrStream err;
 
-  void UnexpectedToken(Token actual, Token expected);
-  void UnexpectedEndOfFile(Token::Kind expected);
-  void UnexpectedToken(Token actual, std::string msg);
   bool ConsumeToken(Token::Kind type);
 
-  std::optional<std::vector<std::string>>
+  std::optional<std::vector<LineStr>>
     ParseIdentifierAccess(Token::Kind continuer);
 
-  std::optional<std::variant<std::vector<VarDecl::Declaration>,
-           std::vector<std::unique_ptr<Expr>>>>
-    ParseAssignmentIdentifierList(Token::Kind continuer);
-
-  std::unique_ptr<Expr> ConvIdentToExpr(std::string id, LineRange pos);
-  void ConvListDeclsToExpr(std::vector<TupleDecl::ArgDecl> &decls,
-                           std::vector<std::unique_ptr<Expr>> &exprs);
+  std::unique_ptr<Expr> ConvIdentToExpr(LineStr id);
   std::unique_ptr<Expr> ParenthesiseExpr(std::unique_ptr<Expr> expr);
 
   optional_unique_ptr<Expr> ParseExprFuncOrStruct(std::unique_ptr<TupleDecl> decl);
@@ -44,21 +41,30 @@ private:
 
   */
 
-  template<typename Fn, typename ForEach>
-  bool ParseListConjugate(Fn fn, ForEach for_each,
-                                      Token pair_sep = Token::Colon,
-                                      Token next_pair = Token::Comma) {
+  template<typename Fn>
+  using ForEachInnerType = typename std::invoke_result_t<Fn, Parser>::value_type;
+
+  template<typename Fn, typename ...Args>
+  using ForEach1 = void(*)
+    (int, ForEachInnerType<Fn>, Args&... args);
+
+  template<typename Fn, typename ...Args>
+  using ForEach2 = void(*)
+    (int, ForEachInnerType<Fn>, ForEachInnerType<Fn>, Args&... args);
+
+  template<Token::Kind pair_sep = Token::Colon,
+           Token::Kind next_pair = Token::Comma,
+           typename Fn, typename ...Args>
+  bool ParseListConjugate(Fn fn, ForEach2<Fn, Args...> for_each, Args&... args) {
     int index = 0;
     while (true) {
       auto first = (this->*fn)();
-      if (!first) return first.error();
-      if (!ConsumeToken(pair_sep.type))
-        return ParseError(ParseError::Kind::MissingToken, "Requiring separator",
-                          pair_sep);
+      if (!first) return false;
+      if (!ConsumeToken(pair_sep)) return false;
       auto second = (this->*fn)();
-      if (!second) return second.error();
-      for_each(index, std::move(*first), std::move(*second));
-      if (stream.PeekCur().type == next_pair.type) {
+      if (!second) return false;
+      for_each(index, std::move(*first), std::move(*second), args...);
+      if (stream.PeekCur().type == next_pair) {
         index++;
         stream.PopCur();
       } else {
@@ -68,15 +74,14 @@ private:
     return true;
   }
 
-  template<typename Fn, typename ForEach>
-  bool ParseList(Fn fn, ForEach for_each,
-                                      Token continuer = Token::Comma) {
+  template<Token::Kind continuer = Token::Comma, typename Fn, typename ...Args>
+  bool ParseList(Fn fn, ForEach1<Fn, Args...> for_each, Args&... args) {
     int index = 0;
     while (true) {
       auto res = (this->*fn)();
-      if (!res) return res.error();
-      for_each(index, std::move(*res));
-      if (stream.PeekCur().type == continuer.type) {
+      if (!res) return false;
+      for_each(index, std::move(*res), args...);
+      if (stream.PeekCur().type == continuer) {
         index++;
         stream.PopCur();
       } else {
@@ -84,6 +89,28 @@ private:
       }
     }
     return true;
+  }
+
+  /*
+    Simple common wrappers around common operations.
+  */
+  template<typename Inner>
+  static void PushBack(int index, Inner obj, std::vector<Inner> &vec) {
+    vec.push_back(std::move(obj));
+  }
+
+  template<typename Inner>
+  static void PushBackMap(int index, Inner key, Inner val,
+                          std::vector<Inner> &keys, std::vector<Inner> &vals) {
+    keys.push_back(std::move(key));
+    vals.push_back(std::move(val));
+  }
+
+  template<typename Inner>
+  static void SetIndex(int index, Inner obj, std::vector<Inner> &vec) {
+    Assert(index >= 0 && index <= vec.size(),
+           "Index has to be within bounds", index);
+    vec[index] = std::move(obj);
   }
 
   template<typename To>
@@ -99,8 +126,8 @@ public:
   Parser(TokenStream stream, std::ostream &out = std::cerr)
       : stream(std::move(stream)), err(out) {}
 
-  optional_unique_ptr<VarDecl> ParseFileFuncDecl();
-  optional_unique_ptr<VarDecl> ParseFileStructDecl();
+  optional_unique_ptr<VarDecl> ParseFuncDecl();
+  optional_unique_ptr<VarDecl> ParseStructDecl();
 
   optional_unique_ptr<FileDecl> ParseFileDecl();
   optional_unique_ptr<TupleDecl> ParseTupleDecl();
@@ -108,7 +135,7 @@ public:
   optional_unique_ptr<VarDecl>
     ParseVarDeclWithDeclList(std::vector<VarDecl::Declaration> lhs);
 
-  optional_unique_ptr<FileBlock> ParseFileBlock();
+  optional_unique_ptr<StructBlock> ParseStructBlock();
   optional_unique_ptr<FuncBlock> ParseFuncBlock();
   optional_unique_ptr<IfBlock> ParseIfBlock();
   optional_unique_ptr<WhileBlock> ParseWhileBlock();

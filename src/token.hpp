@@ -14,6 +14,24 @@
 
 namespace porc::internals {
 
+/*
+  @Question: does this leak memory?  Because std::string's destructor isn't
+             virtual this could leak, but only if the allocations are well
+             'leakable' in this case they are since LineRange contains a string
+             HOWEVER this only occurs for things where you allocate a line str
+             then pass it as a std::string, which we don't do.
+  @CLEANUP:  So I guess we need to come up with a better solution??
+             I just don't want to have a whole class for just adding an extra
+             member field, composition would require a lot of utility code.
+*/
+class LineStr : public std::string {
+ public:
+  LineRange pos;
+
+  LineStr(LineRange pos, std::string wrap)
+      : std::string(std::move(wrap)), pos(pos) { }
+};
+
 class Token {
  public:
   enum Kind {
@@ -45,6 +63,14 @@ class Token {
 
   template<typename T>
   Token(Token::Kind type, LineRange pos, T data) : pos(pos), type(type), data(data) { }
+
+  std::optional<LineStr> ToLineStr() const {
+    if (auto str = std::get_if<std::string>(&data)) {
+      return LineStr(pos, *str);
+    } else {
+      return std::nullopt;
+    }
+  }
 
   operator bool() const;
 

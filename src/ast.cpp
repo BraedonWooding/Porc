@@ -1,8 +1,16 @@
-// #include "ast.hpp"
+#include "ast.hpp"
 
-// #include <type_traits>
+#include <type_traits>
 
-// #include "helper.hpp"
+#include "helper.hpp"
+
+namespace porc::internals {
+  LineRange VarDecl::Declaration::GetPos() const {
+    if (expr)       return LineRange(id.pos, (*expr)->pos);
+    else if (type)  return LineRange(id.pos, (*type)->pos);
+    else            return id.pos;
+  }
+}
 
 // template<class T> struct always_false: std::false_type {};
 
@@ -190,7 +198,7 @@
 //   };
 // }
 
-// json FileBlock::GetMetaData() const {
+// json StructBlock::GetMetaData() const {
 //   json data = std::visit([](auto &value)->json { 
 //     return value->GetMetaData();
 //   }, this->expr);
@@ -200,7 +208,7 @@
 //   // state we return since this->ret == true
 //   data.emplace("ret", true);
 //   return {
-//     {"name", "FileBlock"},
+//     {"name", "StructBlock"},
 //     {"pos", this->pos.GetMetaData()},
 //     {"data", data}
 //   };

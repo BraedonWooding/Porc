@@ -6,24 +6,40 @@
 
 namespace porc::internals {
 
-bool Parser::ConsumeToken(Token wanted) {
+/*
+  As to make sure that we give much nicer errors we split our errors up like this;
+  - tokenizer errors (for example 3e + 2)
+  - syntatical errors (for example forgetting semicolons)
+  - semantic/lexical errors (invalid types or whatever)
+
+  It will stop at building the AST if there are any tokenizer/syntatical errors
+  But will still try to build the AST it gets around this by basically skipping
+  any problematic expressions, since we don't care about producing code for this
+  and just to report the errors we don't have to care about producing an
+  accurate AST (it is going to be wrong regardless).
+*/
+
+bool Parser::ConsumeToken(Token::Kind wanted) {
   Token tok = stream.PeekCur();
   // check if next token is what we want
   if (tok.type == Token::EndOfFile) {
     err.ReportExpectedToken(wanted, tok.pos);
     return false;
-  } else if (tok.type != wanted.type) {
+  } else if (tok.type != wanted) {
     err.ReportUnexpectedToken(wanted, tok);
     return false;
+  } else {
+    stream.PopCur(); // actually consume token
+    return true;
   }
-  stream.PopCur(); // actually consume token
-  return true;
 }
 
 template<typename T>
 LineRange FindRangeOfVector(std::vector<std::unique_ptr<T>> &vec) {
   switch (vec.size()) {
-    case 0: return LineRange::Null();
+    // @TODO: What do we do?
+    //        do we want to be able to find the range??
+    case 0: Unreachable("FindRangeOfVector of an empty vector");
     case 1: return vec.at(0)->pos;
     default: return LineRange(vec.at(0)->pos, vec.at(vec.size() - 1)->pos);
   }
@@ -49,178 +65,104 @@ std::optional<To> Parser::TryTokenCast(Token tok) {
 }
 
 optional_unique_ptr<FileDecl> Parser::ParseFileDecl() {
-  std::vector<std::unique_ptr<FileBlock>> expressions;
-  optional_unique_ptr<FileBlock> expr;
+  std::vector<std::unique_ptr<FuncBlock>> expressions;
+  optional_unique_ptr<FuncBlock> expr;
   while (stream.PeekCur().type != Token::EndOfFile &&
-        (expr = ParseFileBlock()).has_value()) {
+        (expr = ParseFuncBlock()).has_value()) {
     expressions.push_back(std::move(*expr));
   }
 
-  if (!expr) return unexpected(expr.error());
+  if (!expr) return std::nullopt;
   LineRange range = FindRangeOfVector(expressions);
   return std::make_unique<FileDecl>(range, std::move(expressions));
 }
 
 optional_unique_ptr<FuncBlock> Parser::ParseFuncBlock() {
-  Token tok = stream.PopCur();
+  Token tok = stream.PeekCur();
+  LineRange start = tok.pos;
+  optional_unique_ptr<FuncBlock> expr;
+  bool ret = false;
   if (tok.type == Token::Return) {
-    auto expr = ComposeExpr<FuncBlock>(ParseExpr(), /* return: */ true);
-    if (!ConsumeToken(Token::SemiColon))
-      return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "Missing semicolon", Token::SemiColon));
-    return expr;
-  }
-
-  // We want to look at the tokens and try to guess accurately
-  // whether or not it is an assignment, expr, or a var_decl
-  Token next = stream.PeekCur();
-  if (tok.type == Token::Const || (tok.type == Token::Identifier &&
-                                        (next.type == Token::Colon ||
-                                         next.type == Token::Assign))) {
-    // easiest case has to be a var decl
-    stream.Push(tok);
-    auto expr = ComposeExpr<FuncBlock>(ParseVarDecl(), false);
-    if (!ConsumeToken(Token::SemiColon))
-      return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "Missing semicolon", Token::SemiColon));
-    return expr;
-  }
-
-  if (tok.type == Token::Identifier) {
-    // could be either var decl/expr (if it just consists of an Ident)
-    // or assign_expr
-    stream.Push(tok);
-    if (next.type != Token::Comma && !next.IsAssignmentOp()) {
-      bool ret = next.type != Token::SemiColon;
-      auto expr = ComposeExpr<FuncBlock>(ParseExpr(), ret);
-      if (!ret) stream.PopCur();
-      return expr;
-    }
-
-    auto list = ParseAssignmentIdentifierList(Token::Comma);
-    if (!list) return unexpected(list.error());
-
+    ret = true;
+    stream.PopCur();
     tok = stream.PeekCur();
-    if (tok.type == Token::Colon) {
-      if (auto ids = std::get_if<std::vector<VarDecl::Declaration>>(&*list)) {
-        auto expr = ComposeExpr<FuncBlock>(ParseVarDeclWithDeclList(std::move(*ids)), false);
-        if (!ConsumeToken(Token::SemiColon))
-          return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                       "Missing semicolon", Token::SemiColon));
-        return expr;
-      } else {
-        return unexpected(ParseError(ParseError::Kind::InvalidToken,
-                                     "Unexpected Colon Token", tok));
-      }
-    }
+  }
 
-    auto assign_op = TryTokenCast<AssignmentOp>(stream.PopCur());
-    if (!assign_op) return unexpected(assign_op.error());
-    LineRange pos = LineRange::Null();
+  // @BUG: when return is the last token it'll just ignore it
+  //       rather than raising an error
+  if (tok.type == Token::EndOfFile) return std::nullopt;
 
-    if (*assign_op != AssignmentOp::Kind::Equal ||
-        std::holds_alternative<std::vector<std::unique_ptr<Expr>>>(*list)) {
-      std::vector<std::unique_ptr<Expr>> lhs;
-      if (auto ids = std::get_if<std::vector<VarDecl::Declaration>>(&*list)) {
-        for (auto &id : *ids) lhs.push_back(ConvIdentToExpr(id.id, pos));
-      } else {
-        lhs = std::move(std::get<std::vector<std::unique_ptr<Expr>>>(*list));
-      }
-
-      std::vector<std::unique_ptr<Expr>> rhs;
-      auto push_back = [&rhs](int index, std::unique_ptr<Expr> expr) {
-        rhs.push_back(std::move(expr));
-      };
-
-      if (auto err = ParseList(&Parser::ParseExpr, push_back))
-        return unexpected(*err);
-      auto assign_expr = std::make_unique<AssignmentExpr>(pos, std::move(lhs),
-                                                          *assign_op, 
-                                                          std::move(rhs));
-      return std::make_unique<FuncBlock>(pos, std::move(assign_expr));
-    } else {
-      auto ids = std::get<std::vector<VarDecl::Declaration>>(std::move(*list));
-      auto push_back = [&ids](int index, std::unique_ptr<Expr> expr) {
-        ids.at(index).expr = std::move(expr);
-      };
-      if (auto err = ParseList(&Parser::ParseExpr, push_back))
-        return unexpected(*err);
-      auto var_decl = std::make_unique<VarDecl>(pos, std::move(ids));
-      return std::make_unique<FuncBlock>(pos, std::move(var_decl), false);
-    }
+  if (tok.type == Token::Const || tok.type == Token::Var) {
+    // var decl
+    expr = ComposeExpr<FuncBlock>(ParseVarDecl());
+  } else if (tok.type == Token::Func) {
+    expr = ComposeExpr<FuncBlock>(ParseFuncDecl());
+  } else if (tok.type == Token::Struct) {
+    expr = ComposeExpr<FuncBlock>(ParseStructDecl());
   } else {
-    // can't be var decl
-    LineRange start = tok.pos;
-    stream.Push(tok);
-    // either expr or assignment expr both still have an expr as first arg
-    std::vector<std::unique_ptr<Expr>> list;
-    // find better way of expressing this lambda
-    auto push_back = [&list](int index, std::unique_ptr<Expr> obj) {
-      list.push_back(std::move(obj));
-    };
-    if (auto err = ParseList(&Parser::ParseExpr, push_back))
-      return unexpected(*err);
-    tok = stream.PeekCur();
-    if (tok.IsAssignmentOp()) {
-      auto assign_op = TryTokenCast<AssignmentOp>(stream.PopCur());
-      if (!assign_op) return unexpected(assign_op.error());
-      std::vector<std::unique_ptr<Expr>> lhs = std::move(list);
-      LineRange end = lhs.at(lhs.size() - 1)->pos;
-      LineRange pos = LineRange(start, end);
+      std::vector<std::unique_ptr<Expr>> lhs;
+      if (!ParseList(&Parser::ParseExpr, PushBack, lhs)) return std::nullopt;
 
-      if (auto err = ParseList(&Parser::ParseExpr, push_back))
-        return unexpected(*err);
-      auto assign_expr = std::make_unique<AssignmentExpr>(pos, std::move(lhs),
-                                                          *assign_op, 
-                                                          std::move(list));
-      return std::make_unique<FuncBlock>(pos, std::move(assign_expr));
-    } else if (list.size() != 1) {
-      return unexpected(ParseError(ParseError::Kind::InvalidToken,
-                                   "Was expecting a comma", Token::Comma));
-    } else {
-      bool ret = tok.type != Token::SemiColon;
-      LineRange pos = list.at(0)->pos;
-      return std::make_unique<FuncBlock>(pos, std::move(list.at(0)), ret);
-    }
+      // it could be that it was just an expression so check if next is operator
+      // or that we had more than one
+      if (lhs.size() > 1 || stream.PeekCur().IsAssignmentOp()) {
+        std::vector<std::unique_ptr<Expr>> rhs;
+        if (!ParseList(&Parser::ParseExpr, PushBack, rhs)) return std::nullopt;
+
+        auto assign_op = TryTokenCast<AssignmentOp>(stream.PopCur());
+        if (!assign_op) return std::nullopt;
+        LineRange pos = LineRange(start, rhs[rhs.size() - 1]->pos);
+        auto assign_expr = std::make_unique<AssignmentExpr>(pos, std::move(lhs),
+                                                            *assign_op, 
+                                                            std::move(rhs));
+        expr = std::make_unique<FuncBlock>(pos, std::move(assign_expr));
+      } else {
+        // else just an expression
+        LineRange pos = lhs[0]->pos;
+        expr = std::make_unique<FuncBlock>(pos, std::move(lhs[0]));
+      }
   }
+
+  if (expr && ret) {
+    if ((*expr)->ret) {
+      err.ReportCustomErr(DoubleReturnErrMsg, LineRange(start,(*expr)->pos),
+                          ErrStream::LexicalErr);
+      // we are still fine in this case so meh
+    }
+    (*expr)->ret = ret;
+  }
+  return expr;
 }
 
-optional_unique_ptr<VarDecl> Parser::ParseFileFuncDecl() {
-  if (!ConsumeToken(Token::Func)) {
-    return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                 "Missing 'fn'", Token::Func));
-  }
+optional_unique_ptr<VarDecl> Parser::ParseFuncDecl() {
+  if (!ConsumeToken(Token::Func)) return std::nullopt;
+
   Token tok = stream.PopCur();
   if (tok.type != Token::Identifier) {
-    UnexpectedToken(Token::Identifier, tok);
-    return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                 "Missing identifier", Token::Identifier));
+    err.ReportUnexpectedToken(Token::Identifier, tok);
+    return std::nullopt;
   }
 
-  if (auto id = std::get_if<std::string>(&tok.data)) {
-    auto tuple_decl = ParseTupleDecl();
-    if (!tuple_decl) return unexpected(tuple_decl.error());
+  auto id = *tok.ToLineStr();
+  auto tuple_decl = ParseTupleDecl();
+  if (!tuple_decl) return std::nullopt;
 
-    std::optional<std::unique_ptr<TypeExpr>> ret_type = std::nullopt;
-    if (stream.PeekCur().type != Token::LeftBrace) {
-      auto type_expr = ParseTypeExpr();
-      if (!type_expr) return unexpected(type_expr.error());
-      ret_type = std::move(*type_expr);
-    }
-
-    auto expr = ParseExpr();
-    if (!expr) return unexpected(expr.error());
-    LineRange pos = LineRange((*tuple_decl)->pos, (*expr)->pos);
-    auto tmp = std::make_unique<Expr>(pos, std::move(*tuple_decl), 
-                                      std::move(*ret_type),
-                                      std::move(*expr));
-    std::vector<VarDecl::Declaration> decl;
-    decl.push_back(VarDecl::Declaration(true, *id, std::move(tmp)));
-    return std::make_unique<VarDecl>(pos, std::move(decl));
-  } else {
-    return unexpected(ParseError(ParseError::Kind::InvalidToken,
-                                 "Identifier is missing", tok));
+  std::optional<std::unique_ptr<TypeExpr>> ret_type = std::nullopt;
+  if (stream.PeekCur().type != Token::LeftBrace) {
+    auto type_expr = ParseTypeExpr();
+    if (!type_expr) return std::nullopt;
+    ret_type = std::move(*type_expr);
   }
+
+  auto expr = ParseExpr();
+  if (!expr) return std::nullopt;
+  LineRange pos = LineRange((*tuple_decl)->pos, (*expr)->pos);
+  auto tmp = std::make_unique<Expr>(pos, std::move(*tuple_decl), 
+                                    std::move(*ret_type),
+                                    std::move(*expr));
+  std::vector<VarDecl::Declaration> decl;
+  decl.push_back(VarDecl::Declaration(id, std::nullopt, std::move(tmp)));
+  return std::make_unique<VarDecl>(pos, true, std::move(decl));
 }
 
 /*
@@ -233,7 +175,8 @@ optional_unique_ptr<VarDecl> Parser::ParseFileFuncDecl() {
   Also note: that in this case it is doing the same conversion really
 */
 
-std::unique_ptr<Expr> Parser::ConvIdentToExpr(std::string id, LineRange pos) {
+std::unique_ptr<Expr> Parser::ConvIdentToExpr(LineStr id) {
+  LineRange pos = id.pos;
   return std::make_unique<Expr>(pos,
          std::make_unique<LogicalOrExpr>(pos,
          std::make_unique<LogicalAndExpr>(pos,
@@ -260,77 +203,19 @@ std::unique_ptr<Expr> Parser::ParenthesiseExpr(std::unique_ptr<Expr> expr) {
          std::make_unique<PostfixExpr>(pos, std::move(expr)))))))))));
 }
 
-expected<std::variant<std::vector<VarDecl::Declaration>,
-         std::vector<std::unique_ptr<Expr>>>, ParseError>
-    Parser::ParseAssignmentIdentifierList(Token::Kind continuer) {
-  std::vector<VarDecl::Declaration> ids;
-  LineRange start = stream.PeekCur().pos;
-  Token tok;
-  bool any_const = false;
-
-  while (true) {
-    tok = stream.PeekCur();
-    bool is_const = false;
-    if (tok.type == Token::Const) {
-      is_const = any_const = true;
-      stream.PopCur();
-      tok = stream.PeekCur();
-    }
-
-    if (tok.type != Token::Identifier) {
-      if (any_const) return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                                 "Was expecting identifier",
-                                                 Token::Identifier));
-
-      // we are expecting an identifier so we know it is now an expr list
-      // so just convert all our identifiers to expressions and then push them on
-      std::vector<std::unique_ptr<Expr>> exprs;
-      // we have atleast this 'expr' and all the previous identifiers
-      exprs.reserve(ids.size() + 1);
-      // note: the position here is wrong!  But we can also just adjust the position
-      // as we go but it may still result in being wrong
-      // so we really should keep the LineRange along with the string
-      // maybe have an identifier struct to use rather than std::string.
-      for (auto &id : ids) exprs.push_back(ConvIdentToExpr(id.id, start));
-      auto for_each = [&exprs](int index, std::unique_ptr<Expr> expr) {
-        exprs.push_back(std::move(expr));
-      };
-      if (auto err = ParseList(&Parser::ParseExpr, for_each)) return unexpected(*err);
-      return exprs;
-    }
-    stream.PopCur();
-    if (auto id = std::get_if<std::string>(&tok.data)) {
-      ids.push_back(VarDecl::Declaration(is_const, *id, std::nullopt,
-                                         std::nullopt));
-    } else {
-      return unexpected(ParseError(ParseError::Kind::InvalidToken,
-                                   "Identifier is invalid", tok));
-    }
-    // if there is no dot then this is the end of the identifier access
-    if (stream.PeekCur().type != continuer) break;
-    stream.PopCur(); // remove the continuer
-  }
-
-  return ids;
-}
-
-expected<std::vector<std::string>, ParseError>
+std::optional<std::vector<LineStr>>
     Parser::ParseIdentifierAccess(Token::Kind continuer) {
-  std::vector<std::string> ids;
+  std::vector<LineStr> ids;
   Token tok;
   while (true) {
     tok = stream.PeekCur();
     if (tok.type != Token::Identifier) {
-     return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                  "Identifier is missing", Token::Identifier));
+      err.ReportUnexpectedToken(Token::Identifier, tok);
+      return std::nullopt;
     }
     stream.PopCur();
-    if (auto id = std::get_if<std::string>(&tok.data)) {
-      ids.push_back(*id);
-    } else {
-      return unexpected(ParseError(ParseError::Kind::InvalidToken,
-                                   "Identifier is invalid", tok));
-    }
+    ids.push_back(*tok.ToLineStr());
+
     // if there is no dot then this is the end of the identifier access
     if (stream.PeekCur().type != continuer) break;
     stream.PopCur(); // remove the continuer
@@ -339,77 +224,59 @@ expected<std::vector<std::string>, ParseError>
   return ids;
 }
 
-optional_unique_ptr<VarDecl> Parser::ParseFileStructDecl() {
-  if (!ConsumeToken(Token::Struct)) {
-      return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "Missing 'struct'", Token::Struct));
-  }
+optional_unique_ptr<VarDecl> Parser::ParseStructDecl() {
+  ConsumeToken(Token::Struct);
 
   Token tok = stream.PopCur();
   if (tok.type != Token::Identifier) {
-    UnexpectedToken(Token::Identifier, tok);
-    return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                 "Missing identifier", Token::Identifier));
+    err.ReportUnexpectedToken(Token::Identifier, tok);
+    return std::nullopt;
   }
 
-  if (auto id = std::get_if<std::string>(&tok.data)) {
-    auto tuple_decl = ParseTupleDecl();
-    if (!tuple_decl) return unexpected(tuple_decl.error());
+  auto id = *tok.ToLineStr();
+  auto tuple_decl = ParseTupleDecl();
+  if (!tuple_decl) return std::nullopt;
 
-    if (!ConsumeToken(Token::LeftBrace))
-      return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "Missing left brace", Token::LeftBrace));
+  ConsumeToken(Token::LeftBrace);
 
-    optional_unique_ptr<FileBlock> expr;
-    std::vector<std::unique_ptr<FileBlock>> exprs;
+  optional_unique_ptr<StructBlock> expr;
+  std::vector<std::unique_ptr<StructBlock>> exprs;
 
-    while (stream.PeekCur().type != Token::RightBrace &&
-          (expr = ParseFileBlock()).has_value()) {
-      exprs.push_back(std::move(*expr));
-    }
-
-    if (!ConsumeToken(Token::RightBrace)) {
-      if (!expr) return unexpected(expr.error());
-      return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "Missing right brace", Token::RightBrace));
-    }
-
-    LineRange pos = LineRange((*tuple_decl)->pos, FindRangeOfVector(exprs));
-    auto tmp = std::make_unique<Expr>(pos, std::move(*tuple_decl),
-                                      std::move(exprs));
-    std::vector<VarDecl::Declaration> decl;
-    decl.push_back(VarDecl::Declaration(true, *id, std::move(tmp)));
-    return std::make_unique<VarDecl>(pos, std::move(decl));
-  } else {
-    return unexpected(ParseError(ParseError::Kind::InvalidToken,
-                                 "Identifier is missing", tok));
+  while (stream.PeekCur().type != Token::RightBrace &&
+        (expr = ParseStructBlock()).has_value()) {
+    exprs.push_back(std::move(*expr));
   }
+
+  ConsumeToken(Token::RightBrace);
+
+  LineRange pos = LineRange((*tuple_decl)->pos, FindRangeOfVector(exprs));
+  auto tmp = std::make_unique<Expr>(pos, std::move(*tuple_decl),
+                                    std::move(exprs));
+  std::vector<VarDecl::Declaration> decl;
+  decl.push_back(VarDecl::Declaration(id, std::nullopt, std::move(tmp)));
+  return std::make_unique<VarDecl>(pos, true, std::move(decl));
 }
 
-optional_unique_ptr<FileBlock> Parser::ParseFileBlock() {
+optional_unique_ptr<StructBlock> Parser::ParseStructBlock() {
   Token tok = stream.PeekCur();
   if (tok.type == Token::EndOfFile)
-    return unexpected(ParseError(ParseError::Kind::ValidEOF));
+    return std::nullopt;
 
   switch (tok.type) {
     case Token::Func: {
-      return ComposeExpr<FileBlock>(ParseFileFuncDecl());
+      return ComposeExpr<StructBlock>(ParseFuncDecl());
     }
     case Token::Struct: {
-      return ComposeExpr<FileBlock>(ParseFileStructDecl());
+      return ComposeExpr<StructBlock>(ParseStructDecl());
     }
     case Token::Macro: {
-      auto expr = ComposeExpr<FileBlock>(ParseMacroExpr());
-      if (!ConsumeToken(Token::SemiColon))
-        return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                     "Missing semicolon", Token::SemiColon));
+      auto expr = ComposeExpr<StructBlock>(ParseMacroExpr());
+      ConsumeToken(Token::SemiColon);
       return expr;
     }
     default: {
-      auto var_decl = ComposeExpr<FileBlock>(ParseVarDecl());
-      if (!ConsumeToken(Token::SemiColon))
-        return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                     "Missing semicolon", Token::SemiColon));
+      auto var_decl = ComposeExpr<StructBlock>(ParseVarDecl());
+      ConsumeToken(Token::SemiColon);
       return var_decl;
     } break;
   }
@@ -423,19 +290,15 @@ optional_unique_ptr<Expr> Parser::ParseExprFuncOrStruct(
   Token tok = stream.PeekCur();
   if (tok.type == Token::DoubleColon) {
     stream.PopCur();
-    if (!ConsumeToken(Token::LeftBrace))
-      return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "Missing '{'", Token::LeftBrace));
-    std::vector<std::unique_ptr<FileBlock>> expressions;
-    optional_unique_ptr<FileBlock> expr;
+    ConsumeToken(Token::LeftBrace);
+    std::vector<std::unique_ptr<StructBlock>> expressions;
+    optional_unique_ptr<StructBlock> expr;
     while (stream.PeekCur().type != Token::RightBrace &&
-          (expr = ParseFileBlock()).has_value()) {
+          (expr = ParseStructBlock()).has_value()) {
       expressions.push_back(std::move(*expr));
     }
-    if (!expr) return unexpected(expr.error());
-    if (!ConsumeToken(Token::RightBrace))
-      return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "Missing '}'", Token::RightBrace));
+    if (!expr) return std::nullopt;
+    ConsumeToken(Token::RightBrace);
 
     LineRange range = FindRangeOfVector(expressions);
     return std::make_unique<Expr>(range, std::move(tuple_decl),
@@ -443,59 +306,59 @@ optional_unique_ptr<Expr> Parser::ParseExprFuncOrStruct(
   } else if (tok.type == Token::FatArrow) {
     stream.PopCur();
     auto block = ParseExpr();
-    if (!block) return unexpected(block.error());
+    if (!block) return std::nullopt;
     return std::make_unique<Expr>((*block)->pos, std::move(tuple_decl),
                                   std::nullopt,  std::move(*block));
   } else {
     // has to be function just with a type
     auto ret = ParseTypeExpr();
-    if (!ret) return unexpected(ret.error());
-    if (!ConsumeToken(Token::FatArrow))
-      return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "Missing '=>'", Token::FatArrow));
+    if (!ret) return std::nullopt;
+    ConsumeToken(Token::FatArrow);
     auto block = ParseExpr();
-    if (!block) return unexpected(block.error());
+    if (!block) return std::nullopt;
     return std::make_unique<Expr>((*block)->pos, std::move(tuple_decl),
                                   std::move(*ret), std::move(*block));
   }
 }
 
-expected<TupleDecl::ArgDecl, ParseError> Parser::ParseTupleDeclSegment() {
+std::optional<TupleDecl::ArgDecl> Parser::ParseTupleDeclSegment() {
   Token tok = stream.PopCur();
-  bool is_const = false;
-  if (tok.type == Token::Const) {
-    is_const = true;
+  bool is_mut = false;
+  bool is_generic = false;
+  if (tok.type == Token::Mut) {
+    is_mut = true;
+    tok = stream.PopCur();
+  }
+
+  if (tok.type == Token::Generic) {
+    is_generic = true;
     tok = stream.PopCur();
   }
 
   if (tok.type == Token::Identifier) {
-    if (auto id = std::get_if<std::string>(&tok.data)) {
-      std::optional<std::unique_ptr<TypeExpr>> type_expr = std::nullopt;
+    auto id = *tok.ToLineStr();
+    std::optional<std::unique_ptr<TypeExpr>> type_expr = std::nullopt;
+    tok = stream.PopCur();
+    if (tok.type == Token::Colon) {
+      auto type = ParseTypeExpr();
+      if (!type) return std::nullopt;
+      type_expr = std::move(*type);
       tok = stream.PopCur();
-      if (tok.type == Token::Colon) {
-        auto type = ParseTypeExpr();
-        if (!type) return unexpected(type.error());
-        type_expr = std::move(*type);
-        tok = stream.PopCur();
-      }
-
-      std::optional<std::unique_ptr<Expr>> val = std::nullopt;
-      if (tok.type == Token::Assign) {
-        auto expr = ParseExpr();
-        if (!expr) return unexpected(expr.error());
-        val = std::move(*expr);
-        tok = stream.PopCur();
-      }
-
-      return TupleDecl::ArgDecl(is_const, std::move(*id), std::move(type_expr),
-                                std::move(val));
-    } else {
-      return unexpected(ParseError(ParseError::Kind::InvalidToken,
-                                   "Identifier is invalid", tok));
     }
+
+    std::optional<std::unique_ptr<Expr>> val = std::nullopt;
+    if (tok.type == Token::Assign) {
+      auto expr = ParseExpr();
+      if (!expr) return std::nullopt;
+      val = std::move(*expr);
+      tok = stream.PopCur();
+    }
+
+    return TupleDecl::ArgDecl(is_mut, is_generic, std::move(id),
+                              std::move(type_expr), std::move(val));
   } else {
-    return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                 "Missing identifier", Token::Identifier));
+    err.ReportUnexpectedToken(Token::Identifier, tok);
+    return std::nullopt;
   }
 }
 
@@ -504,24 +367,24 @@ optional_unique_ptr<TupleDecl> Parser::ParseRestTupleDeclExpr(
   // presuming atleast the '(' has been consumed and all has been correctly
   // parsed into declarations
   bool extra_comma = false;
+  Token prev_tok;
   while (stream.PeekCur().type != Token::RightParen) {
     extra_comma = false;
     auto decl = ParseTupleDeclSegment();
-    if (!decl) return unexpected(decl.error());
+    if (!decl) return std::nullopt;
     declarations.push_back(std::move(*decl));
 
     Token tok = stream.PeekCur();
     if (tok.type != Token::Comma) break;
+    prev_tok = tok;
     stream.PopCur(); // pop comma
     extra_comma = true;
   }
 
-  if (extra_comma) return unexpected(ParseError(ParseError::Kind::InvalidToken,
-                                                "Extra ','", Token::Comma));
+  if (extra_comma) err.ReportCustomErr("Extra ','", prev_tok.pos,
+                                       ErrStream::LexicalErr);
 
-  if (!ConsumeToken(Token::RightParen))
-    return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                 "Missing ')'", Token::RightParen));
+  ConsumeToken(Token::RightParen));
 
   LineRange pos = LineRange::Null();
   return std::make_unique<TupleDecl>(pos, std::move(declarations));
@@ -541,7 +404,7 @@ optional_unique_ptr<Expr> Parser::ParseExprOrTupleDecl() {
     if (tok.type == Token::Const) {
       stream.Push(tok);
       auto tuple_decl = ParseRestTupleDeclExpr(std::move(declarations));
-      if (!tuple_decl) return unexpected(tuple_decl.error());
+      if (!tuple_decl) return std::nullopt;
       return ParseExprFuncOrStruct(std::move(*tuple_decl));
     }
     Token next = stream.PeekCur();
@@ -553,7 +416,7 @@ optional_unique_ptr<Expr> Parser::ParseExprOrTupleDecl() {
         next.type == Token::Comma)) {
       stream.Push(tok);
       auto decl = ParseTupleDeclSegment();
-      if (!decl) return unexpected(decl.error());
+      if (!decl) return std::nullopt;
       bool is_tuple_decl = decl->type || decl->expr;
       declarations.push_back(std::move(*decl));
 
@@ -564,12 +427,12 @@ optional_unique_ptr<Expr> Parser::ParseExprOrTupleDecl() {
 
       if (is_tuple_decl) {
         if (comma && stream.PeekCur().type == Token::RightParen) {
-          return unexpected(ParseError(ParseError::Kind::InvalidToken,
-                                        "Extra ','", Token::Comma));
+          err.ReportCustomErr("Extra ','", prev_tok.pos,
+                              ErrStream::LexicalErr);
         }
 
         auto tuple_decl = ParseRestTupleDeclExpr(std::move(declarations));
-        if (!tuple_decl) return unexpected(tuple_decl.error());
+        if (!tuple_decl) return std::nullopt;
         return ParseExprFuncOrStruct(std::move(*tuple_decl));
       }
     } else {
@@ -590,23 +453,22 @@ optional_unique_ptr<Expr> Parser::ParseExprOrTupleDecl() {
         comma = true;
       }
 
-      if (!expr) return unexpected(expr.error());
+      if (!expr) return std::nullopt;
       break;
     }
   }
 
-  if (!ConsumeToken(Token::RightParen))
-    return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                 "Missing ')'", Token::RightParen));
+  ConsumeToken(Token::RightParen);
 
   tok = stream.PeekCur();
   if (tok.type == Token::DoubleColon ||
       tok.type == Token::FatArrow) {
-    if (expressions.size() != 0)
-      return unexpected(ParseError(ParseError::Kind::InvalidToken,
-                                   "Wasn't expecting => or ::", tok));
-    if (comma) return unexpected(ParseError(ParseError::Kind::InvalidToken,
-                                            "Extra ','", Token::Comma));
+    if (expressions.size() != 0) {
+      err.ReportInvalidToken(tok);
+      return std::nullopt;
+    }
+    if (comma) err.ReportCustomErr("Extra ','", prev_tok.pos,
+                                   ErrStream::LexicalErr);
     LineRange pos = LineRange::Null();
     return ParseExprFuncOrStruct(std::make_unique<TupleDecl>(pos,
       std::move(declarations)));
@@ -616,7 +478,7 @@ optional_unique_ptr<Expr> Parser::ParseExprOrTupleDecl() {
   if (expressions.size() == 0) {
       std::for_each(declarations.cbegin(), declarations.cend(),
         [&expressions, this](auto &decl) {
-          expressions.push_back(ConvIdentToExpr(decl.id, LineRange::Null()));
+          expressions.push_back(ConvIdentToExpr(decl.id));
         });
   }
 
@@ -625,8 +487,8 @@ optional_unique_ptr<Expr> Parser::ParseExprOrTupleDecl() {
     return ParenthesiseExpr(std::move(expressions[0]));
   } else {
     if (expressions.size() != 1 && comma)
-      return unexpected(ParseError(ParseError::Kind::InvalidToken,
-                                   "Extra ','", Token::Comma));
+      err.ReportCustomErr("Extra ','", prev_tok.pos,
+                          ErrStream::LexicalErr);
     // tuple
     LineRange pos = FindRangeOfVector(expressions);
     return std::make_unique<Expr>(pos, std::move(expressions), false);
@@ -634,110 +496,103 @@ optional_unique_ptr<Expr> Parser::ParseExprOrTupleDecl() {
 }
 
 optional_unique_ptr<Expr> Parser::ParseExpr() {
-  switch (stream.PeekCur().type) {
-    case Token::Let: {
-      stream.PopCur();
-      return ComposeExpr<Expr>(ParseVarDecl());
-    }
+  // @CLEANUP: split this up
+  Token first = stream.PeekCur();
+  optional_unique_ptr<Expr> expr = std::nullopt;
+
+  switch (first.type) {
+    case Token::Var: case Token::Const: {
+      expr = ComposeExpr<Expr>(ParseVarDecl());
+    } break;
     case Token::LeftParen: {
       // tuple/func/struct or simply '(' expr ')'
       Token tok = stream.PopCur();
       Token next = stream.PeekCur();
-      if (next.type == Token::Const) {
+      if (next.type == Token::Mut) {
         // either func/struct
         stream.Push(tok);
         auto tuple_decl = ParseTupleDecl();
-        if (!tuple_decl) return unexpected(tuple_decl.error());
-        return ParseExprFuncOrStruct(std::move(*tuple_decl));
+        if (!tuple_decl) return std::nullopt;
+        expr = ParseExprFuncOrStruct(std::move(*tuple_decl));
       } else if (next.type == Token::Identifier) {
         // two trees we care about
         // 1) func/struct where this is a tuple decl
         // 2) tuple/expr where this is well a list of expressions
         stream.Push(tok);
-        return ParseExprOrTupleDecl();
+        expr = ParseExprOrTupleDecl();
       } else {
         // has to be a tuple
         std::vector<std::unique_ptr<Expr>> exprs;
         bool comma = false;
+        Token last = stream.PeekCur();
         while (stream.PeekCur().type != Token::RightParen) {
           comma = false;
           auto expr = ParseExpr();
-          if (!expr) return unexpected(expr.error());
+          if (!expr) return std::nullopt;
           if (stream.PeekCur().type == Token::Comma) {
-            stream.PopCur();
+            last = stream.PopCur();
             comma = true;
           } else if (stream.PeekCur().type != Token::RightParen) {
-            return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                         "Expecting '(' or ','", Token::Comma));
+            err.ReportUnexpectedToken(Token::Comma, stream.PeekCur());
+            return std::nullopt;
           }
         }
 
         if (comma && exprs.size() != 1) {
-          return unexpected(ParseError(ParseError::Kind::InvalidToken,
-                                       "Extra ','", Token::Comma));
+          err.ReportUnexpectedToken(Token::RightParen, last);
         }
-        if (!ConsumeToken(Token::RightParen))
-          return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                       "Missing ')'", Token::RightParen));
+        if (!ConsumeToken(Token::RightParen)) return std::nullopt;
+
         if (!comma && exprs.size() == 1) {
-          return std::move(exprs[0]);
+          expr = std::move(exprs[0]);
         } else {
           LineRange pos = FindRangeOfVector(exprs);
-          return std::make_unique<Expr>(pos, std::move(exprs), false);
+          expr = std::make_unique<Expr>(pos, std::move(exprs), false);
         }
       }
-    }
+    } break;
     case Token::LeftBracket: {
       // array/map
       auto first_val = ParseExpr();
-      if (!first_val) return unexpected(first_val.error());
+      if (!first_val) return std::nullopt;
       if (stream.PeekCur().type == Token::Colon) {
         // we have a map
         std::vector<std::unique_ptr<Expr>> keys;
         std::vector<std::unique_ptr<Expr>> values;
         keys.push_back(std::move(*first_val));
         first_val = ParseExpr();
-        if (!first_val) return unexpected(first_val.error());
+        if (!first_val) return std::nullopt;
         values.push_back(std::move(*first_val));
-        auto foreach = [&keys, &values](int index, std::unique_ptr<Expr> key,
-                                         std::unique_ptr<Expr> val) {
-          keys.push_back(std::move(key));
-          values.push_back(std::move(val));
-        };
-        if (auto err = ParseListConjugate(&Parser::ParseExpr, foreach))
-          return unexpected(*err);
+        if (!ParseListConjugate(&Parser::ParseExpr, PushBackMap, keys, values))
+          return std::nullopt;
         LineRange pos = LineRange(keys[0]->pos, values[values.size() - 1]->pos);
-        return std::make_unique<Expr>(pos, std::move(keys), std::move(values));
+        expr = std::make_unique<Expr>(pos, std::move(keys), std::move(values));
       } else {
         std::vector<std::unique_ptr<Expr>> vals;
         vals.push_back(std::move(*first_val));
-        auto foreach = [&vals](int index, std::unique_ptr<Expr> expr) {
-          vals.push_back(std::move(expr));
-        };
-        if (auto err = ParseList(&Parser::ParseExpr, foreach))
-          return unexpected(*err);
+        if (!ParseList(&Parser::ParseExpr, PushBack, vals)) return std::nullopt;
         LineRange pos = FindRangeOfVector(vals);
-        return std::make_unique<Expr>(pos, std::move(vals), true);
+        expr = std::make_unique<Expr>(pos, std::move(vals), true);
       }
-    }
+    } break;
     case Token::LeftBrace: {
       std::vector<std::unique_ptr<FuncBlock>> exprs;
       stream.PopCur();
-      optional_unique_ptr<FuncBlock> expr;
+      optional_unique_ptr<FuncBlock> func_expr;
       while (stream.PeekCur().type != Token::RightBrace &&
-            (expr = ParseFuncBlock()).has_value()) {
-        exprs.push_back(std::move(*expr));
+            (func_expr = ParseFuncBlock()).has_value()) {
+        exprs.push_back(std::move(*func_expr));
       }
-      if (!expr) return unexpected(expr.error());
+      if (!func_expr) return std::nullopt;
       LineRange pos = FindRangeOfVector(exprs);
-      return std::make_unique<Expr>(pos, std::move(exprs));
-    }
-    case Token::If: return ComposeExpr<Expr>(ParseIfBlock());
-    case Token::For: return ComposeExpr<Expr>(ParseForBlock());
-    case Token::While: return ComposeExpr<Expr>(ParseWhileBlock());
+      expr = std::make_unique<Expr>(pos, std::move(exprs));
+    } break;
+    case Token::If: expr = ComposeExpr<Expr>(ParseIfBlock(), true); break;
+    case Token::For: expr = ComposeExpr<Expr>(ParseForBlock(), true); break;
+    case Token::While: expr = ComposeExpr<Expr>(ParseWhileBlock(), true); break;
     default: {
-      auto expr = ParseLogicalOrExpr();
-      if (!expr) return unexpected(expr.error());
+      auto logical_expr = ParseLogicalOrExpr();
+      if (!logical_expr) return std::nullopt;
       if (stream.PeekCur().type == Token::Range) {
         // range based statement
         stream.PopCur();
@@ -747,72 +602,70 @@ optional_unique_ptr<Expr> Parser::ParseExpr() {
           stream.PopCur();
         }
         auto stop = ParseLogicalOrExpr();
-        if (!stop) return unexpected(stop.error());
-        LineRange pos = LineRange((*expr)->pos, (*stop)->pos);
+        if (!stop) return std::nullopt;
+        LineRange pos = LineRange((*logical_expr)->pos, (*stop)->pos);
         std::optional<std::unique_ptr<LogicalOrExpr>> step = std::nullopt;
         if (stream.PeekCur().type == Token::Colon) {
           stream.PopCur();
           auto tmp_step = ParseLogicalOrExpr();
-          if (!tmp_step) return unexpected(tmp_step.error());
+          if (!tmp_step) return std::nullopt;
           step = std::move(*tmp_step);
           pos = LineRange(pos, (*step)->pos);
         }
-        return std::make_unique<Expr>(pos, inclusive_right, std::move(*expr),
+        expr = std::make_unique<Expr>(pos, inclusive_right,
+                                      std::move(*logical_expr),
                                       std::move(*stop), std::move(step));
       } else {
-        return std::make_unique<Expr>((*expr)->pos, std::move(*expr));
+        expr = std::make_unique<Expr>((*expr)->pos, std::move(*logical_expr));
       }
-    }
+    } break;
   }
 
-  Unreachable("Case not handled");
+  return expr;
 }
 
 optional_unique_ptr<TupleDecl> Parser::ParseTupleDecl() {
-  if (!ConsumeToken(Token::LeftParen))
-    return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                "Missing '('", Token::LeftParen));
+  ConsumeToken(Token::LeftParen);
   return ParseRestTupleDeclExpr(std::vector<TupleDecl::ArgDecl>());
 }
 
 optional_unique_ptr<VarDecl>
-    Parser::ParseVarDeclWithDeclList(std::vector<VarDecl::Declaration> declarations) {
+    Parser::ParseVarDeclWithDeclList(std::vector<VarDecl::Declaration> decls) {
   bool atleast_one = false;
   Token cur = stream.PopCur();
   LineRange start = cur.pos;
   if (cur.type == Token::Colon) {
     atleast_one = true;
     // type-expr list
-    auto for_each_type = [&declarations](int index,
-                                         std::unique_ptr<TypeExpr> type_expr) {
-      declarations.at(index).type = std::move(type_expr);
+    auto for_each_type = [](int index, std::unique_ptr<TypeExpr> type_expr,
+                            auto decls) {
+      decls.at(index).type = std::move(type_expr);
     };
-    if (auto err = ParseList(&Parser::ParseTypeExpr, for_each_type))
-      return unexpected(*err);
+    if (auto err = ParseList(&Parser::ParseTypeExpr, for_each_type, decls))
+      return std::nullopt;
     if (stream.PeekCur().type == Token::Assign) cur = stream.PopCur();
   }
 
   if (cur.type == Token::Assign) {
     atleast_one = true;
     // expr list
-    auto for_each_expr = [&declarations](int index,
-                                         std::unique_ptr<Expr> expr) {
-      declarations.at(index).expr = std::move(expr);
+    auto for_each_expr = [](int index, std::unique_ptr<Expr> expr, auto decls) {
+      decls.at(index).expr = std::move(expr);
     };
-    if (auto err = ParseList(&Parser::ParseExpr, for_each_expr))
-      return unexpected(*err);
+    if (auto err = ParseList(&Parser::ParseExpr, for_each_expr, decls))
+      return std::nullopt;
   }
 
   if (!atleast_one) {
     // invalid var_decl
-    return unexpected(ParseError(ParseError::Kind::InvalidToken,
-                                 "Was expecting one of or both of ':'/'='",
-                                 Token::Assign));
+    err.ReportCustomErr("Was expecting either ':' or '=' or both.", cur, 
+                        ErrStream::SyntaxErr);
+    return std::nullopt;
   }
 
   LineRange end = stream.PeekCur().pos;
   return std::make_unique<VarDecl>(LineRange(start, end),
-                                   std::move(declarations));
+                                   std::move(decls));
 }
 
 optional_unique_ptr<VarDecl> Parser::ParseVarDecl() {
@@ -828,45 +681,39 @@ optional_unique_ptr<VarDecl> Parser::ParseVarDecl() {
 
   while ((cur = stream.PopCur()).type != Token::Colon &&
          cur.type != Token::Assign) {
-    bool is_const = false;
-    if (cur.type == Token::Const) {
-      is_const = true;
+    bool is_mut = false;
+    if (cur.type == Token::Mut) {
+      is_mut = true;
       cur = stream.PopCur();
     }
     if (cur.type != Token::Identifier) {
-     return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                  "Identifier is missing", Token::Identifier));
+      err.ReportUnexpectedToken(Token::Identifier, cur);
+      return std::nullopt;
     }
 
-    if (auto id = std::get_if<std::string>(&cur.data)) {
-      declarations.push_back(VarDecl::Declaration(is_const, *id,
-                                                  std::nullopt, std::nullopt));
-    } else {
-      return unexpected(ParseError(ParseError::Kind::InvalidToken,
-                                   "Identifier is invalid", cur));
-    }
+    auto id = *cur.ToLineStr();
+    declarations.push_back(VarDecl::Declaration(is_mut, *id,
+                                                std::nullopt, std::nullopt));
   }
 
   return ParseVarDeclWithDeclList(std::move(declarations));
 }
 
 expected<IfBlock::IfStatement, ParseError> Parser::ParseIfStatement() {
-  if (!ConsumeToken(Token::If)) {
-      return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "Expected 'if'", Token::If));
-  }
+  ConsumeToken(Token::If);
 
   auto cond = ParseExpr();
+  if (!cond) return std::nullopt;
 
-  auto expr = ParseExpr();
-  if (!expr) return unexpected(expr.error());
+  auto expr = ParseFuncBlock();
+  if (!expr) return std::nullopt;
   return IfBlock::IfStatement(std::move(*cond), std::move(*expr));
 }
 
 optional_unique_ptr<IfBlock> Parser::ParseIfBlock() {
   std::vector<IfBlock::IfStatement> statements;
   auto statement = ParseIfStatement();
-  if (!statement) return unexpected(statement.error());
+  if (!statement) return std::nullopt;
   statements.push_back(std::move(*statement));
 
   while (stream.PeekCur().type == Token::Else) {
@@ -874,12 +721,12 @@ optional_unique_ptr<IfBlock> Parser::ParseIfBlock() {
     stream.PopCur();
     if (stream.PeekCur().type == Token::If) {
       statement = ParseIfStatement();
-      if (!statement) return unexpected(statement.error());
+      if (!statement) return std::nullopt;
       statements.push_back(std::move(*statement));
     } else {
       // else and then end the function
       auto expr = ParseExpr();
-      if (!expr) return unexpected(expr.error());
+      if (!expr) return std::nullopt;
       return std::make_unique<IfBlock>(LineRange::Null(), std::move(statements),
                                        std::move(*expr));
     }
@@ -894,10 +741,10 @@ optional_unique_ptr<WhileBlock> Parser::ParseWhileBlock() {
   }
 
   auto cond = ParseExpr();
-  if (!cond) return unexpected(cond.error());
+  if (!cond) return std::nullopt;
 
   auto expr = ParseExpr();
-  if (!expr) return unexpected(expr.error());
+  if (!expr) return std::nullopt;
 
   LineRange pos = LineRange((*cond)->pos, (*expr)->pos);
   return std::make_unique<WhileBlock>(pos, std::move(*cond), std::move(*expr));
@@ -927,9 +774,10 @@ optional_unique_ptr<ForBlock> Parser::ParseForBlock() {
   //            on these but I haven't decided to keep const yet so I want
   //            to decide on that before I impact this
   // @FIXME: decide
-  std::vector<std::string> idents;
+  std::vector<LineStr> idents;
   while (stream.PeekCur().type == Token::Identifier) {
-    idents.push_back(std::get<std::string>(stream.PopCur().data));
+    Token tok = stream.PopCur();
+    idents.push_back(*tok.ToLineStr());
   }
 
   if (!ConsumeToken(Token::In)) {
@@ -943,7 +791,7 @@ optional_unique_ptr<ForBlock> Parser::ParseForBlock() {
   };
 
   if (auto err = ParseList(&Parser::ParseExpr, push_back))
-    return unexpected(*err);
+    return std::nullopt;
 
   if (consumed_lparen && !ConsumeToken(Token::RightParen)) {
     return unexpected(ParseError(ParseError::Kind::MissingToken,
@@ -951,7 +799,7 @@ optional_unique_ptr<ForBlock> Parser::ParseForBlock() {
   }
 
   auto expr = ParseExpr();
-  if (!expr) return unexpected(expr.error());
+  if (!expr) return std::nullopt;
 
   LineRange pos = LineRange(start, (*expr)->pos);
   return std::make_unique<ForBlock>(pos, std::move(idents), std::move(*exprs),
@@ -960,7 +808,7 @@ optional_unique_ptr<ForBlock> Parser::ParseForBlock() {
 
 optional_unique_ptr<FuncCall> Parser::ParseFuncCall() {
   auto func = ParsePostfixExpr();
-  if (!func) return unexpected(func.error());
+  if (!func) return std::nullopt;
 
   if (!ConsumeToken(Token::LeftParen)) {
     return unexpected(ParseError(ParseError::Kind::MissingToken,
@@ -974,7 +822,7 @@ optional_unique_ptr<FuncCall> Parser::ParseFuncCall() {
   };
 
   if (auto err = ParseList(&Parser::ParseExpr, push_back))
-    return unexpected(*err);
+    return std::nullopt;
 
   if (!ConsumeToken(Token::RightParen)) {
     return unexpected(ParseError(ParseError::Kind::MissingToken,
@@ -1000,7 +848,7 @@ optional_unique_ptr<Constant> Parser::ParseConstant() {
       return std::make_unique<Constant>(tok.pos, std::get<double>(tok.data));
     } break;
     case Token::Str: {
-      return std::make_unique<Constant>(tok.pos, std::get<std::string>(tok.data));
+      return std::make_unique<Constant>(tok.pos, std::get<LineStr>(tok.data));
     } break;
     case Token::Char: {
       return std::make_unique<Constant>(tok.pos, std::get<char>(tok.data));
@@ -1025,7 +873,7 @@ optional_unique_ptr<MacroExpr> Parser::ParseMacroExpr() {
   LineRange pos_end = tok.pos;
 
   auto ids = ParseIdentifierAccess(Token::Dot);
-  if (!ids) return unexpected(ids.error());
+  if (!ids) return std::nullopt;
 
   if (!ConsumeToken(Token::LeftParen))
     return unexpected(ParseError(ParseError::Kind::MissingToken,
@@ -1034,7 +882,7 @@ optional_unique_ptr<MacroExpr> Parser::ParseMacroExpr() {
   std::vector<std::unique_ptr<Expr>> exprs;
   while (stream.PeekCur().type != Token::RightParen) {
     auto expr = ParseExpr();
-    if (!expr) return unexpected(expr.error());
+    if (!expr) return std::nullopt;
     exprs.push_back(std::move(*expr));
 
     tok = stream.PeekCur();
@@ -1082,68 +930,55 @@ optional_unique_ptr<TypeExpr> Parser::ParseTypeExpr() {
 }
 
 optional_unique_ptr<AssignmentExpr> Parser::ParseAssignmentExpr() {
-  return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "TODO 'assignexpr'", Token::If));
+  Unreachable("TODO");
 }
 
 optional_unique_ptr<Expr::MapExpr> Parser::ParseMapExpr() {
-  return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "TODO 'assignexpr'", Token::If));
+  Unreachable("TODO");
 }
 
 optional_unique_ptr<Expr::CollectionExpr> Parser::ParseArrayExpr() {
-  return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "TODO 'assignexpr'", Token::If));
+  Unreachable("TODO");
 }
 
 optional_unique_ptr<Expr::CollectionExpr> Parser::ParseTupleExpr() {
-  return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "TODO 'assignexpr'", Token::If));
+  Unreachable("TODO");
 }
 
 optional_unique_ptr<PostfixExpr> Parser::ParsePostfixExpr() {
-  return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "TODO 'assignexpr'", Token::If));
+  Unreachable("TODO");
 }
 
 optional_unique_ptr<UnaryExpr> Parser::ParseUnaryExpr() {
-  return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "TODO 'assignexpr'", Token::If));
+  Unreachable("TODO");
 }
 
 optional_unique_ptr<PowerExpr> Parser::ParsePrefixExpr() {
-  return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "TODO 'assignexpr'", Token::If));
+  Unreachable("TODO");
 }
 
 optional_unique_ptr<MultiplicativeExpr> Parser::ParseMultiplicativeExpr() {
-  return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "TODO 'assignexpr'", Token::If));
+  Unreachable("TODO");
 }
 
 optional_unique_ptr<AdditiveExpr> Parser::ParseAdditiveExpr() {
-  return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "TODO 'assignexpr'", Token::If));
+  Unreachable("TODO");
 }
 
 optional_unique_ptr<RelationalExpr> Parser::ParseRelationalExpr() {
-  return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "TODO 'assignexpr'", Token::If));
+  Unreachable("TODO");
 }
 
 optional_unique_ptr<EqualityExpr> Parser::ParseEqualityExpr() {
-  return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "TODO 'assignexpr'", Token::If));
+  Unreachable("TODO");
 }
 
 optional_unique_ptr<LogicalAndExpr> Parser::ParseLogicalAndExpr() {
-  return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "TODO 'assignexpr'", Token::If));
+  Unreachable("TODO");
 }
 
 optional_unique_ptr<LogicalOrExpr> Parser::ParseLogicalOrExpr() {
-  return unexpected(ParseError(ParseError::Kind::MissingToken,
-                                   "TODO 'assignexpr'", Token::If));
+  Unreachable("TODO");
 }
 
 }

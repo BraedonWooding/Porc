@@ -67,6 +67,7 @@ Variant             "|"
 Dot                 "."
 Range               ".."
 Macro               "@"
+Generic             "$"
 
 // Resolved Values
 // More efficient to do it this way (then force a double conversion)

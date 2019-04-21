@@ -16,6 +16,18 @@ void ErrStream::ReportExpectedToken(Token::Kind expected, LineRange cur) {
   syntax_errors++;
 }
 
+void ErrStream::ReportCustomErr(std::string msg, std::optional<LineRange> pos,
+                                ErrType type) {
+  switch (type) {
+    case ErrStream::TokenErr:     tokenizer_errors++;   break;
+    case ErrStream::SyntaxErr:    syntax_errors++;  break;
+    case ErrStream::LexicalErr:   lexical_errors++;     break;
+    case ErrStream::SemanticErr:  semantic_errors++;    break;
+  }
+  if (pos) out << "Error (" << *pos << "): " << msg << std::endl;
+  else     out << "Error: " << msg << std::endl;
+}
+
 void ErrStream::ReportUnexpectedToken(Token::Kind expected, Token invalid) {
   out << "Error (" << invalid.pos << "): Wasn't expecting "
                                     << invalid.ToErrorMsg()
