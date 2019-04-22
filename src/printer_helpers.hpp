@@ -24,6 +24,12 @@ public:
   friend std::ostream &operator <<(std::ostream &out, const LineRange &pos);
   json GetMetaData() const;
 
+  LineRange() {
+    std::cerr << "Internal Error: Constructed an empty line range, FIXME"
+              << std::endl;
+    line_start = line_end = col_start = col_end = -1;
+    file_name = "Internal Error; Invalid File Name";
+  }
 
   LineRange(const LineRange &a, const LineRange &b) {
     Assert(a.file_name == b.file_name,

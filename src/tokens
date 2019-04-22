@@ -80,9 +80,9 @@ Void                "void"
 
 // Reserved names
 Const               "const"
+Mut                 "mut"
 Struct              "struct"
 Func                "fn"
-Var                 "var"
 Return              "return"
 While               "while"
 For                 "for"

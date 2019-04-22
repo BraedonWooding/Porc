@@ -1,8 +1,6 @@
 #ifndef PARSER_HPP
 #define PARSER_HPP
 
-#include <expected.hpp>
-
 #include <type_traits>
 
 #include "token_stream.hpp"
@@ -41,6 +39,22 @@ private:
 
   */
 
+  /*
+    We have to do the parse lists this way so we get nicer syntax for using them
+    else it'll complain that `PushBack` doesn't have a inferred type since it
+    can't infer it (cause the abstraction causes the compiler to not understand
+    how they are related), we fix this by having this InnerType be the return
+    value explicitly (rather than a template return type), then also have to
+    make args parsed by reference otherwise it'll complain since it won't match
+
+    If you get some weird error about `type` not existing it just means you
+    stuffed up the type parsing make sure things are by reference like Args&...
+    rather than just Args...
+
+    Also I need to duplicate the ForEach since well one it is simpler and two
+    I don't know how to do it and not conflict with the fact that args are
+    variadic, if you do know how give it a go!
+  */
   template<typename Fn>
   using ForEachInnerType = typename std::invoke_result_t<Fn, Parser>::value_type;
 

@@ -59,9 +59,9 @@ static const char *tokenToStrMap[(int)Token::Kind::NumTokens] = {
   [(int)Token::Kind::False] = "false",
   [(int)Token::Kind::Void] = "void",
   [(int)Token::Kind::Const] = "const",
+  [(int)Token::Kind::Mut] = "mut",
   [(int)Token::Kind::Struct] = "struct",
   [(int)Token::Kind::Func] = "fn",
-  [(int)Token::Kind::Var] = "var",
   [(int)Token::Kind::Return] = "return",
   [(int)Token::Kind::While] = "while",
   [(int)Token::Kind::For] = "for",
@@ -130,9 +130,9 @@ static const char *tokenToNameMap[(int)Token::Kind::NumTokens] = {
   [(int)Token::Kind::False] = "False",
   [(int)Token::Kind::Void] = "Void",
   [(int)Token::Kind::Const] = "Const",
+  [(int)Token::Kind::Mut] = "Mut",
   [(int)Token::Kind::Struct] = "Struct",
   [(int)Token::Kind::Func] = "Func",
-  [(int)Token::Kind::Var] = "Var",
   [(int)Token::Kind::Return] = "Return",
   [(int)Token::Kind::While] = "While",
   [(int)Token::Kind::For] = "For",
@@ -334,12 +334,6 @@ static const TokenSet tokenFromStrMap = {
             },
           },
         },
-        ['a'] = {
-          (int[ASCII_SET]){
-            ['r'] = (int)Token::Kind::Var,
-          },
-          NULL,
-        },
       },
     },
     ['c'] = {
@@ -381,6 +375,17 @@ static const TokenSet tokenFromStrMap = {
               },
             },
           },
+        },
+      },
+    },
+    ['m'] = {
+      NULL,
+      (TokenSet[ASCII_SET]){
+        ['u'] = {
+          (int[ASCII_SET]){
+            ['t'] = (int)Token::Kind::Mut,
+          },
+          NULL,
         },
       },
     },
