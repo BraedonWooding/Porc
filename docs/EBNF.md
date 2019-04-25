@@ -110,24 +110,23 @@ macro_expr
   : '@' identifier_access '(' expr_list? ')'
   ;
 
-typed_tuple_arg_list
-// @TODO: maybe allow extraneous comma
-// @FIX: currently we allow you to have values in your tuple types
-//       this is just since it requires semantic analysis otherwise
-//       and I don't know if I actually possibly want this anyways
-  : [tuple_type_decl (',' tuple_type_decl)*]
+generic_type_decl
+  : constant
+  | type_expr
   ;
 
 type_expr
-  : '(' typed_tuple_arg_list ')'
-  | 'fn' Identifier? '(' type_tuple_arg_list ')' ['->' type_expr]
-// @TODO: decide if we want to just allow idents or if we want to allow exprs
+  : '(' tuple_decl ')'
+  | 'fn' Identifier? tuple_decl ['->' type_expr]
+// @TODO: decide if we want to just allow idents or if we want to allow type exprs
 //        for example `Array[int] | List[int]` vs `(Array | List)[int]`
 //        I'm leaning towards the first but I'm not sure
-  | identifier_access '[' typed_tuple_arg_list ']'
-  | type_expr ('|' type_expr)+
+// @NOTE: I'm pretty sure I want the first I don't see a use for the second.
+//          It is just too specific
   | '$' identifier
+  | identifier_access '[' generic_type_decl (',' generic_type_decl)+ ']'
   | identifier_access
+  | type_expr ('|' type_expr)+
   ;
 
 assignment_expr

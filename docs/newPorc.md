@@ -146,6 +146,14 @@ const write = (out: $T) => {
 
 call_f[flt](println, [1.0, 2.0, 3.0]);
 
+mut map = ["2": 2, "3": 3, "bob": 9];
+
+mut curr  = ["2": 2, "3": 3, "bob": 9];
+mut init  = Map{ { "key", 1 }, { "wow", 2 }, ["Coolies"] = 9 };
+mut macro = @NewMap { "2": 2, ["cool"] = 49 };
+mut best  = @NewMap(("cool", 2), ("nice", 9));
+mut other = zip() <| [("cool", 2), ("nice", 4)];
+
 # and for collections the generics have impacted them too!
 # NOTE: you have to specify size for array
 # (of course it'll type deduce it for you)

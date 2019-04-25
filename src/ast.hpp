@@ -254,10 +254,10 @@ class VarDecl : public BaseAST {
           : id(id), type(std::move(type)), expr(std::move(expr)) {}
   };
   std::vector<Declaration> decls;
-  bool is_const;
+  bool is_mut;
 
-  VarDecl(LineRange pos, bool is_const, std::vector<Declaration> decls)
-      : decls(std::move(decls)), is_const(is_const), BaseAST(pos) {}
+  VarDecl(LineRange pos, bool is_mut, std::vector<Declaration> decls)
+      : decls(std::move(decls)), is_mut(is_mut), BaseAST(pos) {}
 
   json GetMetaData() const;
 };
@@ -749,12 +749,23 @@ class TypeExpr : public BaseAST {
  public:
   using GenericId = LineStr;
   struct GenericType {
-    IdentifierAccess ident;
+    using GenericArgs = std::vector<std::variant<std::unique_ptr<TypeExpr>,
+                                                 std::unique_ptr<Constant>>>;
+
+    std::unique_ptr<IdentifierAccess> ident;
+    // @TODO: currently this only supports literals and type exprs
+    //        we probably want to support also constant variables
+    //        this is probably something we have to do at semantic stage
+    //        since its ambiguous with type exprs
+
     // @NOTE: could be empty, though I can't of don't want
     // it to be empty just for style reasons since
-    // Array[] should really not be Array since its like idk uglier
-    // and possibly misguiding
-    std::unique_ptr<TupleDecl> args;
+    // Array[] should really just be Array otherwise it could be misguiding
+    // Array[] kinda looks like an array of arrays or Array[Array]
+    GenericArgs args;
+
+    GenericType(std::unique_ptr<IdentifierAccess> ident, GenericArgs args)
+        : args(std::move(args)), ident(std::move(ident)) {}
   };
 
   struct VariantType {
@@ -771,20 +782,9 @@ class TypeExpr : public BaseAST {
     std::unique_ptr<TupleDecl> args;
     std::optional<std::unique_ptr<TypeExpr>> ret_type;
 
-    FunctionType(LineStr id, std::unique_ptr<TupleDecl> args,
-                 std::unique_ptr<TypeExpr> ret_type)
+    FunctionType(std::optional<LineStr> id, std::unique_ptr<TupleDecl> args,
+                 std::optional<std::unique_ptr<TypeExpr>> ret_type)
         : id(id), args(std::move(args)), ret_type(std::move(ret_type)) {}
-
-    FunctionType(std::unique_ptr<TupleDecl> args,
-                 std::unique_ptr<TypeExpr> ret_type)
-        : id(std::nullopt), args(std::move(args)),
-          ret_type(std::move(ret_type)) {}
-
-    FunctionType(LineStr id, std::unique_ptr<TupleDecl> args)
-        : id(id), args(std::move(args)), ret_type(std::nullopt) {}
-
-    FunctionType(std::unique_ptr<TupleDecl> args)
-        : id(std::nullopt), args(std::move(args)), ret_type(std::nullopt) {}
   };
 
   std::variant<GenericType, VariantType, IdentifierAccess,

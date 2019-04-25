@@ -46,7 +46,6 @@ static const Token RightArrow;
 static const Token ReturnType;
 static const Token Colon;
 static const Token DoubleColon;
-static const Token Implements;
 static const Token Variant;
 static const Token Dot;
 static const Token Range;

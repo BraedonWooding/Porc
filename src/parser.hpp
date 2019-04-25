@@ -23,8 +23,10 @@ private:
 
   bool ConsumeToken(Token::Kind type);
 
-  std::optional<std::vector<LineStr>>
+  optional_unique_ptr<IdentifierAccess>
     ParseIdentifierAccess(Token::Kind continuer);
+
+  optional_unique_ptr<Constant> TryParseConstant();
 
   std::unique_ptr<Expr> ConvIdentToExpr(LineStr id);
   std::unique_ptr<Expr> ParenthesiseExpr(std::unique_ptr<Expr> expr);
@@ -135,6 +137,8 @@ private:
   optional_unique_ptr<TupleDecl> ParseRestTupleDeclExpr(
     std::vector<TupleDecl::ArgDecl> declarations);
   std::optional<IfBlock::IfStatement> ParseIfStatement();
+  std::optional<std::vector<std::unique_ptr<FuncBlock>>>
+    ParseFuncBlockStatements();
 
 public:
   Parser(TokenStream stream, std::ostream &out = std::cerr)
@@ -146,8 +150,6 @@ public:
   optional_unique_ptr<FileDecl> ParseFileDecl();
   optional_unique_ptr<TupleDecl> ParseTupleDecl();
   optional_unique_ptr<VarDecl> ParseVarDecl();
-  optional_unique_ptr<VarDecl>
-    ParseVarDeclWithDeclList(std::vector<VarDecl::Declaration> lhs);
 
   optional_unique_ptr<StructBlock> ParseStructBlock();
   optional_unique_ptr<FuncBlock> ParseFuncBlock();

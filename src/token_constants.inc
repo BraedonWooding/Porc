@@ -46,7 +46,6 @@ const Token Token::RightArrow = Token(Token::Kind::RightArrow, LineRange::Null()
 const Token Token::ReturnType = Token(Token::Kind::ReturnType, LineRange::Null());
 const Token Token::Colon = Token(Token::Kind::Colon, LineRange::Null());
 const Token Token::DoubleColon = Token(Token::Kind::DoubleColon, LineRange::Null());
-const Token Token::Implements = Token(Token::Kind::Implements, LineRange::Null());
 const Token Token::Variant = Token(Token::Kind::Variant, LineRange::Null());
 const Token Token::Dot = Token(Token::Kind::Dot, LineRange::Null());
 const Token Token::Range = Token(Token::Kind::Range, LineRange::Null());
