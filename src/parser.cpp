@@ -67,7 +67,7 @@ optional_unique_ptr<T> ComposeExpr(optional_unique_ptr<In> in, Args... args) {
 }
 
 template<typename To>
-std::optional<To> Parser::TryTokenCast(Token tok) {
+std::optional<To> Parser::TokenCast(Token tok) {
   std::optional<To> cast = To::FromToken(tok);
   if (!cast) {
     err.ReportInvalidTokenCast(tok, To::AllMsg());
@@ -120,7 +120,7 @@ optional_unique_ptr<FuncBlock> Parser::ParseFuncBlock() {
         std::vector<std::unique_ptr<Expr>> rhs;
         if (!ParseList(&Parser::ParseExpr, PushBack, rhs)) return std::nullopt;
 
-        auto assign_op = TryTokenCast<AssignmentOp>(stream.PopCur());
+        auto assign_op = TokenCast<AssignmentOp>(stream.PopCur());
         if (!assign_op) return std::nullopt;
         LineRange pos = LineRange(start, rhs[rhs.size() - 1]->pos);
         auto assign_expr = std::make_unique<AssignmentExpr>(pos, std::move(lhs),
@@ -198,7 +198,7 @@ std::unique_ptr<Expr> Parser::ConvIdentToExpr(LineStr id) {
          std::make_unique<MultiplicativeExpr>(pos,
          std::make_unique<PowerExpr>(pos,
          std::make_unique<UnaryExpr>(pos,
-         std::make_unique<PostfixExpr>(pos, id))))))))));
+         std::make_unique<Atom>(pos, id))))))))));
 }
 
 std::unique_ptr<Expr> Parser::ParenthesiseExpr(std::unique_ptr<Expr> expr) {
@@ -212,7 +212,7 @@ std::unique_ptr<Expr> Parser::ParenthesiseExpr(std::unique_ptr<Expr> expr) {
          std::make_unique<MultiplicativeExpr>(pos,
          std::make_unique<PowerExpr>(pos,
          std::make_unique<UnaryExpr>(pos,
-         std::make_unique<PostfixExpr>(pos, std::move(expr)))))))))));
+         std::make_unique<Atom>(pos, std::move(expr)))))))))));
 }
 
 optional_unique_ptr<IdentifierAccess>
@@ -827,7 +827,7 @@ optional_unique_ptr<ForBlock> Parser::ParseForBlock() {
 }
 
 optional_unique_ptr<FuncCall> Parser::ParseFuncCall() {
-  auto func = ParsePostfixExpr();
+  auto func = ParseAtom();
   if (!func) return std::nullopt;
 
   if (!ConsumeToken(Token::LeftParen)) return std::nullopt;
@@ -1011,55 +1011,149 @@ optional_unique_ptr<TypeExpr> Parser::ParseTypeExpr() {
 }
 
 optional_unique_ptr<AssignmentExpr> Parser::ParseAssignmentExpr() {
-  Unreachable("TODO");
+  std::vector<std::unique_ptr<Expr>> lhs;
+  if (!ParseList(&Parser::ParseExpr, PushBack, lhs)) return std::nullopt;
+
+  auto op = TokenCast<AssignmentOp>(stream.PopCur());
+  if (!op) return std::nullopt;
+
+  std::vector<std::unique_ptr<Expr>> rhs;
+  if (!ParseList(&Parser::ParseExpr, PushBack, rhs)) return std::nullopt;
+
+  LineRange pos = LineRange(lhs[0]->pos, rhs[rhs.size() - 1]->pos);
+  return std::make_unique<AssignmentExpr>(pos, std::move(lhs), *op,
+                                          std::move(rhs));
 }
 
-optional_unique_ptr<Expr::MapExpr> Parser::ParseMapExpr() {
-  Unreachable("TODO");
+// std::optional<Expr::MapExpr> Parser::ParseMapExpr() {
+//   if (!ConsumeToken(Token::LeftBracket)) return std::nullopt;
+
+//   std::vector<std::unique_ptr<Expr>> keys;
+//   std::vector<std::unique_ptr<Expr>> values;
+//   if (!ParseListConjugate(&Parser::ParseExpr, PushBackMap, keys, values))
+//     return std::nullopt;
+
+//   if (!ConsumeToken(Token::RightBracket)) return std::nullopt;
+
+//   return Expr::MapExpr(std::move(keys), std::move(values));
+// }
+
+// std::optional<Expr::CollectionExpr> Parser::ParseArrayExpr() {
+//   if (!ConsumeToken(Token::LeftBracket)) return std::nullopt;
+
+//   std::vector<std::unique_ptr<Expr>> values;
+//   if (!ParseList(&Parser::ParseExpr, PushBack, values)) return std::nullopt;
+
+//   if (!ConsumeToken(Token::RightBracket)) return std::nullopt;
+
+//   return Expr::CollectionExpr(std::move(values), true);
+// }
+
+// std::optional<Expr::CollectionExpr> Parser::ParseTupleExpr() {
+//   if (!ConsumeToken(Token::LeftParen)) return std::nullopt;
+
+//   std::vector<std::unique_ptr<Expr>> values;
+//   if (!ParseList(&Parser::ParseExpr, PushBack, values)) return std::nullopt;
+
+//   if (!ConsumeToken(Token::RightParen)) return std::nullopt;
+
+//   return Expr::CollectionExpr(std::move(values), false);
+// }
+
+optional_unique_ptr<Atom> Parser::ParseAtom() {
+  Token peek = stream.PeekCur();
+  auto prefix_op = PrefixOp::FromToken(peek);
+  std::unique_ptr<Atom> atom;
+
+  if (prefix_op) {
+    // Unary Expr
+    auto tmp = ParseUnaryExpr();
+    if (!tmp) return std::nullopt;
+    atom = std::move(*tmp);
+  } else if (peek.type == Token::LeftParen) {
+    // (expr)
+    stream.PopCur();
+    auto tmp = ParseExpr();
+    if (!tmp) return std::nullopt;
+    atom = std::move(*tmp);
+
+    if (!ConsumeToken(Token::RightParen)) return std::nullopt;
+  } else if (peek.type == Token::Macro) {
+    // @macro
+    stream.PopCur();
+    auto ids = ParseIdentifierAccess(Token::Dot);
+    
+  }
+
+  return atom;
 }
 
-optional_unique_ptr<Expr::CollectionExpr> Parser::ParseArrayExpr() {
-  Unreachable("TODO");
+std::unique_ptr<Atom> Parser::ParseSliceOrIndex(std::unique_ptr<Atom> lhs) {
+
 }
 
-optional_unique_ptr<Expr::CollectionExpr> Parser::ParseTupleExpr() {
-  Unreachable("TODO");
+optional_unique_ptr<Atom> Parser::ParseUnaryExpr() {
+  std::vector<PrefixOp> ops;
+
+  LineRange start = stream.PeekCur().pos;
+  while (auto op = PrefixOp::FromToken(stream.PeekCur())) {
+    stream.PopCur();
+    ops.push_back(*op);
+  }
+
+  Assert(ops.size() > 0, "Expected to parse atleast some prefix ops",
+         ops.size(), ops);
+
+  auto rhs = ParseAtom();
+  if (!rhs) return std::nullopt;
+
+  LineRange pos = LineRange(start, (*rhs)->pos);
+  return std::make_unique<Atom>(pos, std::move(rhs), std::move(ops));
 }
 
-optional_unique_ptr<PostfixExpr> Parser::ParsePostfixExpr() {
-  Unreachable("TODO");
-}
+optional_unique_ptr<PowerExpr> Parser::ParsePowerExpr() {
+  std::vector<std::unique_ptr<UnaryExpr>> exprs;
+  if (!ParseList<Token::Power>(&Parser::ParseUnaryExpr, PushBack, exprs))
+    return std::nullopt;
 
-optional_unique_ptr<UnaryExpr> Parser::ParseUnaryExpr() {
-  Unreachable("TODO");
-}
-
-optional_unique_ptr<PowerExpr> Parser::ParsePrefixExpr() {
-  Unreachable("TODO");
+  LineRange pos = FindRangeOfVector(exprs);
+  return std::make_unique<PowerExpr>(pos, std::move(exprs));
 }
 
 optional_unique_ptr<MultiplicativeExpr> Parser::ParseMultiplicativeExpr() {
-  Unreachable("TODO");
+  return ParseOpList<MultiplicativeOp,
+                     MultiplicativeExpr>(&Parser::ParsePowerExpr);
 }
 
 optional_unique_ptr<AdditiveExpr> Parser::ParseAdditiveExpr() {
-  Unreachable("TODO");
+  return ParseOpList<AdditiveOp,
+                     AdditiveExpr>(&Parser::ParseMultiplicativeExpr);
 }
 
 optional_unique_ptr<RelationalExpr> Parser::ParseRelationalExpr() {
-  Unreachable("TODO");
+  return ParseOpList<RelationalOp, RelationalExpr>(&Parser::ParseAdditiveExpr);
 }
 
 optional_unique_ptr<EqualityExpr> Parser::ParseEqualityExpr() {
-  Unreachable("TODO");
+  return ParseOpList<EqualityOp, EqualityExpr>(&Parser::ParseRelationalExpr);
 }
 
 optional_unique_ptr<LogicalAndExpr> Parser::ParseLogicalAndExpr() {
-  Unreachable("TODO");
+  std::vector<std::unique_ptr<EqualityExpr>> exprs;
+  if (!ParseList<Token::And>(&Parser::ParseEqualityExpr, PushBack, exprs))
+    return std::nullopt;
+
+  LineRange pos = FindRangeOfVector(exprs);
+  return std::make_unique<LogicalAndExpr>(pos, std::move(exprs));
 }
 
 optional_unique_ptr<LogicalOrExpr> Parser::ParseLogicalOrExpr() {
-  Unreachable("TODO");
+  std::vector<std::unique_ptr<LogicalAndExpr>> exprs;
+  if (!ParseList<Token::Or>(&Parser::ParseLogicalAndExpr, PushBack, exprs))
+    return std::nullopt;
+
+  LineRange pos = FindRangeOfVector(exprs);
+  return std::make_unique<LogicalOrExpr>(pos, std::move(exprs));
 }
 
 }

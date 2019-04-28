@@ -142,6 +142,11 @@ expr
   | map_expr | array_expr | tuple_expr
   | if_block | while_block | for_block
   | '{' func_block* '}'
+// For the sake of easy handling they are both stored under expr
+// with just a flag to differentiate
+// however they are parsed as if `func_call <| expr` is located under atom
+  | expr '|>' func_call
+  | func_call '<|' expr
   ;
 
 lambda_decl
@@ -175,31 +180,27 @@ map_expr
   ;
 
 func_call
-  : postfix_expr '(' expr_list ')
+  : atom_expr '(' expr_list ')
   ;
 
-postfix_expr
+atom
   : '(' expr ')'
-  | '@' Identifier {'.' Identifier}
-  | postfix_expr '[' expr ']'
+  | '@' identifier_access '(' expr_list ')'
+/* The following is stored under expr but is parsed here
+  | func_call '|>' expr
+*/
+  | func_call
   // i.e. array[1] or array[1:] or array[1::] or array[1:2:]
   // or array[] (lexical error) or array[:2:] ... and so on
-  | postfix_expr '[' expr? [ ':' expr? [':' expr?] ] ']'
-  | func_call
-  | func_call '<|' postfix_expr
-  | postfix_expr '|>' func_call
-  | postfix_expr '.' Identifier
+  | atom '[' expr? [ ':' expr? [':' expr?] ] ']'
+  | ('+' | '-' | '!')+ atom
+  | atom '.' identifier_access
   | Identifier
   | constant
   ;
 
-unary_expr
-  : postfix_expr
-  | ('+' | '-' | '!') unary_expr
-  ;
-
 power_expr
-  : unary_expr ('**' unary_expr)*
+  : atom ('**' atom)*
 
 multiplicative_expr
   : power_expr (('*' | '/' | '%' | '//') power_expr)*

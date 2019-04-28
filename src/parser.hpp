@@ -107,6 +107,32 @@ private:
     return true;
   }
 
+  template<typename OpTo, typename ObjTo, typename ParseFn>
+  optional_unique_ptr<ObjTo> ParseOpList(ParseFn fn) {
+    auto lhs = (this->*fn)();
+    if (!lhs) return std::nullopt;
+
+    std::vector<typename ObjTo::OpExpr> exprs;
+    while (true) {
+      auto op = OpTo::FromToken(stream.PeekCur());
+      if (!op) break;
+      stream.PopCur();
+
+      auto rhs = (this->*fn)();
+      if (!rhs) return std::nullopt;
+      exprs.push_back(ObjTo::OpExpr(op, rhs));
+    }
+
+    if (exprs.size() == 0) {
+      // this is fine but its basically a fallthrough
+      LineRange pos = (*lhs)->pos;
+      return std::make_unique<ObjTo>(pos, std::move(*lhs));
+    } else {
+      LineRange pos = LineRange((*lhs)->pos, exprs[exprs.size() - 1].rhs->pos);
+      return std::make_unique<ObjTo>(pos, std::move(*lhs), std::move(exprs));
+    }
+  }
+
   /*
     Simple common wrappers around common operations.
   */
@@ -130,7 +156,7 @@ private:
   }
 
   template<typename To>
-  std::optional<To> TryTokenCast(Token tok);
+  std::optional<To> TokenCast(Token tok);
 
   std::optional<TupleDecl::ArgDecl> ParseTupleDeclSegment();
   optional_unique_ptr<Expr> ParseExprOrTupleDecl();
@@ -139,6 +165,9 @@ private:
   std::optional<IfBlock::IfStatement> ParseIfStatement();
   std::optional<std::vector<std::unique_ptr<FuncBlock>>>
     ParseFuncBlockStatements();
+
+  optional_unique_ptr<Atom> ParseUnaryExpr();
+  optional_unique_ptr<Atom> ParseSliceOrIndex(std::unique_ptr<Atom> lhs);
 
 public:
   Parser(TokenStream stream, std::ostream &out = std::cerr)
@@ -164,12 +193,15 @@ public:
   optional_unique_ptr<TypeExpr> ParseTypeExpr();
   optional_unique_ptr<AssignmentExpr> ParseAssignmentExpr();
   optional_unique_ptr<Expr> ParseExpr();
-  optional_unique_ptr<Expr::MapExpr> ParseMapExpr();
-  optional_unique_ptr<Expr::CollectionExpr> ParseArrayExpr();
-  optional_unique_ptr<Expr::CollectionExpr> ParseTupleExpr();
-  optional_unique_ptr<PostfixExpr> ParsePostfixExpr();
-  optional_unique_ptr<UnaryExpr> ParseUnaryExpr();
-  optional_unique_ptr<PowerExpr> ParsePrefixExpr();
+
+  // @TODO: Do I need these?  I'm not using them so far?? Perhaps I should
+  //        factor the logic outside of ParseExpr to get a generic collection.
+  // std::optional<Expr::MapExpr> ParseMapExpr();
+  // std::optional<Expr::CollectionExpr> ParseArrayExpr();
+  // std::optional<Expr::CollectionExpr> ParseTupleExpr();
+
+  optional_unique_ptr<Atom> ParseAtom();
+  optional_unique_ptr<PowerExpr> ParsePowerExpr();
   optional_unique_ptr<MultiplicativeExpr> ParseMultiplicativeExpr();
   optional_unique_ptr<AdditiveExpr> ParseAdditiveExpr();
   optional_unique_ptr<RelationalExpr> ParseRelationalExpr();

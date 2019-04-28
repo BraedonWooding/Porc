@@ -23,7 +23,7 @@ fn printOutput(hello, age, countries: (country: str, years: int)[]) {
   // `<-` grabs whatever is to the right and puts it inside the function
   // i.e. 1 + a(2) <- b + 1 == 1 + a(2, b) + 1
   // `->` does the other way i.e. 1 + a -> b(2) + 1 == 1 + b(a, 2) + 1
-  countries = std.lazy.apply(countries) <- (c) => {
+  countries = std.lazy.apply(countries) <| (c) => {
     suffix = if (c.years == 1) "year" else "years";
     // expression based statements means last statement returns
     // if not ending with `;`

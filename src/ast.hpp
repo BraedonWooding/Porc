@@ -50,7 +50,7 @@ class StructBlock;
 class AssignmentExpr;
 class FuncBlock;
 class FuncCall;
-class PostfixExpr;
+class Atom;
 class UnaryExpr;
 class PowerExpr;
 class MultiplicativeExpr;
@@ -350,34 +350,34 @@ class AssignmentExpr : public BaseAST {
 
 class FuncCall : public BaseAST {
  public:
-  std::unique_ptr<PostfixExpr> func;
+  std::unique_ptr<Atom> func;
   std::vector<std::unique_ptr<Expr>> args;
 
-  FuncCall(LineRange pos, std::unique_ptr<PostfixExpr> expr,
+  FuncCall(LineRange pos, std::unique_ptr<Atom> expr,
            std::vector<std::unique_ptr<Expr>> args)
       : BaseAST(pos), func(std::move(expr)), args(std::move(args)) {}
 
   json GetMetaData() const;
 };
 
-class PostfixExpr : public BaseAST {
+class Atom : public BaseAST {
  public:
   struct IndexExpr {
-    std::unique_ptr<PostfixExpr> lhs;
+    std::unique_ptr<Atom> lhs;
     std::unique_ptr<Expr> index;
 
-    IndexExpr(std::unique_ptr<PostfixExpr> lhs,
+    IndexExpr(std::unique_ptr<Atom> lhs,
               std::unique_ptr<Expr> index)
         : lhs(std::move(lhs)), index(std::move(index)) {}
   };
 
   struct SliceExpr {
-    std::unique_ptr<PostfixExpr> obj;
+    std::unique_ptr<Atom> obj;
     std::optional<std::unique_ptr<Expr>> start;
     std::optional<std::unique_ptr<Expr>> stop;
     std::optional<std::unique_ptr<Expr>> step;
 
-    SliceExpr(std::unique_ptr<PostfixExpr> obj,
+    SliceExpr(std::unique_ptr<Atom> obj,
               std::optional<std::unique_ptr<Expr>> start,
               std::optional<std::unique_ptr<Expr>> stop,
               std::optional<std::unique_ptr<Expr>> step)
@@ -387,92 +387,88 @@ class PostfixExpr : public BaseAST {
 
   struct FoldExpr {
     std::unique_ptr<FuncCall> func;
-    std::unique_ptr<PostfixExpr> fold_expr;
+    std::unique_ptr<Atom> fold_expr;
+    bool folds_right; // |> vs <|
 
-    FoldExpr(std::unique_ptr<FuncCall> func,
-             std::unique_ptr<PostfixExpr> fold_expr)
-        : func(std::move(func)), fold_expr(std::move(fold_expr)) {}
+    FoldExpr(std::unique_ptr<FuncCall> func, bool folds_right,
+             std::unique_ptr<Atom> fold_expr)
+        : func(std::move(func)), fold_expr(std::move(fold_expr)),
+          folds_right(folds_right) {}
   };
 
   struct MemberAccessExpr {
-    std::unique_ptr<PostfixExpr> lhs;
-    LineStr member;
+    std::unique_ptr<Atom> lhs;
+    IdentifierAccess access;
 
-    MemberAccessExpr(std::unique_ptr<PostfixExpr> lhs, LineStr member)
-        : lhs(std::move(lhs)), member(member) {}
+    MemberAccessExpr(std::unique_ptr<Atom> lhs, IdentifierAccess access)
+        : lhs(std::move(lhs)), access(access) {}
+  };
+
+  struct UnaryExpr {
+    std::unique_ptr<Atom> rhs;
+    std::vector<PrefixOp> ops;
+
+    UnaryExpr(std::unique_ptr<Atom> expr,
+              std::vector<PrefixOp> ops)
+        : rhs(std::move(expr)), ops(ops) {}
   };
 
   std::variant<IndexExpr, SliceExpr, std::unique_ptr<FuncCall>, FoldExpr,
-               std::unique_ptr<Expr>, MemberAccessExpr,
+               std::unique_ptr<Expr>, MemberAccessExpr, UnaryExpr,
                std::unique_ptr<MacroExpr>, std::unique_ptr<Constant>,
                LineStr> expr;
 
-  PostfixExpr(LineRange pos, LineStr expr) 
-      : BaseAST(pos), expr(expr) {}
+  Atom(LineRange pos, LineStr id) 
+      : BaseAST(pos), expr(id) {}
 
-  PostfixExpr(LineRange pos, std::unique_ptr<Expr> expr) 
+  Atom(LineRange pos, std::unique_ptr<Expr> expr) 
       : BaseAST(pos), expr(std::move(expr)) {}
 
-  PostfixExpr(LineRange pos, std::unique_ptr<PostfixExpr> lhs,
-              std::unique_ptr<Expr> index)
+  Atom(LineRange pos, std::unique_ptr<Atom> lhs,
+       std::unique_ptr<Expr> index)
       : BaseAST(pos), expr(IndexExpr(std::move(lhs), std::move(index))) {}
 
-  PostfixExpr(LineRange pos, std::unique_ptr<PostfixExpr> lhs,
-              std::optional<std::unique_ptr<Expr>> start,
-              std::optional<std::unique_ptr<Expr>> stop,
-              std::optional<std::unique_ptr<Expr>> step)
+  Atom(LineRange pos, std::unique_ptr<Atom> lhs,
+       std::optional<std::unique_ptr<Expr>> start,
+       std::optional<std::unique_ptr<Expr>> stop,
+       std::optional<std::unique_ptr<Expr>> step)
       : BaseAST(pos), expr(SliceExpr(std::move(lhs), std::move(start),
         std::move(stop), std::move(step))) {}
 
-  PostfixExpr(LineRange pos, std::unique_ptr<FuncCall> func_call)
+  Atom(LineRange pos, std::unique_ptr<Atom> expr,
+       std::vector<PrefixOp> ops)
+      : expr(UnaryExpr(std::move(expr), std::move(ops))), BaseAST(pos) {}
+
+  Atom(LineRange pos, std::unique_ptr<FuncCall> func_call)
       : BaseAST(pos), expr(std::move(func_call)) {}
 
-  PostfixExpr(LineRange pos, std::unique_ptr<FuncCall> func,
-              std::unique_ptr<PostfixExpr> postfix)
-      : BaseAST(pos), expr(FoldExpr(std::move(func), std::move(postfix))) {}
+  Atom(LineRange pos, std::unique_ptr<FuncCall> func, bool folds_right,
+       std::unique_ptr<Atom> postfix)
+      : BaseAST(pos), expr(FoldExpr(std::move(func), folds_right,
+                           std::move(postfix))) {}
 
-  PostfixExpr(LineRange pos, std::unique_ptr<PostfixExpr> postfix,
-              LineStr to_access)
-      : BaseAST(pos), expr(MemberAccessExpr(std::move(postfix), to_access)) {}
+  Atom(LineRange pos, std::unique_ptr<Atom> postfix,
+       IdentifierAccess access)
+      : BaseAST(pos), expr(MemberAccessExpr(std::move(postfix), access)) {}
 
-  PostfixExpr(LineRange pos, std::unique_ptr<MacroExpr> expr)
+  Atom(LineRange pos, std::unique_ptr<MacroExpr> expr)
       : BaseAST(pos), expr(std::move(expr)) {}
 
-  PostfixExpr(LineRange pos, std::unique_ptr<Constant> expr)
+  Atom(LineRange pos, std::unique_ptr<Constant> expr)
       : BaseAST(pos), expr(std::move(expr)) {}
-
-  json GetMetaData() const;
-};
-
-class UnaryExpr : public BaseAST {
- public:
-  struct PrefixOpExpr {
-    std::unique_ptr<UnaryExpr> rhs;
-    PrefixOp op;
-
-    PrefixOpExpr(std::unique_ptr<UnaryExpr> rhs, PrefixOp op)
-        : rhs(std::move(rhs)), op(op) {}
-  };
-
-  std::variant<std::unique_ptr<PostfixExpr>, PrefixOpExpr> expr;
-
-  UnaryExpr(LineRange pos, std::unique_ptr<PostfixExpr> expr)
-      : expr(std::move(expr)), BaseAST(pos) {}
-  UnaryExpr(LineRange pos, std::unique_ptr<UnaryExpr> unary, PrefixOp op)
-      : expr(PrefixOpExpr(std::move(unary), op)), BaseAST(pos) {}
 
   json GetMetaData() const;
 };
 
 class PowerExpr : public BaseAST {
  public:
-  std::vector<std::unique_ptr<UnaryExpr>> exprs;
+  std::vector<std::unique_ptr<Atom>> exprs;
 
   PowerExpr(LineRange pos,
-            std::unique_ptr<UnaryExpr> expr)
+            std::unique_ptr<Atom> expr)
       : BaseAST(pos) { exprs.push_back(std::move(expr)); }
 
-  PowerExpr(LineRange pos, std::vector<std::unique_ptr<UnaryExpr>> exprs)
+  PowerExpr(LineRange pos, std::vector<std::unique_ptr<Atom>> exprs)
       : exprs(std::move(exprs)), BaseAST(pos) {}
 
   json GetMetaData() const;
