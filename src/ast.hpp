@@ -55,8 +55,7 @@ class UnaryExpr;
 class PowerExpr;
 class MultiplicativeExpr;
 class AdditiveExpr;
-class RelationalExpr;
-class EqualityExpr;
+class ComparisonExpr;
 class LogicalAndExpr;
 class LogicalOrExpr;
 class VarDecl;
@@ -175,45 +174,26 @@ class AdditiveOp {
   Kind value;
 };
 
-class RelationalOp {
+class ComparisonOp {
  public:
   enum Kind {
     GreaterThan,
     LessThan,
     GreaterThanEqual,
     LessThanEqual,
-  };
-
-  RelationalOp() = default;
-  constexpr RelationalOp(Kind kind) : value(kind) {}
-
-  bool operator==(RelationalOp a) const { return value == a.value; }
-  bool operator!=(RelationalOp a) const { return value != a.value; }
-
-  const char *ToStr() const;
-  static const char *AllMsg();
-  static std::optional<RelationalOp> FromToken(Token tok);
-
- private:
-  Kind value;
-};
-
-class EqualityOp {
- public:
-  enum Kind {
     Equal,
     NotEqual,
   };
 
-  EqualityOp() = default;
-  constexpr EqualityOp(Kind kind) : value(kind) {}
+  ComparisonOp() = default;
+  constexpr ComparisonOp(Kind kind) : value(kind) {}
 
-  bool operator==(EqualityOp a) const { return value == a.value; }
-  bool operator!=(EqualityOp a) const { return value != a.value; }
+  bool operator==(ComparisonOp a) const { return value == a.value; }
+  bool operator!=(ComparisonOp a) const { return value != a.value; }
 
   const char *ToStr() const;
   static const char *AllMsg();
-  static std::optional<EqualityOp> FromToken(Token tok);
+  static std::optional<ComparisonOp> FromToken(Token tok);
 
  private:
   Kind value;
@@ -387,11 +367,11 @@ class Atom : public BaseAST {
 
   struct FoldExpr {
     std::unique_ptr<FuncCall> func;
-    std::unique_ptr<Atom> fold_expr;
+    std::unique_ptr<Expr> fold_expr;
     bool folds_right; // |> vs <|
 
     FoldExpr(std::unique_ptr<FuncCall> func, bool folds_right,
-             std::unique_ptr<Atom> fold_expr)
+             std::unique_ptr<Expr> fold_expr)
         : func(std::move(func)), fold_expr(std::move(fold_expr)),
           folds_right(folds_right) {}
   };
@@ -404,29 +384,21 @@ class Atom : public BaseAST {
         : lhs(std::move(lhs)), access(access) {}
   };
 
-  struct UnaryExpr {
-    std::unique_ptr<Atom> rhs;
-    std::vector<PrefixOp> ops;
-
-    UnaryExpr(std::unique_ptr<Atom> expr,
-              std::vector<PrefixOp> ops)
-        : rhs(std::move(expr)), ops(ops) {}
-  };
-
   std::variant<IndexExpr, SliceExpr, std::unique_ptr<FuncCall>, FoldExpr,
-               std::unique_ptr<Expr>, MemberAccessExpr, UnaryExpr,
+               std::unique_ptr<Expr>, MemberAccessExpr,
                std::unique_ptr<MacroExpr>, std::unique_ptr<Constant>,
                LineStr> expr;
 
-  Atom(LineRange pos, LineStr id) 
-      : BaseAST(pos), expr(id) {}
+  Atom(LineStr id) 
+      : BaseAST(id.pos), expr(id) {}
 
-  Atom(LineRange pos, std::unique_ptr<Expr> expr) 
-      : BaseAST(pos), expr(std::move(expr)) {}
+  Atom(std::unique_ptr<Expr> expr) 
+      : BaseAST(expr->pos), expr(std::move(expr)) {}
 
-  Atom(LineRange pos, std::unique_ptr<Atom> lhs,
+  Atom(std::unique_ptr<Atom> lhs,
        std::unique_ptr<Expr> index)
-      : BaseAST(pos), expr(IndexExpr(std::move(lhs), std::move(index))) {}
+      : BaseAST(LineRange(lhs->pos,index->pos)),
+        expr(IndexExpr(std::move(lhs), std::move(index))) {}
 
   Atom(LineRange pos, std::unique_ptr<Atom> lhs,
        std::optional<std::unique_ptr<Expr>> start,
@@ -435,27 +407,23 @@ class Atom : public BaseAST {
       : BaseAST(pos), expr(SliceExpr(std::move(lhs), std::move(start),
         std::move(stop), std::move(step))) {}
 
-  Atom(LineRange pos, std::unique_ptr<Atom> expr,
-       std::vector<PrefixOp> ops)
-      : expr(UnaryExpr(std::move(expr), std::move(ops))), BaseAST(pos) {}
-
-  Atom(LineRange pos, std::unique_ptr<FuncCall> func_call)
-      : BaseAST(pos), expr(std::move(func_call)) {}
+  Atom(std::unique_ptr<FuncCall> func_call)
+      : BaseAST(func_call->pos), expr(std::move(func_call)) {}
 
   Atom(LineRange pos, std::unique_ptr<FuncCall> func, bool folds_right,
-       std::unique_ptr<Atom> postfix)
+       std::unique_ptr<Expr> rhs)
       : BaseAST(pos), expr(FoldExpr(std::move(func), folds_right,
-                           std::move(postfix))) {}
+                           std::move(rhs))) {}
 
-  Atom(LineRange pos, std::unique_ptr<Atom> postfix,
+  Atom(LineRange pos, std::unique_ptr<Atom> lhs,
        IdentifierAccess access)
-      : BaseAST(pos), expr(MemberAccessExpr(std::move(postfix), access)) {}
+      : BaseAST(pos), expr(MemberAccessExpr(std::move(lhs), access)) {}
 
-  Atom(LineRange pos, std::unique_ptr<MacroExpr> expr)
-      : BaseAST(pos), expr(std::move(expr)) {}
+  Atom(std::unique_ptr<MacroExpr> expr)
+      : BaseAST(expr->pos), expr(std::move(expr)) {}
 
-  Atom(LineRange pos, std::unique_ptr<Constant> expr)
-      : BaseAST(pos), expr(std::move(expr)) {}
+  Atom(std::unique_ptr<Constant> expr)
+      : BaseAST(expr->pos), expr(std::move(expr)) {}
 
   json GetMetaData() const;
 };
@@ -474,22 +442,36 @@ class PowerExpr : public BaseAST {
   json GetMetaData() const;
 };
 
+class UnaryExpr : public BaseAST {
+  std::unique_ptr<PowerExpr> rhs;
+  std::vector<PrefixOp> ops;
+
+  UnaryExpr(std::unique_ptr<PowerExpr> expr)
+      : BaseAST(expr->pos), rhs(std::move(expr)) {}
+
+  UnaryExpr(LineRange pos, std::unique_ptr<PowerExpr> expr,
+            std::vector<PrefixOp> ops)
+      : BaseAST(pos), rhs(std::move(expr)), ops(ops) {}
+
+  json GetMetaData() const;
+};
+
 class MultiplicativeExpr : public BaseAST {
  public:
   struct OpExpr {
     MultiplicativeOp op;
-    std::unique_ptr<PowerExpr> rhs;
+    std::unique_ptr<UnaryExpr> rhs;
 
-    OpExpr(MultiplicativeOp op, std::unique_ptr<PowerExpr> rhs)
+    OpExpr(MultiplicativeOp op, std::unique_ptr<UnaryExpr> rhs)
         : op(op), rhs(std::move(rhs)) {}
   };
 
-  std::unique_ptr<PowerExpr> lhs;
+  std::unique_ptr<UnaryExpr> lhs;
   std::vector<OpExpr> exprs;
 
-  MultiplicativeExpr(LineRange pos, std::unique_ptr<PowerExpr> fallthrough)
+  MultiplicativeExpr(LineRange pos, std::unique_ptr<UnaryExpr> fallthrough)
       : lhs(std::move(fallthrough)), BaseAST(pos) {}
-  MultiplicativeExpr(LineRange pos, std::unique_ptr<PowerExpr> lhs,
+  MultiplicativeExpr(LineRange pos, std::unique_ptr<UnaryExpr> lhs,
                std::vector<OpExpr> exprs)
       : exprs(std::move(exprs)), lhs(std::move(lhs)), BaseAST(pos) {}
 
@@ -518,13 +500,13 @@ class AdditiveExpr : public BaseAST {
   json GetMetaData() const;
 };
 
-class RelationalExpr : public BaseAST {
+class ComparisonExpr : public BaseAST {
  public:
   struct OpExpr {
-    RelationalOp op;
+    ComparisonOp op;
     std::unique_ptr<AdditiveExpr> rhs;
 
-    OpExpr(RelationalOp op, std::unique_ptr<AdditiveExpr> rhs)
+    OpExpr(ComparisonOp op, std::unique_ptr<AdditiveExpr> rhs)
         : op(op), rhs(std::move(rhs)) {}
   };
 
@@ -540,38 +522,16 @@ class RelationalExpr : public BaseAST {
   json GetMetaData() const;
 };
 
-class EqualityExpr : public BaseAST {
- public:
-  struct OpExpr {
-    EqualityOp op;
-    std::unique_ptr<RelationalExpr> rhs;
-
-    OpExpr(EqualityOp op, std::unique_ptr<RelationalExpr> rhs)
-        : op(op), rhs(std::move(rhs)) {}
-  };
-
-  std::unique_ptr<RelationalExpr> lhs;
-  std::vector<OpExpr> exprs;
-
-  EqualityExpr(LineRange pos, std::unique_ptr<RelationalExpr> fallthrough)
-      : lhs(std::move(fallthrough)), BaseAST(pos) {}
-  EqualityExpr(LineRange pos, std::unique_ptr<RelationalExpr> lhs,
-               std::vector<OpExpr> exprs)
-      : exprs(std::move(exprs)), lhs(std::move(lhs)), BaseAST(pos) {}
-
-  json GetMetaData() const;
-};
-
 class LogicalAndExpr : public BaseAST {
  public:
-  std::vector<std::unique_ptr<EqualityExpr>> exprs;
+  std::vector<std::unique_ptr<ComparisonExpr>> exprs;
 
   LogicalAndExpr(LineRange pos,
-                 std::unique_ptr<EqualityExpr> expr)
+                 std::unique_ptr<ComparisonExpr> expr)
       : BaseAST(pos) { exprs.push_back(std::move(expr)); }
 
   LogicalAndExpr(LineRange pos,
-                 std::vector<std::unique_ptr<EqualityExpr>> exprs)
+                 std::vector<std::unique_ptr<ComparisonExpr>> exprs)
       : exprs(std::move(exprs)), BaseAST(pos) {}
 
   json GetMetaData() const;

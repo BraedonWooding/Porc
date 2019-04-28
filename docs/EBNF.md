@@ -15,6 +15,12 @@ A few notes:
 - Semicolons aren't really parsed like this, basically you can leave them out whenever you use `{}` or when it is the last statement in a block (in that case it auto returns that from the expr).
   - Also we take the case of returning values in ambiguous cases; `x = () => 1;` is unclear if it returns a value or not but we will return the `1` unless the return type speaks differently.
 
+TODO:
+
+- Is `x..y:z <| f()` parsed correclty as `f(x..y:z)`?
+- Folding expressions `|>` and `<|` are parsed incorrectly I think??
+  - I think I want `g() <| x + 2 == 4 <| f()` parsed as `g(x + 2) == f(4)`
+
 ```ebnf
 // Fragments
 
@@ -142,11 +148,6 @@ expr
   | map_expr | array_expr | tuple_expr
   | if_block | while_block | for_block
   | '{' func_block* '}'
-// For the sake of easy handling they are both stored under expr
-// with just a flag to differentiate
-// however they are parsed as if `func_call <| expr` is located under atom
-  | expr '|>' func_call
-  | func_call '<|' expr
   ;
 
 lambda_decl
@@ -186,14 +187,12 @@ func_call
 atom
   : '(' expr ')'
   | '@' identifier_access '(' expr_list ')'
-/* The following is stored under expr but is parsed here
-  | func_call '|>' expr
-*/
+  | expr '|>' func_call
+  | func_call '<|' expr
   | func_call
   // i.e. array[1] or array[1:] or array[1::] or array[1:2:]
   // or array[] (lexical error) or array[:2:] ... and so on
   | atom '[' expr? [ ':' expr? [':' expr?] ] ']'
-  | ('+' | '-' | '!')+ atom
   | atom '.' identifier_access
   | Identifier
   | constant
@@ -202,6 +201,9 @@ atom
 power_expr
   : atom ('**' atom)*
 
+unary_expr
+  : ('+' | '-' | '!')* power
+
 multiplicative_expr
   : power_expr (('*' | '/' | '%' | '//') power_expr)*
 
@@ -209,16 +211,13 @@ additive_expr
   : multiplicative_expr (('+' | '-') multiplicative_expr)*
   ;
 
-relational_expr
-  : additive_expr (('<' | '>' | '>=' | '<=') additive_expr)*
-  ;
-
-equality_expr
-  : relational_expr (('==' | '!=') relational_expr)*
+comparison_expr
+  : additive_expr (('<' | '>' | '>=' | '<=' | '==' | '!=') additive_expr)*
+  | additive_expr 'is' type_expr
   ;
 
 logical_and_expr
-  : equality_expr ('&&' equality_expr)*
+  : comparison_expr ('&&' comparison_expr)*
   ;
 
 logical_or_expr
