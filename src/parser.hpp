@@ -169,7 +169,6 @@ private:
   std::optional<std::vector<std::unique_ptr<FuncBlock>>>
     ParseFuncBlockStatements();
 
-  optional_unique_ptr<Atom> ParseUnaryExpr();
   optional_unique_ptr<Atom> ParseSliceOrIndex(std::unique_ptr<Atom> lhs);
 
 public:
@@ -205,10 +204,10 @@ public:
 
   optional_unique_ptr<Atom> ParseAtom();
   optional_unique_ptr<PowerExpr> ParsePowerExpr();
+  optional_unique_ptr<UnaryExpr> ParseUnaryExpr();
   optional_unique_ptr<MultiplicativeExpr> ParseMultiplicativeExpr();
   optional_unique_ptr<AdditiveExpr> ParseAdditiveExpr();
-  optional_unique_ptr<RelationalExpr> ParseRelationalExpr();
-  optional_unique_ptr<EqualityExpr> ParseEqualityExpr();
+  optional_unique_ptr<ComparisonExpr> ParseComparisonExpr();
   optional_unique_ptr<LogicalAndExpr> ParseLogicalAndExpr();
   optional_unique_ptr<LogicalOrExpr> ParseLogicalOrExpr();
 };

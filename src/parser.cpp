@@ -192,13 +192,12 @@ std::unique_ptr<Expr> Parser::ConvIdentToExpr(LineStr id) {
   return std::make_unique<Expr>(pos,
          std::make_unique<LogicalOrExpr>(pos,
          std::make_unique<LogicalAndExpr>(pos,
-         std::make_unique<EqualityExpr>(pos,
-         std::make_unique<RelationalExpr>(pos,
+         std::make_unique<ComparisonExpr>(pos,
          std::make_unique<AdditiveExpr>(pos,
          std::make_unique<MultiplicativeExpr>(pos,
          std::make_unique<PowerExpr>(pos,
          std::make_unique<UnaryExpr>(pos,
-         std::make_unique<Atom>(pos, id))))))))));
+         std::make_unique<Atom>(pos, id)))))))));
 }
 
 std::unique_ptr<Expr> Parser::ExprToFold(std::unique_ptr<Expr> expr,
@@ -207,14 +206,13 @@ std::unique_ptr<Expr> Parser::ExprToFold(std::unique_ptr<Expr> expr,
   return std::make_unique<Expr>(pos,
          std::make_unique<LogicalOrExpr>(pos,
          std::make_unique<LogicalAndExpr>(pos,
-         std::make_unique<EqualityExpr>(pos,
-         std::make_unique<RelationalExpr>(pos,
+         std::make_unique<ComparisonExpr>(pos,
          std::make_unique<AdditiveExpr>(pos,
          std::make_unique<MultiplicativeExpr>(pos,
          std::make_unique<PowerExpr>(pos,
          std::make_unique<UnaryExpr>(pos,
          std::make_unique<Atom>(pos, std::move(expr), folding,
-                                std::move(func)))))))))));
+                                std::move(func))))))))));
 }
 
 std::unique_ptr<Expr> Parser::ParenthesiseExpr(std::unique_ptr<Expr> expr) {
@@ -222,13 +220,12 @@ std::unique_ptr<Expr> Parser::ParenthesiseExpr(std::unique_ptr<Expr> expr) {
   return std::make_unique<Expr>(pos,
          std::make_unique<LogicalOrExpr>(pos,
          std::make_unique<LogicalAndExpr>(pos,
-         std::make_unique<EqualityExpr>(pos,
-         std::make_unique<RelationalExpr>(pos,
+         std::make_unique<ComparisonExpr>(pos,
          std::make_unique<AdditiveExpr>(pos,
          std::make_unique<MultiplicativeExpr>(pos,
          std::make_unique<PowerExpr>(pos,
          std::make_unique<UnaryExpr>(pos,
-         std::make_unique<Atom>(pos, std::move(expr)))))))))));
+         std::make_unique<Atom>(pos, std::move(expr))))))))));
 }
 
 optional_unique_ptr<IdentifierAccess>
@@ -664,7 +661,7 @@ optional_unique_ptr<Expr> Parser::ParseExpr() {
     if (!rhs) return std::nullopt;
 
     LineRange pos = LineRange((*expr)->pos, (*rhs)->pos);
-    expr = ExprToFold(std::move(*expr), true, std::move(*rhs));
+    expr = ExprToFold(std::move(*expr), true, pos, std::move(*rhs));
   }
 
   return expr;
@@ -1095,7 +1092,7 @@ optional_unique_ptr<Atom> Parser::ParseAtom() {
     stream.PopCur();
     auto tmp = ParseExpr();
     if (!tmp) return std::nullopt;
-    atom = std::move(*tmp);
+    atom = std::make_unique<Atom>(std::move(*tmp));
 
     if (!ConsumeToken(Token::RightParen)) return std::nullopt;
   } else if (peek.type == Token::Macro) {
@@ -1213,8 +1210,8 @@ optional_unique_ptr<AdditiveExpr> Parser::ParseAdditiveExpr() {
                      AdditiveExpr>(&Parser::ParseMultiplicativeExpr);
 }
 
-optional_unique_ptr<CmparisonExpr> Parser::ParseComparisonExpr() {
-  return ParseOpList<ComparisonOp, CmparisonExpr>(&Parser::ParseAdditiveExpr);
+optional_unique_ptr<ComparisonExpr> Parser::ParseComparisonExpr() {
+  return ParseOpList<ComparisonOp, ComparisonExpr>(&Parser::ParseAdditiveExpr);
 }
 
 optional_unique_ptr<LogicalAndExpr> Parser::ParseLogicalAndExpr() {

@@ -44,8 +44,8 @@ static const char *tokenToStrMap[(int)Token::Kind::NumTokens] = {
   [(int)Token::Kind::IntegerDivideAssign] = "%/=",
   [(int)Token::Kind::ModulusAssign] = "%=",
   [(int)Token::Kind::FatArrow] = "=>",
-  [(int)Token::Kind::LeftArrow] = "<|",
-  [(int)Token::Kind::RightArrow] = "|>",
+  [(int)Token::Kind::FoldLeft] = "<|",
+  [(int)Token::Kind::FoldRight] = "|>",
   [(int)Token::Kind::ReturnType] = "->",
   [(int)Token::Kind::Colon] = ":",
   [(int)Token::Kind::DoubleColon] = "::",
@@ -114,8 +114,8 @@ static const char *tokenToNameMap[(int)Token::Kind::NumTokens] = {
   [(int)Token::Kind::IntegerDivideAssign] = "IntegerDivideAssign",
   [(int)Token::Kind::ModulusAssign] = "ModulusAssign",
   [(int)Token::Kind::FatArrow] = "FatArrow",
-  [(int)Token::Kind::LeftArrow] = "LeftArrow",
-  [(int)Token::Kind::RightArrow] = "RightArrow",
+  [(int)Token::Kind::FoldLeft] = "FoldLeft",
+  [(int)Token::Kind::FoldRight] = "FoldRight",
   [(int)Token::Kind::ReturnType] = "ReturnType",
   [(int)Token::Kind::Colon] = "Colon",
   [(int)Token::Kind::DoubleColon] = "DoubleColon",
@@ -197,7 +197,7 @@ static const TokenSet tokenFromStrMap = {
     ['<'] = {
       (int[ASCII_SET]){
         ['='] = (int)Token::Kind::LessThanEqual,
-        ['|'] = (int)Token::Kind::LeftArrow,
+        ['|'] = (int)Token::Kind::FoldLeft,
       },
       NULL,
     },
@@ -216,7 +216,7 @@ static const TokenSet tokenFromStrMap = {
     ['|'] = {
       (int[ASCII_SET]){
         ['|'] = (int)Token::Kind::Or,
-        ['>'] = (int)Token::Kind::RightArrow,
+        ['>'] = (int)Token::Kind::FoldRight,
       },
       NULL,
     },
