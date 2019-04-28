@@ -55,6 +55,8 @@ Are you interested?  Maybe check out the [Language Guide](docs/LanguageGuide.md)
 ## Roadmap
 
 - [x] AST
-- [ ] Parser
+  - Mostly (~90% done just some tweaks needed)
+- [x] Parser
+  - First version is done it just needs some tweaks around fixing precedence.
 - [ ] Bytecode Instruction Set
 - [ ] Basic Bytecode Codegen
