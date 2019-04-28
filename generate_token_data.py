@@ -73,11 +73,11 @@ def print_token(file, token, counter):
 def generate(file):
     token_list = open("src/token_list.inc", "w")
     token_data = open("src/token_data.hpp", "w")
-    token_constants_def = open("src/token_constants_definitions.inc", "w")
-    token_constants_vals = open("src/token_constants.inc", "w")
+    # token_constants_def = open("src/token_constants_definitions.inc", "w")
+    # token_constants_vals = open("src/token_constants.inc", "w")
     token_list.write("/* Auto Generated File */\n")
-    token_constants_def.write("/* Auto Generated File */\n")
-    token_constants_vals.write("/* Auto Generated File */\n")
+    # token_constants_def.write("/* Auto Generated File */\n")
+    # token_constants_vals.write("/* Auto Generated File */\n")
     token_data.write(
 """/* Auto Generated File */
 #ifndef TOKEN_DATA_HPP
@@ -104,8 +104,8 @@ namespace porc::internals {
         if toks[0] == "COMMA": toks = ["COMMA", '","']
 
         token_list.write(f"{toks[0]},\n")
-        token_constants_def.write(f"static const Token {toks[0]};\n")
-        token_constants_vals.write(f"const Token Token::{toks[0]} = Token(Token::Kind::{toks[0]}, LineRange::Null());\n")
+        # token_constants_def.write(f"static const Token {toks[0]};\n")
+        # token_constants_vals.write(f"const Token Token::{toks[0]} = Token(Token::Kind::{toks[0]}, LineRange::Null());\n")
         string_to_write += f"\n{tab}[(int)Token::Kind::{toks[0]}] = \"{toks[0]}\","
         if len(toks) >= 2:
             token_data.write(f"{tab}[(int)Token::Kind::{toks[0]}] = {toks[1]},\n")
@@ -126,8 +126,8 @@ namespace porc::internals {
     token_data.write("\n}\n\n#endif\n");
     token_list.close()
     token_data.close()
-    token_constants_vals.close()
-    token_constants_def.close()
+    # token_constants_vals.close()
+    # token_constants_def.close()
 
 def main():
     with open(file_location, "r") as f:
