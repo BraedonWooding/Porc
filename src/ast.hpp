@@ -513,9 +513,9 @@ class ComparisonExpr : public BaseAST {
   std::unique_ptr<AdditiveExpr> lhs;
   std::vector<OpExpr> exprs;
 
-  RelationalExpr(LineRange pos, std::unique_ptr<AdditiveExpr> fallthrough)
+  ComparisonExpr(LineRange pos, std::unique_ptr<AdditiveExpr> fallthrough)
       : lhs(std::move(fallthrough)), BaseAST(pos) {}
-  RelationalExpr(LineRange pos, std::unique_ptr<AdditiveExpr> lhs,
+  ComparisonExpr(LineRange pos, std::unique_ptr<AdditiveExpr> lhs,
                  std::vector<OpExpr> exprs)
       : exprs(std::move(exprs)), lhs(std::move(lhs)), BaseAST(pos) {}
 

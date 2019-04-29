@@ -10,209 +10,293 @@ namespace porc::internals {
     else if (type)  return LineRange(id.pos, (*type)->pos);
     else            return id.pos;
   }
+
+  template<typename T>
+  std::string join(const T &args, std::string sep) {
+    if (args.size() == 0) return "";
+
+    // @TODO: come up with a string builder like object
+    std::string out;
+    // we possibly could reserve even more space but this is a decent
+    // approximation of how much we will use.
+    out.reserve(args.size() * (1 + sep.size()));
+    out.append(std::to_string(args[0]));
+
+    for (auto &arg = std::begin(out) + 1, end = std::end(out);
+         arg != end; arg++) {
+      out.append(sep);
+      out.append(std::to_string(arg));
+    }
+
+    return out;
+  }
 }
 
-// template<class T> struct always_false: std::false_type {};
+template<class T>
+std::vector<json> GetJsonForVec(const std::vector<T> &vec) {
+  json meta_data;
+  for (const auto &arg: vec) {
+    meta_data.emplace(arg->GetMetaData());
+  }
+  return meta_data;
+}
 
-// template <class T, class... Ts>
-// inline constexpr bool is_any =
-//     std::bool_constant<(std::is_same_v<T, Ts> || ...)>::value;
+template<class T> struct always_false: std::false_type {};
 
-// namespace porc::internals {
+template <class T, class... Ts>
+inline constexpr bool is_any =
+    std::bool_constant<(std::is_same_v<T, Ts> || ...)>::value;
 
-// std::optional<AssignmentOp> AssignmentOp::FromToken(Token tok) {
-//   switch (tok.type) {
-//     case Token::AddAssign: return AssignmentOp::AdditionEqual;
-//     case Token::SubtractAssign: return AssignmentOp::SubtractionEqual;
-//     case Token::Equal: return AssignmentOp::Equal;
-//     case Token::DivideAssign: return AssignmentOp::DivisionEqual;
-//     case Token::PowerAssign: return AssignmentOp::PowerEqual;
-//     case Token::ModulusAssign: return AssignmentOp::ModulusEqual;
-//     case Token::MultiplyAssign: return AssignmentOp::MultiplyEqual;
-//     case Token::IntegerDivideAssign: return AssignmentOp::IntDivisionEqual;
-//     default: return std::nullopt;
-//   }
-// }
+namespace porc::internals {
 
-// std::optional<PostfixOp> PostfixOp::FromToken(Token tok) {
-//   switch (tok.type) {
-//     case Token::Increment: return PostfixOp::Increment;
-//     case Token::Decrement: return PostfixOp::Decrement;
-//     default: return std::nullopt;
-//   }
-// }
+std::optional<AssignmentOp> AssignmentOp::FromToken(Token tok) {
+  switch (tok.type) {
+    case Token::AddAssign: return AssignmentOp::AdditionEqual;
+    case Token::SubtractAssign: return AssignmentOp::SubtractionEqual;
+    case Token::Equal: return AssignmentOp::Equal;
+    case Token::DivideAssign: return AssignmentOp::DivisionEqual;
+    case Token::PowerAssign: return AssignmentOp::PowerEqual;
+    case Token::ModulusAssign: return AssignmentOp::ModulusEqual;
+    case Token::MultiplyAssign: return AssignmentOp::MultiplyEqual;
+    case Token::IntegerDivideAssign: return AssignmentOp::IntDivisionEqual;
+    default: return std::nullopt;
+  }
+}
 
-// std::optional<PrefixOp> PrefixOp::FromToken(Token tok) {
-//   switch (tok.type) {
-//     case Token::Increment: return PrefixOp::Increment;
-//     case Token::Decrement: return PrefixOp::Decrement;
-//     case Token::Negate: return PrefixOp::Negate;
-//     case Token::Subtract: return PrefixOp::Negative;
-//     case Token::Add: return PrefixOp::Positive;
-//     default: return std::nullopt;
-//   }
-// }
+std::optional<PrefixOp> PrefixOp::FromToken(Token tok) {
+  switch (tok.type) {
+    case Token::Negate: return PrefixOp::Negate;
+    case Token::Subtract: return PrefixOp::Negative;
+    case Token::Add: return PrefixOp::Positive;
+    default: return std::nullopt;
+  }
+}
 
-// std::optional<MultiplicativeOp> MultiplicativeOp::FromToken(Token tok) {
-//   switch (tok.type) {
-//     case Token::Multiply: return MultiplicativeOp::Multiplication;
-//     case Token::Divide: return MultiplicativeOp::Division;
-//     case Token::Modulus: return MultiplicativeOp::Modulus;
-//     case Token::IntegerDivide: return MultiplicativeOp::IntDivision;
-//     default: return std::nullopt;
-//   }
-// }
+std::optional<MultiplicativeOp> MultiplicativeOp::FromToken(Token tok) {
+  switch (tok.type) {
+    case Token::Multiply: return MultiplicativeOp::Multiplication;
+    case Token::Divide: return MultiplicativeOp::Division;
+    case Token::Modulus: return MultiplicativeOp::Modulus;
+    case Token::IntegerDivide: return MultiplicativeOp::IntDivision;
+    default: return std::nullopt;
+  }
+}
 
-// std::optional<AdditiveOp> AdditiveOp::FromToken(Token tok) {
-//   switch (tok.type) {
-//     case Token::Add: return AdditiveOp::Addition;
-//     case Token::Subtract: return AdditiveOp::Subtraction;
-//     default: return std::nullopt;
-//   }
-// }
+std::optional<AdditiveOp> AdditiveOp::FromToken(Token tok) {
+  switch (tok.type) {
+    case Token::Add: return AdditiveOp::Addition;
+    case Token::Subtract: return AdditiveOp::Subtraction;
+    default: return std::nullopt;
+  }
+}
 
-// std::optional<RelationalOp> RelationalOp::FromToken(Token tok) {
-//   switch (tok.type) {
-//     case Token::GreaterThan: return RelationalOp::GreaterThan;
-//     case Token::GreaterThanEqual: return RelationalOp::LessThan;
-//     case Token::LessThan: return RelationalOp::GreaterThanEqual;
-//     case Token::LessThanEqual: return RelationalOp::LessThanEqual;
-//     default: return std::nullopt;
-//   }
-// }
+std::optional<ComparisonOp> ComparisonOp::FromToken(Token tok) {
+  switch (tok.type) {
+    case Token::GreaterThan: return ComparisonOp::GreaterThan;
+    case Token::GreaterThanEqual: return ComparisonOp::LessThan;
+    case Token::LessThan: return ComparisonOp::GreaterThanEqual;
+    case Token::LessThanEqual: return ComparisonOp::LessThanEqual;
+    case Token::Equal: return ComparisonOp::Equal;
+    case Token::NotEqual: return ComparisonOp::NotEqual;
+    default: return std::nullopt;
+  }
+}
 
-// std::optional<EqualityOp> EqualityOp::FromToken(Token tok) {
-//   switch (tok.type) {
-//     case Token::Equal: return EqualityOp::Equal;
-//     case Token::NotEqual: return EqualityOp::NotEqual;
-//     default: return std::nullopt;
-//   }
-// }
+const char *AssignmentOp::ToStr() const {
+  switch (value) {
+    case AssignmentOp::AdditionEqual: return "+=";
+    case AssignmentOp::SubtractionEqual: return "-=";
+    case AssignmentOp::Equal: return "=";
+    case AssignmentOp::DivisionEqual: return "/=";
+    case AssignmentOp::PowerEqual: return "**=";
+    case AssignmentOp::ModulusEqual: return "%=";
+    case AssignmentOp::MultiplyEqual: return "*=";
+    case AssignmentOp::IntDivisionEqual: return "//=";
+    default: Unreachable("Unhandled case");
+  }
+}
 
-// const char *AssignmentOp::ToStr() const {
-//   switch (value) {
-//     case AssignmentOp::AdditionEqual: return "+=";
-//     case AssignmentOp::SubtractionEqual: return "-=";
-//     case AssignmentOp::Equal: return "=";
-//     case AssignmentOp::DivisionEqual: return "/=";
-//     case AssignmentOp::PowerEqual: return "**=";
-//     case AssignmentOp::ModulusEqual: return "%=";
-//     case AssignmentOp::MultiplyEqual: return "*=";
-//     case AssignmentOp::IntDivisionEqual: return "%/=";
-//     default: throw __FILE__":AssignmentOp::ToStr() Unhandled case";
-//   }
-// }
+const char *AssignmentOp::AllMsg() {
+  return "+=, -=, =, /=, **=, %=, *=, //=";
+}
 
-// const char *AssignmentOp::AllMsg() {
-//   return "+=, -=, =, /=, **=, %=, *=, %/-";
-// }
+const char *PrefixOp::ToStr() const {
+  switch (value) {
+    case PrefixOp::Negate: return "!";
+    case PrefixOp::Negative: return "-";
+    case PrefixOp::Positive: return "+";
+    default: Unreachable("Unhandled case");
+  }
+}
 
-// const char *PostfixOp::ToStr() const {
-//   switch (value) {
-//     case PostfixOp::Increment: return "++";
-//     case PostfixOp::Decrement: return "--";
-//     default: throw __FILE__":PostfixOp::ToStr() Unhandled case";
-//   }
-// }
+const char *PrefixOp::AllMsg() {
+  return "!, -, +";
+}
 
-// const char *PostfixOp::AllMsg() {
-//   return "++, --";
-// }
+const char *MultiplicativeOp::ToStr() const {
+  switch (value) {
+    case MultiplicativeOp::Multiplication: return "*";
+    case MultiplicativeOp::Division: return "/";
+    case MultiplicativeOp::Modulus: return "%";
+    case MultiplicativeOp::IntDivision: return "//";
+    default: Unreachable("Unhandled case");
+  }
+}
 
-// const char *PrefixOp::ToStr() const {
-//   switch (value) {
-//     case PrefixOp::Increment: return "++";
-//     case PrefixOp::Decrement: return "--";
-//     case PrefixOp::Negate: return "!";
-//     case PrefixOp::Negative: return "-";
-//     case PrefixOp::Positive: return "+";
-//     default: throw __FILE__":PrefixOp::ToStr() Unhandled case";
-//   }
-// }
+const char *MultiplicativeOp::AllMsg() {
+  return "*, /, %, //";
+}
 
-// const char *PrefixOp::AllMsg() {
-//   return "++, --, !, -, +";
-// }
+const char *AdditiveOp::ToStr() const {
+  switch (value) {
+    case AdditiveOp::Addition: return "+";
+    case AdditiveOp::Subtraction: return "-";
+    default: Unreachable("Unhandled case");
+  }
+}
 
-// const char *MultiplicativeOp::ToStr() const {
-//   switch (value) {
-//     case MultiplicativeOp::Multiplication: return "*";
-//     case MultiplicativeOp::Division: return "/";
-//     case MultiplicativeOp::Modulus: return "%";
-//     case MultiplicativeOp::IntDivision: return "%/";
-//     default: throw __FILE__":MultiplicativeOp::ToStr() Unhandled case";
-//   }
-// }
+const char *AdditiveOp::AllMsg() {
+  return "+, -";
+}
 
-// const char *MultiplicativeOp::AllMsg() {
-//   return "*, /, %, %/";
-// }
+const char *ComparisonOp::ToStr() const {
+  switch (value) {
+    case ComparisonOp::GreaterThan: return ">";
+    case ComparisonOp::LessThan: return "<";
+    case ComparisonOp::GreaterThanEqual: return ">=";
+    case ComparisonOp::LessThanEqual: return "<=";
+    case ComparisonOp::Equal: return "==";
+    case ComparisonOp::NotEqual: return "!=";
+    default: Unreachable("Unhandled case");
+  }
+}
 
-// const char *AdditiveOp::ToStr() const {
-//   switch (value) {
-//     case AdditiveOp::Addition: return "+";
-//     case AdditiveOp::Subtraction: return "-";
-//     default: throw __FILE__":AdditiveOp::ToStr() Unhandled case";
-//   }
-// }
+const char *ComparisonOp::AllMsg() {
+  return ">, <, >=, <=", "==, !=";
+}
 
-// const char *AdditiveOp::AllMsg() {
-//   return "+, -";
-// }
+json IdentifierAccess::GetMetaData() const {
+  return {
+    {"name", "IdentAccess"},
+    {"pos", this->pos.GetMetaData()},
+    {"data", this->idents},
+    // @TODO: do representation for all objects
+    // {"representation", join(this->idents, ".")}
+  };
+}
 
-// const char *RelationalOp::ToStr() const {
-//   switch (value) {
-//     case RelationalOp::GreaterThan: return ">";
-//     case RelationalOp::LessThan: return "<";
-//     case RelationalOp::GreaterThanEqual: return ">=";
-//     case RelationalOp::LessThanEqual: return "<=";
-//     default: throw __FILE__":RelationalOp::ToStr() Unhandled case";
-//   }
-// }
+json FileDecl::GetMetaData() const {
+  return {
+    {"name", "FileDecl"},
+    {"pos", this->pos.GetMetaData()},
+    {"data", GetJsonForVec(exprs)}
+  };
+}
 
-// const char *RelationalOp::AllMsg() {
-//   return ">, <, >=, <=";
-// }
+json VarDecl::GetMetaData() const {
+  std::vector<json> meta_data;
+  for (auto &decl : this->decls) {
+    json data = {"id", decl.id};
+    if decl.type->GetMetaData() data["type"] = (*decl.type)->GetMetaData();
+    if decl.expr->GetMetaData() data["expr"] = (*decl.expr)->GetMetaData();
+    meta_data.push_back(data);
+  }
+  return {
+    {"name", "VarDecl"},
+    {"pos", this->pos.GetMetaData()},
+    {"data", {
+      {"mut", this->is_mut},
+      {"var_data", meta_data}
+    }}
+  };
+}
 
-// const char *EqualityOp::ToStr() const {
-//   switch (value) {
-//     case EqualityOp::Equal: return "==";
-//     case EqualityOp::NotEqual: return "!=";
-//     default: throw __FILE__":EqualityOp::ToStr() Unhandled case";
-//   }
-// }
+json StructBlock::GetMetaData() const {
+  // @NOTE: this kind of visit should be really really cheap
+  //        just make sure that it is
+  // @PERF: from what I researched it is only when you have conditional
+  //        visits that this gets expensive (i.e. perform a different operation
+  //        foreach type).
+  json data = std::visit([](auto &value)->json { 
+    return value->GetMetaData();
+  }, this->expr);
 
-// const char *EqualityOp::AllMsg() {
-//   return "==, !=";
-// }
+  return {
+    {"name", "StructBlock"},
+    {"pos", this->pos.GetMetaData()},
+    {"data", data}
+  };
+}
 
-// json FileDecl::GetMetaData() const {
-//   std::vector<json> meta_data;
-//   for (auto &expr : this->Exprs) {
-//     meta_data.push_back(expr->GetMetaData());
-//   }
-//   return {
-//     {"name", "FileDecl"},
-//     {"pos", this->pos.GetMetaData()},
-//     {"data", meta_data}
-//   };
-// }
+json FuncBlock::GetMetaData() const {
+  json data = std::visit([](auto &value)->json { 
+    return value->GetMetaData();
+  }, this->expr);
+  if (!this->ret) return data;
 
-// json StructBlock::GetMetaData() const {
-//   json data = std::visit([](auto &value)->json { 
-//     return value->GetMetaData();
-//   }, this->expr);
+  // state we return since this->ret == true
+  data.emplace("ret", true);
+  return {
+    {"name", "FuncBlock"},
+    {"pos", this->pos.GetMetaData()},
+    {"data", data}
+  };
+}
 
-//   if (!this->ret) return data;
+json TupleDecl::GetMetaData() const {
+  std::vector<json> meta_data;
+  for (auto &decl : this->args) {
+    json data = {"id", decl.id};
+    if decl.type->GetMetaData() data["type"] = (*decl.type)->GetMetaData();
+    if decl.expr->GetMetaData() data["expr"] = (*decl.expr)->GetMetaData();
+    data["generic"] = decl.generic;
+    data["mut"] = decl.is_mut;
+    meta_data.push_back(data);
+  }
+  return {
+    {"name", "TupleDecl"},
+    {"pos", this->pos.GetMetaData()},
+    {"data", {
+      {"mut", this->is_mut},
+      {"var_data", meta_data}
+    }}
+  };
+}
 
-//   // state we return since this->ret == true
-//   data.emplace("ret", true);
-//   return {
-//     {"name", "StructBlock"},
-//     {"pos", this->pos.GetMetaData()},
-//     {"data", data}
-//   };
-// }
+json MacroExpr::GetMetaData() const {
+  return {
+    {"name", "MacroExpr"},
+    {"pos", this->pos.GetMetaData()},
+    {"data", {
+      {"id", qualifying_name->GetMetaData()},
+      {"args", GetJsonForVec(args)}
+    }}
+  };
+}
+
+json AssignmentExpr::GetMetaData() const {
+  return {
+    {"name", name},
+    {"pos", this->pos.GetMetaData()},
+    {"data", {
+      {"lhs", GetJsonForVec(lhs)},
+      {"op", op.ToStr()},
+      {"rhs", GetJsonForVec(rhs)}
+    }}
+  };
+}
+
+json FuncCall::GetMetaData() const {
+  json data;
+  data["func"] = this->func->GetMetaData();
+  data["args"] = GetJsonForVec(args);
+
+  return {
+    {"name", "FuncCall"},
+    {"pos", this->pos.GetMetaData()},
+    {"data", data}
+  };
+}
 
 // json PrimaryExpr::GetMetaData() const {
 //   // else just return the json stuff for the sub value
@@ -224,45 +308,6 @@ namespace porc::internals {
 //   }, this->expr);
 // }
 
-// json AssignmentExpr::GetMetaData() const {
-//   using Assign = AssignmentExpr::Assign;
-//   using Declare = AssignmentExpr::Declare;
-//   json data;
-//   std::string name;
-//   if (auto declare = std::get_if<Declare>(&this->expr)) {
-//     data["declaration"] = declare->lhs->GetMetaData();
-//     if (declare->rhs) data.emplace_back(declare->rhs.value()->GetMetaData());
-//     name = "AssignmentExpr.DeclareVariable";
-//   } else if (auto assign = std::get_if<Assign>(&this->expr)) {
-//     data["lhs"] = assign->lhs->GetMetaData();
-//     data["op"] = assign->op.ToStr();
-//     data["rhs"] = assign->rhs->GetMetaData();
-//     name = "AssignmentExpr.StandardAssignment";
-//   } else {
-//     throw __FILE__":AssignmentExpr::GetMetaData() cases not exhaustive";
-//   }
-
-//   return {
-//     {"name", name},
-//     {"pos", this->pos.GetMetaData()},
-//     {"data", data}
-//   };
-// }
-
-// json FuncCall::GetMetaData() const {
-//   json data;
-//   data["func"] = this->func->GetMetaData();
-//   data["args"] = json::array();
-//   for (auto &expr: this->args) {
-//     data["args"].push_back(expr->GetMetaData());
-//   }
-
-//   return {
-//     {"name", "FuncCall"},
-//     {"pos", this->pos.GetMetaData()},
-//     {"data", data}
-//   };
-// }
 
 // json PostfixExpr::GetMetaData() const {
 //   return std::visit([this](auto &&expr)->json {
@@ -330,172 +375,131 @@ namespace porc::internals {
 //   }, this->expr);
 // }
 
-// json UnaryExpr::GetMetaData() const {
-//   return std::visit([this](auto &&expr)->json {
-//     using T = std::decay_t<decltype(expr)>;
-//     if constexpr (std::is_same_v<T, std::unique_ptr<PostfixExpr>>) {
-//       return expr->GetMetaData();
-//     } else if constexpr (std::is_same_v<T, UnaryExpr::PrefixOpExpr>) { 
-//       return {
-//         {"name", "UnaryExpr"},
-//         {"pos", this->pos.GetMetaData()},
-//         {"data", {
-//           {"expr", expr.rhs->GetMetaData()},
-//           {"op", expr.op.ToStr()}
-//         }}
-//       };
-//     } else {
-//       static_assert(always_false<T>::value, "non-exhaustive vistor!");
-//     }
-//   }, this->expr);
-// }
+json PowerExpr::GetMetaData() const {
+  if (exprs.size() == 1) {
+    // fallthrough
+    return exprs[0]->GetMetaData();
+  } else {
+    return {
+      {"name", "PowerExpr"},
+      {"pos", this->pos.GetMetaData()},
+      {"data", GetJsonForVec(exprs)}
+    };
+  }
+}
 
-// json PowerExpr::GetMetaData() const {
-//   return std::visit([this](auto &&expr)->json {
-//     using T = std::decay_t<decltype(expr)>;
-//     if constexpr (std::is_same_v<T, std::unique_ptr<UnaryExpr>>) {
-//       return expr->GetMetaData();
-//     } else if constexpr (std::is_same_v<T, PowerExpr::OpExpr>) {
-//       return {
-//         {"name", "PowerExpr"},
-//         {"pos", this->pos.GetMetaData()},
-//         {"data", {
-//           {"lhs", expr.lhs->GetMetaData()},
-//           {"op", "**"},
-//           {"rhs", expr.rhs->GetMetaData()}
-//         }}
-//       };
-//     } else {
-//       static_assert(always_false<T>::value, "non-exhaustive vistor!");
-//     }
-//   }, this->expr);
-// }
+json UnaryExpr::GetMetaData() const {
+  if (ops.size() == 0) {
+    // fallthrough
+    return rhs->GetMetaData();
+  } else {
+    json data;
+    for (const auto &op : ops) {
+      data.push_back(op.ToStr());
+    }
 
-// json MultiplicativeExpr::GetMetaData() const {
-//   return std::visit([this](auto &&expr)->json {
-//     using T = std::decay_t<decltype(expr)>;
-//     if constexpr (std::is_same_v<T, std::unique_ptr<PowerExpr>>) {
-//       return expr->GetMetaData();
-//     } else if constexpr (std::is_same_v<T, MultiplicativeExpr::OpExpr>) {
-//       return {
-//         {"name", "MultiplicativeExpr"},
-//         {"pos", this->pos.GetMetaData()},
-//         {"data", {
-//           {"lhs", expr.lhs->GetMetaData()},
-//           {"op", expr.op.ToStr()},
-//           {"rhs", expr.rhs->GetMetaData()}
-//         }}
-//       };
-//     } else {
-//       static_assert(always_false<T>::value, "non-exhaustive vistor!");
-//     }
-//   }, this->expr);
-// }
+    return {
+      {"name", "MultiplicativeExpr"},
+      {"pos", this->pos.GetMetaData()},
+      {"data", {
+        {"rhs", rhs->GetMetaData()},
+        {"ops", data}
+      }}
+    };
+  }
+}
 
-// json AdditiveExpr::GetMetaData() const {
-//   return std::visit([this](auto &&expr)->json {
-//     using T = std::decay_t<decltype(expr)>;
-//     if constexpr (std::is_same_v<T,
-//                                  std::unique_ptr<MultiplicativeExpr>>) {
-//       return expr->GetMetaData();
-//     } else if constexpr (std::is_same_v<T, AdditiveExpr::OpExpr>) {
-//       return {
-//         {"name", "AdditiveExpr"},
-//         {"pos", this->pos.GetMetaData()},
-//         {"data", {
-//           {"lhs", expr.lhs->GetMetaData()},
-//           {"op", expr.op.ToStr()},
-//           {"rhs", expr.rhs->GetMetaData()}
-//         }}
-//       };
-//     } else {
-//       static_assert(always_false<T>::value, "non-exhaustive vistor!");
-//     }
-//   }, this->expr);
-// }
+json MultiplicativeExpr::GetMetaData() const {
+  if (exprs.size() == 0) {
+    // fallthrough
+    return lhs->GetMetaData();
+  } else {
+    json data;
+    for (const auto &expr : exprs) {
+      data.push_back({{"op", expr.op.ToStr()},
+                      {"rhs", expr.rhs->GetMetaData()}});
+    }
 
-// json RelationalExpr::GetMetaData() const {
-//   return std::visit([this](auto &&expr)->json {
-//     using T = std::decay_t<decltype(expr)>;
-//     if constexpr (std::is_same_v<T, std::unique_ptr<AdditiveExpr>>) {
-//       return expr->GetMetaData();
-//     } else if constexpr (std::is_same_v<T, RelationalExpr::OpExpr>) {
-//       return {
-//         {"name", "RelationalExpr"},
-//         {"pos", this->pos.GetMetaData()},
-//         {"data", {
-//           {"lhs", expr.lhs->GetMetaData()},
-//           {"op", expr.op.ToStr()},
-//           {"rhs", expr.rhs->GetMetaData()}
-//         }}
-//       };
-//     } else {
-//       static_assert(always_false<T>::value, "non-exhaustive vistor!");
-//     }
-//   }, this->expr);
-// }
+    return {
+      {"name", "MultiplicativeExpr"},
+      {"pos", this->pos.GetMetaData()},
+      {"data", {
+        {"lhs", lhs->GetMetaData()},
+        {"ops", data}
+      }}
+    };
+  }
+}
 
-// json EqualityExpr::GetMetaData() const {
-//   return std::visit([this](auto &&expr)->json {
-//     using T = std::decay_t<decltype(expr)>;
-//     if constexpr (std::is_same_v<T, std::unique_ptr<RelationalExpr>>) return expr->GetMetaData();
-//     else if constexpr (std::is_same_v<T, EqualityExpr::OpExpr>) {
-//       return {
-//         {"name", "EqualityExpr"},
-//         {"pos", this->pos.GetMetaData()},
-//         {"data", {
-//           {"lhs", expr.lhs->GetMetaData()},
-//           {"op", expr.op.ToStr()},
-//           {"rhs", expr.rhs->GetMetaData()}
-//         }}
-//       };
-//     } else {
-//       static_assert(always_false<T>::value, "non-exhaustive vistor!");
-//     }
-//   }, this->expr);
-// }
+json AdditiveExpr::GetMetaData() const {
+  if (exprs.size() == 0) {
+    // fallthrough
+    return lhs->GetMetaData();
+  } else {
+    json data;
+    for (const auto &expr : exprs) {
+      data.push_back({{"op", expr.op.ToStr()},
+                      {"rhs", expr.rhs->GetMetaData()}});
+    }
 
-// json LogicalAndExpr::GetMetaData() const {
-//   return std::visit([this](auto &&expr)->json {
-//     using T = std::decay_t<decltype(expr)>;
-//     if constexpr (std::is_same_v<T, std::unique_ptr<EqualityExpr>>) {
-//       return expr->GetMetaData();
-//     } else if constexpr (std::is_same_v<T, LogicalAndExpr::OpExpr>) {
-//       return {
-//         {"name", "LogicalAndExpr"},
-//         {"pos", this->pos.GetMetaData()},
-//         {"data", {
-//           {"lhs", expr.lhs->GetMetaData()},
-//           {"op", "&&"},
-//           {"rhs", expr.rhs->GetMetaData()}
-//         }}
-//       };
-//     } else {
-//       static_assert(always_false<T>::value, "non-exhaustive vistor!");
-//     }
-//   }, this->expr);
-// }
+    return {
+      {"name", "AdditiveExpr"},
+      {"pos", this->pos.GetMetaData()},
+      {"data", {
+        {"lhs", lhs->GetMetaData()},
+        {"ops", data}
+      }}
+    };
+  }
+}
 
-// json LogicalOrExpr::GetMetaData() const {
-//   return std::visit([this](auto &&expr)->json {
-//     using T = std::decay_t<decltype(expr)>;
-//     if constexpr (std::is_same_v<T, std::unique_ptr<LogicalAndExpr>>) {
-//       return expr->GetMetaData();
-//     } else if constexpr (std::is_same_v<T, LogicalOrExpr::OpExpr>) {
-//       return {
-//         {"name", "LogicalOrExpr"},
-//         {"pos", this->pos.GetMetaData()},
-//         {"data", {
-//           {"lhs", expr.lhs->GetMetaData()},
-//           {"op", "||"},
-//           {"rhs", expr.rhs->GetMetaData()}
-//         }}
-//       };
-//     } else {
-//       static_assert(always_false<T>::value, "non-exhaustive vistor!");
-//     }
-//   }, this->expr);
-// }
+json ComparisonExpr::GetMetaData() const {
+  if (exprs.size() == 0) {
+    // fallthrough
+    return lhs->GetMetaData();
+  } else {
+    json data;
+    for (const auto &expr : exprs) {
+      data.push_back({{"op", expr.op.ToStr()},
+                      {"rhs", expr.rhs->GetMetaData()}});
+    }
+
+    return {
+      {"name", "ComparisonExpr"},
+      {"pos", this->pos.GetMetaData()},
+      {"data", {
+        {"lhs", lhs->GetMetaData()},
+        {"ops", data}
+      }}
+    };
+  }
+}
+
+json LogicalAndExpr::GetMetaData() const {
+  if (exprs.size() == 1) {
+    // fallthrough
+    return exprs[0]->GetMetaData();
+  } else {
+    return {
+      {"name", "LogicalAndExpr"},
+      {"pos", this->pos.GetMetaData()},
+      {"data", GetJsonForVec(exprs)}
+    };
+  }
+}
+
+json LogicalOrExpr::GetMetaData() const {
+  if (exprs.size() == 1) {
+    // fallthrough
+    return exprs[0]->GetMetaData();
+  } else {
+    return {
+      {"name", "LogicalOrExpr"},
+      {"pos", this->pos.GetMetaData()},
+      {"data", GetJsonForVec(exprs)}
+    };
+  }
+}
 
 // json Block::GetMetaData() const {
 //   json data;
