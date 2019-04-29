@@ -79,6 +79,9 @@ bool TokenStream::Next() {
          "Can't `Next()` consecutively more than `Lookaheads`",
          MaxLookaheads);
   Token tok = Parse();
+  while (tok.type == Token::LineComment || tok.type == Token::BlockComment)
+    tok = Parse();
+
   tokens[cur_token_size++] = tok;
   return tok;
 }
@@ -204,7 +207,7 @@ Token TokenStream::ParseSimpleToken() {
   // `+=>` will parse as `+=` and `>`.  Of course this may not be preferred so we may want to
   // have a precendence for tokens, I think it is fine though for now.
   while (true) {
-    if (cur_index + i == read_size) {
+    if (cur_index + i == BufSize) {
       Assert(cur_index != 0, "We can't have a token with a length more than BufSize", cur_index);
       // This is incase I ever change things and break this offcase
       // We should never get to this point and to not have iterated i
@@ -213,13 +216,15 @@ Token TokenStream::ParseSimpleToken() {
       Assert(i > 0, "Buffer shouldn't be full if i == 0", i);
 
       // shuffle the important bits down the the front of the buffer
+      // @TODO: is this correct?
       memmove(static_cast<char*>(read_buf),
-              static_cast<char*>(read_buf) + cur_index, i);
+              static_cast<char*>(read_buf) + cur_index + 1, i + 1);
 
       // now we can read into the buffer
       Read(read_size - i, i);
       buf = read_buf;
       len = read_size;
+      cur_index = i;
 
       if (IsEOF()) {
         // Our token wasn't finished
@@ -245,9 +250,9 @@ Token TokenStream::ParseSimpleToken() {
       // or go back one token
       if (current_set->tokens != NULL && current_set->tokens[buf[i]] != static_cast<int>(Token::Undefined)) {
         col += i + 1;
+        cur_index += i + 1;
         cur = Token(static_cast<Token::Kind>(current_set->tokens[buf[i]]),
                     EndLineRange(-1));
-        cur_index += i + 1;
       } else {
         // i.e. parse `<!` as `<` and `!`
         if (previous_set != NULL && previous_set->tokens != NULL && previous_set->tokens[buf[i - 1]] != static_cast<int>(Token::Undefined)) {
@@ -488,6 +493,10 @@ Token TokenStream::ParseNum() {
     if (cur_index >= read_size - 2) {
       // since we need at most three to see
       // should be rare enough that this doesn't matter
+      // @BUG: this is a @HACK to fix it.
+      read_buf[0] = buf[0];
+      if (cur_index == read_size - 2) read_buf[1] = buf[1];
+      if (cur_index == read_size - 3) read_buf[2] = buf[2];
       Read(BufSize - 2, cur_index + 2);
       buf = read_buf;
       cur_index = 0;
@@ -612,7 +621,6 @@ Token TokenStream::ParseId() {
 void TokenStream::Read(uint len, uint offset) {
   read_size = reader->Read(static_cast<char*>(read_buf) + offset, len);
   cur_index = offset;
-  read_buf[offset + len] = '\0';
 }
 
 }

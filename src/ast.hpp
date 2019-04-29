@@ -305,12 +305,13 @@ class TupleDecl : public BaseAST {
 
 class MacroExpr : public BaseAST {
  public:
-  IdentifierAccess qualifying_name;
+  std::unique_ptr<IdentifierAccess> qualifying_name;
   std::vector<std::unique_ptr<Expr>> args;
 
-  MacroExpr(LineRange pos, IdentifierAccess qualifying_name,
+  MacroExpr(LineRange pos, std::unique_ptr<IdentifierAccess> qualifying_name,
             std::vector<std::unique_ptr<Expr>> args)
-      : BaseAST(pos), qualifying_name(qualifying_name), args(std::move(args)) {}
+      : BaseAST(pos), qualifying_name(std::move(qualifying_name)),
+        args(std::move(args)) {}
 
   json GetMetaData() const;
 };
@@ -378,10 +379,11 @@ class Atom : public BaseAST {
 
   struct MemberAccessExpr {
     std::unique_ptr<Atom> lhs;
-    IdentifierAccess access;
+    std::unique_ptr<IdentifierAccess> access;
 
-    MemberAccessExpr(std::unique_ptr<Atom> lhs, IdentifierAccess access)
-        : lhs(std::move(lhs)), access(access) {}
+    MemberAccessExpr(std::unique_ptr<Atom> lhs,
+                     std::unique_ptr<IdentifierAccess> access)
+        : lhs(std::move(lhs)), access(std::move(access)) {}
   };
 
   std::variant<IndexExpr, SliceExpr, std::unique_ptr<FuncCall>, FoldExpr,
@@ -389,16 +391,14 @@ class Atom : public BaseAST {
                std::unique_ptr<MacroExpr>, std::unique_ptr<Constant>,
                LineStr> expr;
 
-  Atom(LineStr id) 
-      : BaseAST(id.pos), expr(id) {}
+  Atom(LineRange pos, LineStr id) 
+      : BaseAST(pos), expr(id) {}
 
-  Atom(std::unique_ptr<Expr> expr) 
-      : BaseAST(expr->pos), expr(std::move(expr)) {}
+  Atom(LineRange pos, std::unique_ptr<Expr> expr) 
+      : BaseAST(pos), expr(std::move(expr)) {}
 
-  Atom(std::unique_ptr<Atom> lhs,
-       std::unique_ptr<Expr> index)
-      : BaseAST(LineRange(lhs->pos,index->pos)),
-        expr(IndexExpr(std::move(lhs), std::move(index))) {}
+  Atom(LineRange pos, std::unique_ptr<Atom> lhs, std::unique_ptr<Expr> index)
+      : BaseAST(pos), expr(IndexExpr(std::move(lhs), std::move(index))) {}
 
   Atom(LineRange pos, std::unique_ptr<Atom> lhs,
        std::optional<std::unique_ptr<Expr>> start,
@@ -407,8 +407,8 @@ class Atom : public BaseAST {
       : BaseAST(pos), expr(SliceExpr(std::move(lhs), std::move(start),
         std::move(stop), std::move(step))) {}
 
-  Atom(std::unique_ptr<FuncCall> func_call)
-      : BaseAST(func_call->pos), expr(std::move(func_call)) {}
+  Atom(LineRange pos, std::unique_ptr<FuncCall> func_call)
+      : BaseAST(pos), expr(std::move(func_call)) {}
 
   Atom(LineRange pos, std::unique_ptr<FuncCall> func, bool folds_right,
        std::unique_ptr<Expr> rhs)
@@ -416,14 +416,15 @@ class Atom : public BaseAST {
                            std::move(rhs))) {}
 
   Atom(LineRange pos, std::unique_ptr<Atom> lhs,
-       IdentifierAccess access)
-      : BaseAST(pos), expr(MemberAccessExpr(std::move(lhs), access)) {}
+       std::unique_ptr<IdentifierAccess> access)
+      : BaseAST(pos), expr(MemberAccessExpr(std::move(lhs),
+        std::move(access))) {}
 
-  Atom(std::unique_ptr<MacroExpr> expr)
-      : BaseAST(expr->pos), expr(std::move(expr)) {}
+  Atom(LineRange pos, std::unique_ptr<MacroExpr> expr)
+      : BaseAST(pos), expr(std::move(expr)) {}
 
-  Atom(std::unique_ptr<Constant> expr)
-      : BaseAST(expr->pos), expr(std::move(expr)) {}
+  Atom(LineRange pos, std::unique_ptr<Constant> expr)
+      : BaseAST(pos), expr(std::move(expr)) {}
 
   json GetMetaData() const;
 };
@@ -443,11 +444,12 @@ class PowerExpr : public BaseAST {
 };
 
 class UnaryExpr : public BaseAST {
+ public:
   std::unique_ptr<PowerExpr> rhs;
   std::vector<PrefixOp> ops;
 
-  UnaryExpr(std::unique_ptr<PowerExpr> expr)
-      : BaseAST(expr->pos), rhs(std::move(expr)) {}
+  UnaryExpr(LineRange pos, std::unique_ptr<PowerExpr> expr)
+      : BaseAST(pos), rhs(std::move(expr)) {}
 
   UnaryExpr(LineRange pos, std::unique_ptr<PowerExpr> expr,
             std::vector<PrefixOp> ops)
@@ -576,6 +578,7 @@ class Expr : public BaseAST {
   };
 
   struct RangeExpr {
+    // @TODO: these should be optional
     std::unique_ptr<LogicalOrExpr> start;
     std::unique_ptr<LogicalOrExpr> stop;
     std::optional<std::unique_ptr<LogicalOrExpr>> step;
@@ -602,8 +605,8 @@ class Expr : public BaseAST {
     bool collection_is_array;
    public:
     std::vector<std::unique_ptr<Expr>> values;
-    bool is_array() const { return this->collection_is_array; };
-    bool is_tuple() const { return !this->collection_is_array; }
+    bool IsArray() const { return this->collection_is_array; };
+    bool IsTuple() const { return !this->collection_is_array; }
 
     CollectionExpr(std::vector<std::unique_ptr<Expr>> values,
               bool is_array)
@@ -666,11 +669,11 @@ class WhileBlock : public BaseAST {
 
 class ForBlock : public BaseAST {
  public:
-  IdentifierAccess id_list;
+  std::unique_ptr<IdentifierAccess> id_list;
   std::vector<std::unique_ptr<Expr>> expr_list;
   std::vector<std::unique_ptr<FuncBlock>> block;
 
-  ForBlock(LineRange pos, IdentifierAccess id_list,
+  ForBlock(LineRange pos, std::unique_ptr<IdentifierAccess> id_list,
            std::vector<std::unique_ptr<Expr>> expr_list,
            std::vector<std::unique_ptr<FuncBlock>> block)
       : BaseAST(pos), id_list(std::move(id_list)),
@@ -743,13 +746,14 @@ class TypeExpr : public BaseAST {
         : id(id), args(std::move(args)), ret_type(std::move(ret_type)) {}
   };
 
-  std::variant<GenericType, VariantType, IdentifierAccess,
+  std::variant<GenericType, VariantType, std::unique_ptr<IdentifierAccess>,
                std::unique_ptr<TupleDecl>, FunctionType, GenericId> expr;
 
+  // @TODO: I don't think we call this??? Am I wrong??
   TypeExpr(LineRange pos, GenericId id)
       : BaseAST(pos), expr(std::move(id)) {}
 
-  TypeExpr(LineRange pos, IdentifierAccess id)
+  TypeExpr(LineRange pos, std::unique_ptr<IdentifierAccess> id)
       : BaseAST(pos), expr(std::move(id)) {}
 
   TypeExpr(LineRange pos, FunctionType func_type)

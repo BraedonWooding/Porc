@@ -45,10 +45,10 @@ public:
 
   LineRange(const int line_start, const int line_end, const int col_start,
             const int col_end, std::string file) {
-    Assert(line_start >= 0, "Must be positive (or 0)", line_start);
-    Assert(line_end >= 0, "Must be positive (or 0)", line_end);
-    Assert(col_start >= 0, "Must be positive (or 0)", col_start);
-    Assert(col_end >= 0, "Must be positive (or 0)", col_end);
+    // Assert(line_start >= 0, "Must be positive (or 0)", line_start);
+    // Assert(line_end >= 0, "Must be positive (or 0)", line_end);
+    // Assert(col_start >= 0, "Must be positive (or 0)", col_start);
+    // Assert(col_end >= 0, "Must be positive (or 0)", col_end);
 
     this->line_start = line_start;
     this->line_end = line_end;

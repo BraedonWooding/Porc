@@ -195,8 +195,8 @@ std::unique_ptr<Expr> Parser::ConvIdentToExpr(LineStr id) {
          std::make_unique<ComparisonExpr>(pos,
          std::make_unique<AdditiveExpr>(pos,
          std::make_unique<MultiplicativeExpr>(pos,
-         std::make_unique<PowerExpr>(pos,
          std::make_unique<UnaryExpr>(pos,
+         std::make_unique<PowerExpr>(pos,
          std::make_unique<Atom>(pos, id)))))))));
 }
 
@@ -209,10 +209,10 @@ std::unique_ptr<Expr> Parser::ExprToFold(std::unique_ptr<Expr> expr,
          std::make_unique<ComparisonExpr>(pos,
          std::make_unique<AdditiveExpr>(pos,
          std::make_unique<MultiplicativeExpr>(pos,
-         std::make_unique<PowerExpr>(pos,
          std::make_unique<UnaryExpr>(pos,
-         std::make_unique<Atom>(pos, std::move(expr), folding,
-                                std::move(func))))))))));
+         std::make_unique<PowerExpr>(pos,
+         std::make_unique<Atom>(pos, std::move(func), folding,
+                                std::move(expr))))))))));
 }
 
 std::unique_ptr<Expr> Parser::ParenthesiseExpr(std::unique_ptr<Expr> expr) {
@@ -223,8 +223,8 @@ std::unique_ptr<Expr> Parser::ParenthesiseExpr(std::unique_ptr<Expr> expr) {
          std::make_unique<ComparisonExpr>(pos,
          std::make_unique<AdditiveExpr>(pos,
          std::make_unique<MultiplicativeExpr>(pos,
-         std::make_unique<PowerExpr>(pos,
          std::make_unique<UnaryExpr>(pos,
+         std::make_unique<PowerExpr>(pos,
          std::make_unique<Atom>(pos, std::move(expr))))))))));
 }
 
@@ -621,9 +621,9 @@ optional_unique_ptr<Expr> Parser::ParseExpr() {
       LineRange pos = FindRangeOfVector(exprs);
       expr = std::make_unique<Expr>(pos, std::move(exprs));
     } break;
-    case Token::If: expr = ComposeExpr<Expr>(ParseIfBlock(), true); break;
-    case Token::For: expr = ComposeExpr<Expr>(ParseForBlock(), true); break;
-    case Token::While: expr = ComposeExpr<Expr>(ParseWhileBlock(), true); break;
+    case Token::If: expr = ComposeExpr<Expr>(ParseIfBlock()); break;
+    case Token::For: expr = ComposeExpr<Expr>(ParseForBlock()); break;
+    case Token::While: expr = ComposeExpr<Expr>(ParseWhileBlock()); break;
     default: {
       auto logical_expr = ParseLogicalOrExpr();
       if (!logical_expr) return std::nullopt;
@@ -744,7 +744,8 @@ std::optional<std::vector<std::unique_ptr<FuncBlock>>>
   if (stream.PeekCur().type == Token::LeftParen) {
     auto expr = ParseExpr();
     if (!expr) return std::nullopt;
-    return std::get<std::vector<std::unique_ptr<FuncBlock>>>((*expr)->expr);
+    return std::get<std::vector<std::unique_ptr<FuncBlock>>>(
+        std::move((*expr)->expr));
   } else {
     auto block = ParseFuncBlock();
     std::vector<std::unique_ptr<FuncBlock>> vec;
@@ -753,7 +754,6 @@ std::optional<std::vector<std::unique_ptr<FuncBlock>>>
     return std::move(vec);
   }
 }
-
 
 std::optional<IfBlock::IfStatement> Parser::ParseIfStatement() {
   if (!ConsumeToken((Token::If))) return std::nullopt;
@@ -791,7 +791,7 @@ optional_unique_ptr<IfBlock> Parser::ParseIfBlock() {
   }
   LineRange end = FindRangeOfVector(statements[statements.size() - 1].block);
   LineRange pos = LineRange(statements[0].cond->pos, end);
-  return std::make_unique<IfBlock>(pos, std::move(statements));
+  return std::make_unique<IfBlock>(pos, std::move(statements), std::nullopt);
 }
 
 optional_unique_ptr<WhileBlock> Parser::ParseWhileBlock() {
@@ -820,16 +820,8 @@ optional_unique_ptr<ForBlock> Parser::ParseForBlock() {
     if (!ConsumeToken(Token::LeftParen)) return std::nullopt;
   }
 
-  // the assignments i.e. for x, y in z => x, y are the idents
-  // @QUESTION: arguably we should also support the `const` / type modifiers
-  //            on these but I haven't decided to keep const yet so I want
-  //            to decide on that before I impact this
-  // @FIXME: decide
-  std::vector<LineStr> idents;
-  while (stream.PeekCur().type == Token::Identifier) {
-    Token tok = stream.PopCur();
-    idents.push_back(*tok.ToLineStr());
-  }
+  auto ids = ParseIdentifierAccess(Token::Comma);
+  if (!ids) return std::nullopt;
 
   if (!ConsumeToken((Token::In))) return std::nullopt;
 
@@ -844,7 +836,7 @@ optional_unique_ptr<ForBlock> Parser::ParseForBlock() {
   if (!expr) return std::nullopt;
 
   LineRange pos = LineRange(start, (*expr)[expr->size()-1]->pos);
-  return std::make_unique<ForBlock>(pos, std::move(idents), std::move(exprs),
+  return std::make_unique<ForBlock>(pos, std::move(*ids), std::move(exprs),
                                     std::move(*expr));
 }
 
@@ -1008,7 +1000,8 @@ optional_unique_ptr<TypeExpr> Parser::ParseTypeExpr() {
       ret = std::make_unique<TypeExpr>(pos, std::move(generic));
     } else {
       // just an identifier
-      ret = std::make_unique<TypeExpr>(std::move(*id));
+      LineRange pos = (*id)->pos;
+      ret = std::make_unique<TypeExpr>(pos, std::move(*id));
     }
   }
 
@@ -1092,21 +1085,29 @@ optional_unique_ptr<Atom> Parser::ParseAtom() {
     stream.PopCur();
     auto tmp = ParseExpr();
     if (!tmp) return std::nullopt;
-    atom = std::make_unique<Atom>(std::move(*tmp));
+    LineRange pos = (*tmp)->pos;
+    atom = std::make_unique<Atom>(pos, std::move(*tmp));
 
     if (!ConsumeToken(Token::RightParen)) return std::nullopt;
   } else if (peek.type == Token::Macro) {
     // @macro
     auto macro = ParseMacroExpr();
     if (!macro) return std::nullopt;
-    atom = std::make_unique<Atom>(std::move(*macro));
+    LineRange pos = (*macro)->pos;
+    atom = std::make_unique<Atom>(pos, std::move(*macro));
   } else if (peek.type == Token::Identifier) {
     auto id = *stream.PopCur().ToLineStr();
-    atom = std::make_unique<Atom>(std::move(id));
+    LineRange pos = id.pos;
+    atom = std::make_unique<Atom>(pos, std::move(id));
   } else if (auto constant = TryParseConstant()) {
-    atom = std::make_unique<Atom>(std::move(*constant));
+    LineRange pos = (*constant)->pos;
+    atom = std::make_unique<Atom>(pos, std::move(*constant));
   } else {
     // has to be func_call
+    // @FIXME: This is so ripe for having infinite overflow
+    //         Just need one incorrect token
+    //         We should rather manually parse func call!
+    //         Kinda or atleast do it better!
     auto func_call = ParseFuncCall();
     if (!func_call) return std::nullopt;
     if (stream.PeekCur().type == Token::FoldLeft) {
@@ -1118,7 +1119,8 @@ optional_unique_ptr<Atom> Parser::ParseAtom() {
       atom = std::make_unique<Atom>(pos, std::move(*func_call), false,
                                     std::move(*rhs));
     } else {
-      atom = std::make_unique<Atom>(std::move(func_call));
+      LineRange pos = (*func_call)->pos;
+      atom = std::make_unique<Atom>(pos, std::move(*func_call));
     }
   }
 
@@ -1177,7 +1179,6 @@ optional_unique_ptr<Atom> Parser::ParseSliceOrIndex(std::unique_ptr<Atom> lhs) {
 
 optional_unique_ptr<UnaryExpr> Parser::ParseUnaryExpr() {
   std::vector<PrefixOp> ops;
-
   LineRange start = stream.PeekCur().pos;
   while (auto op = PrefixOp::FromToken(stream.PeekCur())) {
     stream.PopCur();
@@ -1188,7 +1189,7 @@ optional_unique_ptr<UnaryExpr> Parser::ParseUnaryExpr() {
   if (!rhs) return std::nullopt;
 
   LineRange pos = LineRange(start, (*rhs)->pos);
-  return std::make_unique<UnaryExpr>(pos, std::move(rhs), std::move(ops));
+  return std::make_unique<UnaryExpr>(pos, std::move(*rhs), std::move(ops));
 }
 
 optional_unique_ptr<PowerExpr> Parser::ParsePowerExpr() {

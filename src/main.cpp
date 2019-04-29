@@ -8,6 +8,7 @@
 
 #include "token_stream.hpp"
 #include "defs.hpp"
+#include "parser.hpp"
 
 void signal_handler(int s);
 void print_version();
@@ -33,6 +34,24 @@ int main(int argc, char *argv[]) {
     ->ignore_case()->fallthrough();
   auto dev = app.add_subcommand("dev", "A series of development options")
     ->ignore_case()->fallthrough();
+  auto ast = dev->add_subcommand("ast", "Builds an AST")
+    ->ignore_case()->fallthrough();
+  ast->callback([&](){
+    if (verbose) std::cout << "Running subcommand `dev/ast`";
+
+    for (auto file: filenames) {
+      using namespace porc::internals;
+
+      std::cout << "\t== " << file << " ==" << std::endl;
+      TokenStream stream(std::make_unique<CFileReader>(file.c_str()));
+      Parser parser = Parser(std::move(stream));
+      auto top_level = parser.ParseFileDecl();
+      if (!top_level) std::cerr << "Error couldn't parse file" << std::endl;
+      else std::cout << (*top_level)->GetMetaData() << std::endl;
+
+      std::cout << "\t== Finished ==" << std::endl;
+    }
+  });
   auto tokens = dev->add_subcommand("tokens", "Tokenizes the files")
     ->ignore_case()->fallthrough();
   tokens->callback([&](){

@@ -11,7 +11,6 @@ Token::operator bool() const {
 std::string Token::ToString() const {
   if (type == Token::Str || type == Token::Identifier)
     return std::get<std::string>(data);
-  char *out = NULL;
   if (type == Token::LineComment) {
     return std::string("//").append(std::get<std::string>(data));
   }
@@ -20,8 +19,6 @@ std::string Token::ToString() const {
   }
   if (type == Token::Flt) return std::to_string(std::get<double>(data));
   if (type == Token::Int) return std::to_string(std::get<i64>(data));
-  if (out != NULL) return out;
-  int type = static_cast<int>(type);
   if (tokenToStrMap[type] != NULL) return std::string(tokenToStrMap[type]);
 
   Unreachable("Case not handled");

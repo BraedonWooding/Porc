@@ -13,6 +13,12 @@
 
 namespace porc::internals {
 
+// @TODO: make these static constants or something idk
+// I just don't want them to be #defines and I haven't decided if array
+// should just be two tokens 'hard' coded.
+#define MaxLookaheads (2)
+#define BufSize (1024)
+
 /*
   A token stream built for efficient lookaheads
   You can view it as being a stream with 3 different operations.
@@ -43,9 +49,6 @@ namespace porc::internals {
 */
 class TokenStream {
  private:
-  static const int BufSize = 1024;
-  static const int MaxLookaheads = 2;
-
   std::array<Token, MaxLookaheads> tokens;
   int cur_token_size = 0;
 
@@ -128,6 +131,8 @@ class TokenStream {
 
  public:
 
+  bool ignore_comments = false;
+
   /*
     Returns the current token.  Can only be called once per Next.
   */
@@ -146,7 +151,7 @@ class TokenStream {
 
   const std::string &GetFileName() const { return reader->file_name; };
 
-  TokenStream(std::unique_ptr<Reader> reader, int max_lookaheads=2)
+  TokenStream(std::unique_ptr<Reader> reader)
       : reader(std::move(reader)), tokens{} {}
 };
 

@@ -112,10 +112,11 @@ private:
 
   template<typename OpTo, typename ObjTo, typename ParseFn>
   optional_unique_ptr<ObjTo> ParseOpList(ParseFn fn) {
+    using Inner = typename ObjTo::OpExpr;
     auto lhs = (this->*fn)();
     if (!lhs) return std::nullopt;
 
-    std::vector<typename ObjTo::OpExpr> exprs;
+    std::vector<Inner> exprs;
     while (true) {
       auto op = OpTo::FromToken(stream.PeekCur());
       if (!op) break;
@@ -123,7 +124,7 @@ private:
 
       auto rhs = (this->*fn)();
       if (!rhs) return std::nullopt;
-      exprs.push_back(ObjTo::OpExpr(op, rhs));
+      exprs.push_back(Inner(*op, std::move(*rhs)));
     }
 
     if (exprs.size() == 0) {
@@ -173,7 +174,9 @@ private:
 
 public:
   Parser(TokenStream stream, std::ostream &out = std::cerr)
-      : stream(std::move(stream)), err(out) {}
+      : stream(std::move(stream)), err(out) {
+    stream.ignore_comments = true;
+  }
 
   optional_unique_ptr<VarDecl> ParseFuncDecl();
   optional_unique_ptr<VarDecl> ParseStructDecl();
