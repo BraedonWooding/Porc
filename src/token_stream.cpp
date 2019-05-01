@@ -294,6 +294,7 @@ Token TokenStream::Parse() {
   // post or precondition of ws could mean IsEOF()
   if (IsEOF()) {
     cur = Token(Token::EndOfFile, EndLineRange());
+    return cur;
   }
 
   // parse complicated tokens

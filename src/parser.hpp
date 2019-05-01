@@ -29,8 +29,8 @@ private:
   optional_unique_ptr<Constant> TryParseConstant();
 
   std::unique_ptr<Expr> ExprToFold(std::unique_ptr<Expr> expr,
-                                           bool folding_right, LineRange pos,
-                                           std::unique_ptr<FuncCall> func);
+                                   bool folding_right, LineRange pos,
+                                   std::unique_ptr<Atom> func);
   std::unique_ptr<Expr> ConvIdentToExpr(LineStr id);
   std::unique_ptr<Expr> ParenthesiseExpr(std::unique_ptr<Expr> expr);
 

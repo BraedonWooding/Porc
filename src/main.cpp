@@ -36,9 +36,10 @@ int main(int argc, char *argv[]) {
     ->ignore_case()->fallthrough();
   auto ast = dev->add_subcommand("ast", "Builds an AST")
     ->ignore_case()->fallthrough();
+  bool ast_output;
+  ast->add_flag("-o,--output", ast_output, "Converts all the files then puts them into .json files rather than printing");
   ast->callback([&](){
     if (verbose) std::cout << "Running subcommand `dev/ast`";
-
     for (auto file: filenames) {
       using namespace porc::internals;
 
@@ -46,8 +47,21 @@ int main(int argc, char *argv[]) {
       TokenStream stream(std::make_unique<CFileReader>(file.c_str()));
       Parser parser = Parser(std::move(stream));
       auto top_level = parser.ParseFileDecl();
-      if (!top_level) std::cerr << "Error couldn't parse file" << std::endl;
-      else std::cout << (*top_level)->GetMetaData() << std::endl;
+      if (!top_level) {
+        std::cerr << "Error couldn't parse file: " << file << std::endl;
+      } else if (ast_output) {
+        std::fstream out;
+        out.open(file + ".json", std::ios::out);
+        if (!out) {
+          std::cerr << "Error couldn't open file: " << file << ".json"
+                    << std::endl;
+        } else {
+          out << (*top_level)->GetMetaData().dump(4) << std::endl;
+          out.close();
+        }
+      } else {
+        std::cout << (*top_level)->GetMetaData().dump(4) << std::endl;
+      }
 
       std::cout << "\t== Finished ==" << std::endl;
     }

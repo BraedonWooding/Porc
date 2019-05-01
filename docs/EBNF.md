@@ -187,8 +187,8 @@ func_call
 atom
   : '(' expr ')'
   | '@' identifier_access '(' expr_list ')'
-  | expr '|>' func_call
-  | func_call '<|' expr
+  | expr '|>' atom
+  | atom '<|' expr
   | func_call
   // i.e. array[1] or array[1:] or array[1::] or array[1:2:]
   // or array[] (lexical error) or array[:2:] ... and so on

@@ -2,11 +2,15 @@
 #define PRINTER_HELPERS_HPP
 
 #include <iostream>
-#include <nlohmann/json.hpp>
 #include "defs.hpp"
 #include "helper.hpp"
 
-using json = nlohmann::json;
+#include <nlohmann/json.hpp>
+#include <nlohmann/fifo_map.hpp>
+
+template<class K, class V, class dummy_compare, class A>
+using fifo_map = nlohmann::fifo_map<K, V, nlohmann::fifo_map_compare<K>, A>;
+using json = nlohmann::basic_json<fifo_map>;
 
 // @TODO: @API:
 //              remove copy constructors (we shouldn't be copying these)

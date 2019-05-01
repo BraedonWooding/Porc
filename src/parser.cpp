@@ -134,6 +134,10 @@ optional_unique_ptr<FuncBlock> Parser::ParseFuncBlock() {
       }
   }
 
+  if (stream.PeekCur().type == Token::SemiColon) {
+    stream.PopCur();
+  }
+
   if (expr && ret) {
     if ((*expr)->ret) {
       err.ReportCustomErr(DoubleReturnErrMsg, LineRange(start,(*expr)->pos),
@@ -202,7 +206,7 @@ std::unique_ptr<Expr> Parser::ConvIdentToExpr(LineStr id) {
 
 std::unique_ptr<Expr> Parser::ExprToFold(std::unique_ptr<Expr> expr,
                                          bool folding, LineRange pos,
-                                         std::unique_ptr<FuncCall> func) {
+                                         std::unique_ptr<Atom> func) {
   return std::make_unique<Expr>(pos,
          std::make_unique<LogicalOrExpr>(pos,
          std::make_unique<LogicalAndExpr>(pos,
@@ -393,6 +397,8 @@ optional_unique_ptr<TupleDecl> Parser::ParseRestTupleDeclExpr(
     std::vector<TupleDecl::ArgDecl> declarations) {
   // presuming atleast the '(' has been consumed and all has been correctly
   // parsed into declarations
+  LineRange start = stream.PeekCur().pos;
+
   bool extra_comma = false;
   Token prev_tok = Token();
   while (stream.PeekCur().type != Token::RightParen) {
@@ -411,10 +417,10 @@ optional_unique_ptr<TupleDecl> Parser::ParseRestTupleDeclExpr(
   if (extra_comma) err.ReportCustomErr("Extra ','", prev_tok.pos,
                                        ErrStream::LexicalErr);
 
+  LineRange pos = LineRange(start, stream.PeekCur().pos);
+
   if (!ConsumeToken(Token::RightParen)) return std::nullopt;
 
-  // @TODO: fix this
-  LineRange pos = LineRange();
   return std::make_unique<TupleDecl>(pos, std::move(declarations));
 }
 
@@ -617,7 +623,7 @@ optional_unique_ptr<Expr> Parser::ParseExpr() {
             (func_expr = ParseFuncBlock()).has_value()) {
         exprs.push_back(std::move(*func_expr));
       }
-      if (!func_expr) return std::nullopt;
+      if (!func_expr || !ConsumeToken(Token::RightBrace)) return std::nullopt;
       LineRange pos = FindRangeOfVector(exprs);
       expr = std::make_unique<Expr>(pos, std::move(exprs));
     } break;
@@ -650,14 +656,15 @@ optional_unique_ptr<Expr> Parser::ParseExpr() {
                                       std::move(*logical_expr),
                                       std::move(*stop), std::move(step));
       } else {
-        expr = std::make_unique<Expr>((*expr)->pos, std::move(*logical_expr));
+        expr = std::make_unique<Expr>((*logical_expr)->pos,
+                                      std::move(*logical_expr));
       }
     } break;
   }
 
   if (expr && stream.PeekCur().type == Token::FoldRight) {
     stream.PopCur();
-    auto rhs = ParseFuncCall();
+    auto rhs = ParseAtom();
     if (!rhs) return std::nullopt;
 
     LineRange pos = LineRange((*expr)->pos, (*rhs)->pos);
@@ -741,7 +748,7 @@ optional_unique_ptr<VarDecl> Parser::ParseVarDecl() {
 
 std::optional<std::vector<std::unique_ptr<FuncBlock>>>
     Parser::ParseFuncBlockStatements() {
-  if (stream.PeekCur().type == Token::LeftParen) {
+  if (stream.PeekCur().type == Token::LeftBrace) {
     auto expr = ParseExpr();
     if (!expr) return std::nullopt;
     return std::get<std::vector<std::unique_ptr<FuncBlock>>>(
@@ -1103,32 +1110,43 @@ optional_unique_ptr<Atom> Parser::ParseAtom() {
     LineRange pos = (*constant)->pos;
     atom = std::make_unique<Atom>(pos, std::move(*constant));
   } else {
-    // has to be func_call
-    // @FIXME: This is so ripe for having infinite overflow
-    //         Just need one incorrect token
-    //         We should rather manually parse func call!
-    //         Kinda or atleast do it better!
-    auto func_call = ParseFuncCall();
-    if (!func_call) return std::nullopt;
-    if (stream.PeekCur().type == Token::FoldLeft) {
-      stream.PopCur();
-      auto rhs = ParseExpr();
-      if (!rhs) return std::nullopt;
+    err.ReportCustomErr("Invalid Atom Expr", peek.pos, ErrStream::SyntaxErr);
+    err.ReportInvalidToken(peek);
+    return std::nullopt;
+  }
 
-      LineRange pos = LineRange((*func_call)->pos, (*rhs)->pos);
-      atom = std::make_unique<Atom>(pos, std::move(*func_call), false,
-                                    std::move(*rhs));
+  // @TODO: this is real bad, @FIXME:
+  while (true) {
+    if (stream.PeekCur().type == Token::LeftBracket) {
+      // slice or index
+      auto tmp = ParseSliceOrIndex(std::move(atom));
+      if (!tmp) return std::nullopt;
+      atom = std::move(*tmp);
+    } else if (stream.PeekCur().type == Token::LeftParen) {
+      // func call
+      // @FIXME: just copied from func call, should fix
+      if (!ConsumeToken(Token::LeftParen)) return std::nullopt;
+      // parse arguments
+      std::vector<std::unique_ptr<Expr>> args;
+      if (!ParseList(&Parser::ParseExpr, PushBack, args)) return std::nullopt;
+      if (!ConsumeToken(Token::RightParen)) return std::nullopt;
+      LineRange pos = LineRange(atom->pos, args.back()->pos);
+      auto func = std::make_unique<FuncCall>(pos, std::move(atom),
+                                             std::move(args));
+      atom = std::make_unique<Atom>(pos, std::move(func));
     } else {
-      LineRange pos = (*func_call)->pos;
-      atom = std::make_unique<Atom>(pos, std::move(*func_call));
+      break;
     }
   }
 
-  if (stream.PeekCur().type == Token::LeftBracket) {
-    // slice or index
-    auto tmp = ParseSliceOrIndex(std::move(atom));
-    if (!tmp) return std::nullopt;
-    atom = std::move(*tmp);
+  if (stream.PeekCur().type == Token::FoldLeft) {
+    stream.PopCur();
+    auto rhs = ParseExpr();
+    if (!rhs) return std::nullopt;
+
+    LineRange pos = LineRange(atom->pos, (*rhs)->pos);
+    atom = std::make_unique<Atom>(pos, std::move(atom), false,
+                                  std::move(*rhs));
   }
 
   return atom;

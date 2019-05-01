@@ -1,0 +1,4 @@
+digraph AST {
+  "0" [label=FileDecl]
+  "1" [label=VarDecl]
+}

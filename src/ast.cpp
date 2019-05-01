@@ -198,7 +198,8 @@ json FileDecl::GetMetaData() const {
 json VarDecl::GetMetaData() const {
   std::vector<json> meta_data;
   for (auto &decl : this->decls) {
-    json data = {"id", decl.id};
+    json data;
+    data["id"] = decl.id;
     if (decl.type) data["type"] = (*decl.type)->GetMetaData();
     if (decl.expr) data["expr"] = (*decl.expr)->GetMetaData();
     meta_data.push_back(data);
@@ -208,7 +209,7 @@ json VarDecl::GetMetaData() const {
     {"pos", this->pos.GetMetaData()},
     {"data", {
       {"mut", this->is_mut},
-      {"var_data", meta_data}
+      {"data", meta_data}
     }}
   };
 }
@@ -258,9 +259,7 @@ json TupleDecl::GetMetaData() const {
   return {
     {"name", "TupleDecl"},
     {"pos", this->pos.GetMetaData()},
-    {"data", {
-      {"var_data", meta_data}
-    }}
+    {"data", meta_data}
   };
 }
 
@@ -312,10 +311,9 @@ json Atom::GetMetaData() const {
       return expr->GetMetaData();
     } else if constexpr (std::is_same_v<T, LineStr>) {
       return {
-        {"name", "identifier"},
-        // @TODO: wtf is happenning here
-        // {"pos", expr.pos},
-        // {"data", expr.c_str()}
+        {"name", "Identifier"},
+        {"pos", expr.pos.GetMetaData()},
+        {"data", expr}
       };
     } else if constexpr (std::is_same_v<T, Atom::IndexExpr>) {
       return {
@@ -342,7 +340,7 @@ json Atom::GetMetaData() const {
         {"pos", this->pos.GetMetaData()},
         {"data", {
           {"folds_right", expr.folds_right},
-          {"func", expr.func->GetMetaData()},
+          {"lhs", expr.func->GetMetaData()},
           {"fold_expr", expr.fold_expr->GetMetaData()}
         }}
       };
@@ -503,9 +501,9 @@ json Expr::GetMetaData() const {
       };
     } else if constexpr (std::is_same_v<T, Expr::FuncDecl>) {
       json data;
-      if (expr.ret_type) {
-        data["ret_type"] = (*expr.ret_type)->GetMetaData();
-      }
+      // if (expr.ret_type) {
+      //   data["ret_type"] = (*expr.ret_type)->GetMetaData();
+      // }
       data["args"] = expr.args->GetMetaData();
       data["block"] = GetJsonForVec(expr.block);
 

@@ -23,9 +23,6 @@
 #include <string>
 #include <variant>
 #include <iostream>
-#include <nlohmann/json.hpp>
-
-using json = nlohmann::json;
 
 #include "printer_helpers.hpp"
 #include "token.hpp"
@@ -367,11 +364,11 @@ class Atom : public BaseAST {
   };
 
   struct FoldExpr {
-    std::unique_ptr<FuncCall> func;
+    std::unique_ptr<Atom> func;
     std::unique_ptr<Expr> fold_expr;
     bool folds_right; // |> vs <|
 
-    FoldExpr(std::unique_ptr<FuncCall> func, bool folds_right,
+    FoldExpr(std::unique_ptr<Atom> func, bool folds_right,
              std::unique_ptr<Expr> fold_expr)
         : func(std::move(func)), fold_expr(std::move(fold_expr)),
           folds_right(folds_right) {}
@@ -410,7 +407,7 @@ class Atom : public BaseAST {
   Atom(LineRange pos, std::unique_ptr<FuncCall> func_call)
       : BaseAST(pos), expr(std::move(func_call)) {}
 
-  Atom(LineRange pos, std::unique_ptr<FuncCall> func, bool folds_right,
+  Atom(LineRange pos, std::unique_ptr<Atom> func, bool folds_right,
        std::unique_ptr<Expr> rhs)
       : BaseAST(pos), expr(FoldExpr(std::move(func), folds_right,
                            std::move(rhs))) {}
