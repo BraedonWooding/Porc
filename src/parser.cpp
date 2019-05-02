@@ -137,6 +137,7 @@ optional_unique_ptr<FuncBlock> Parser::ParseFuncBlock() {
   if (stream.PeekCur().type == Token::SemiColon) {
     stream.PopCur();
   }
+  // @TODO: if the last node didn't end with '}' then its now a ret
 
   if (expr && ret) {
     if ((*expr)->ret) {
@@ -174,7 +175,7 @@ optional_unique_ptr<VarDecl> Parser::ParseFuncDecl() {
   LineRange pos = LineRange((*tuple_decl)->pos, (*expr)[expr->size()-1]->pos);
 
   auto tmp = std::make_unique<Expr>(pos, std::move(*tuple_decl), 
-                                    std::move(*ret_type),
+                                    std::move(ret_type),
                                     std::move(*expr));
   std::vector<VarDecl::Declaration> decl;
   decl.push_back(VarDecl::Declaration(id, std::nullopt, std::move(tmp)));
@@ -353,36 +354,40 @@ optional_unique_ptr<Expr> Parser::ParseExprFuncOrStruct(
 }
 
 std::optional<TupleDecl::ArgDecl> Parser::ParseTupleDeclSegment() {
-  Token tok = stream.PopCur();
+  Token tok = stream.PeekCur();
   bool is_mut = false;
   bool is_generic = false;
   if (tok.type == Token::Mut) {
+    stream.PopCur();
     is_mut = true;
-    tok = stream.PopCur();
+    tok = stream.PeekCur();
   }
 
   if (tok.type == Token::Generic) {
+    stream.PopCur();
     is_generic = true;
-    tok = stream.PopCur();
+    tok = stream.PeekCur();
   }
 
   if (tok.type == Token::Identifier) {
+    stream.PopCur();
     auto id = *tok.ToLineStr();
     std::optional<std::unique_ptr<TypeExpr>> type_expr = std::nullopt;
-    tok = stream.PopCur();
+    tok = stream.PeekCur();
     if (tok.type == Token::Colon) {
+      stream.PopCur();
       auto type = ParseTypeExpr();
       if (!type) return std::nullopt;
       type_expr = std::move(*type);
-      tok = stream.PopCur();
+      tok = stream.PeekCur();
     }
 
     std::optional<std::unique_ptr<Expr>> val = std::nullopt;
     if (tok.type == Token::Assign) {
+      stream.PopCur();
       auto expr = ParseExpr();
       if (!expr) return std::nullopt;
       val = std::move(*expr);
-      tok = stream.PopCur();
     }
 
     return TupleDecl::ArgDecl(is_mut, is_generic, std::move(id),
@@ -425,11 +430,16 @@ optional_unique_ptr<TupleDecl> Parser::ParseRestTupleDeclExpr(
 }
 
 optional_unique_ptr<Expr> Parser::ParseExprOrTupleDecl() {
+  LineRange start = stream.PeekCur().pos;
+
+  if (!ConsumeToken(Token::LeftParen)) return std::nullopt;
+
   std::vector<TupleDecl::ArgDecl> declarations;
   bool comma = false;
   std::vector<std::unique_ptr<Expr>> expressions;
   Token tok = stream.PeekCur();
   Token prev_tok;
+
 
   while (tok.type != Token::RightParen) {
     comma = false;
@@ -492,6 +502,7 @@ optional_unique_ptr<Expr> Parser::ParseExprOrTupleDecl() {
       if (!expr) return std::nullopt;
       break;
     }
+    tok = stream.PeekCur();
   }
 
   if (!ConsumeToken((Token::RightParen))) return std::nullopt;
@@ -506,7 +517,7 @@ optional_unique_ptr<Expr> Parser::ParseExprOrTupleDecl() {
     if (comma) err.ReportCustomErr("Extra ','", prev_tok.pos,
                                    ErrStream::LexicalErr);
     // @FIXME: Fix this
-    LineRange pos = LineRange();
+    LineRange pos = LineRange(start, tok.pos);
     return ParseExprFuncOrStruct(std::make_unique<TupleDecl>(pos,
       std::move(declarations)));
   }
@@ -710,7 +721,6 @@ optional_unique_ptr<VarDecl> Parser::ParseVarDecl() {
   }
 
   bool atleast_one = false;
-  cur = stream.PopCur();
   if (cur.type == Token::Colon) {
     atleast_one = true;
     // type-expr list
@@ -736,6 +746,7 @@ optional_unique_ptr<VarDecl> Parser::ParseVarDecl() {
 
   if (!atleast_one) {
     // invalid var_decl
+    err.ReportInvalidToken(cur);
     err.ReportCustomErr("Was expecting either ':' or '=' or both.", cur.pos, 
                         ErrStream::SyntaxErr);
     return std::nullopt;

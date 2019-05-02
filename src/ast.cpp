@@ -181,7 +181,7 @@ json IdentifierAccess::GetMetaData() const {
   return {
     {"name", "IdentAccess"},
     {"pos", this->pos.GetMetaData()},
-    {"data", this->idents},
+    {"idents", this->idents},
     // @TODO: do representation for all objects
     // {"representation", join(this->idents, ".")}
   };
@@ -191,7 +191,7 @@ json FileDecl::GetMetaData() const {
   return {
     {"name", "FileDecl"},
     {"pos", this->pos.GetMetaData()},
-    {"data", GetJsonForVec(exprs)}
+    {"children", GetJsonForVec(exprs)}
   };
 }
 
@@ -207,10 +207,8 @@ json VarDecl::GetMetaData() const {
   return {
     {"name", "VarDecl"},
     {"pos", this->pos.GetMetaData()},
-    {"data", {
-      {"mut", this->is_mut},
-      {"data", meta_data}
-    }}
+    {"mut", this->is_mut},
+    {"children", meta_data}
   };
 }
 
@@ -227,7 +225,7 @@ json StructBlock::GetMetaData() const {
   return {
     {"name", "StructBlock"},
     {"pos", this->pos.GetMetaData()},
-    {"data", data}
+    {"children", data}
   };
 }
 
@@ -237,19 +235,18 @@ json FuncBlock::GetMetaData() const {
   }, this->expr);
   if (!this->ret) return data;
 
-  // state we return since this->ret == true
-  data.emplace("ret", true);
   return {
     {"name", "FuncBlock"},
     {"pos", this->pos.GetMetaData()},
-    {"data", data}
+    {"ret", true},
+    {"children", data}
   };
 }
 
 json TupleDecl::GetMetaData() const {
   std::vector<json> meta_data;
   for (auto &decl : this->args) {
-    json data = {"id", decl.id};
+    json data = {{"id", decl.id}};
     if (decl.type) data["type"] = (*decl.type)->GetMetaData();
     if (decl.expr) data["expr"] = (*decl.expr)->GetMetaData();
     data["generic"] = decl.generic_id;
@@ -259,7 +256,7 @@ json TupleDecl::GetMetaData() const {
   return {
     {"name", "TupleDecl"},
     {"pos", this->pos.GetMetaData()},
-    {"data", meta_data}
+    {"children", meta_data}
   };
 }
 
@@ -267,10 +264,8 @@ json MacroExpr::GetMetaData() const {
   return {
     {"name", "MacroExpr"},
     {"pos", this->pos.GetMetaData()},
-    {"data", {
-      {"id", qualifying_name->GetMetaData()},
-      {"args", GetJsonForVec(args)}
-    }}
+    {"id", qualifying_name->GetMetaData()},
+    {"args", GetJsonForVec(args)}
   };
 }
 
@@ -278,23 +273,18 @@ json AssignmentExpr::GetMetaData() const {
   return {
     {"name", "AssignmentExpr"},
     {"pos", this->pos.GetMetaData()},
-    {"data", {
-      {"lhs", GetJsonForVec(lhs)},
-      {"op", op.ToStr()},
-      {"rhs", GetJsonForVec(rhs)}
-    }}
+    {"lhs", GetJsonForVec(lhs)},
+    {"op", op.ToStr()},
+    {"rhs", GetJsonForVec(rhs)}
   };
 }
 
 json FuncCall::GetMetaData() const {
-  json data;
-  data["func"] = this->func->GetMetaData();
-  data["args"] = GetJsonForVec(args);
-
   return {
     {"name", "FuncCall"},
     {"pos", this->pos.GetMetaData()},
-    {"data", data}
+    {"func", this->func->GetMetaData()},
+    {"args", GetJsonForVec(args)}
   };
 }
 
@@ -313,45 +303,39 @@ json Atom::GetMetaData() const {
       return {
         {"name", "Identifier"},
         {"pos", expr.pos.GetMetaData()},
-        {"data", expr}
+        {"children", expr}
       };
     } else if constexpr (std::is_same_v<T, Atom::IndexExpr>) {
       return {
         {"name", "IndexExpr"},
         {"pos", this->pos.GetMetaData()},
-        {"data", {
-          {"lhs", expr.lhs->GetMetaData()},
-          {"index", expr.index->GetMetaData()}
-        }}
+        {"lhs", expr.lhs->GetMetaData()},
+        {"index", expr.index->GetMetaData()}
       };
     } else if constexpr (std::is_same_v<T, Atom::SliceExpr>) {
-      json data = {{"obj", expr.obj->GetMetaData()}};
+      json data = {
+        {"name", "SliceExpr"},
+        {"pos", this->pos.GetMetaData()},
+        {"obj", expr.obj->GetMetaData()}
+      };
       if (expr.start) data["start"] = expr.start.value()->GetMetaData();
       if (expr.stop) data["stop"] = expr.stop.value()->GetMetaData();
       if (expr.step) data["step"] = expr.step.value()->GetMetaData();
-      return {
-        {"name", "SliceExpr"},
-        {"pos", this->pos.GetMetaData()},
-        {"data", data}
-      };
+      return data;
     } else if constexpr (std::is_same_v<T, Atom::FoldExpr>) {
       return {
         {"name", "FoldExpr"},
         {"pos", this->pos.GetMetaData()},
-        {"data", {
-          {"folds_right", expr.folds_right},
-          {"lhs", expr.func->GetMetaData()},
-          {"fold_expr", expr.fold_expr->GetMetaData()}
-        }}
+        {"folds_right", expr.folds_right},
+        {"lhs", expr.func->GetMetaData()},
+        {"fold_expr", expr.fold_expr->GetMetaData()}
       };
     } else if constexpr (std::is_same_v<T, Atom::MemberAccessExpr>) {
       return {
         {"name", "MemberAccessExpr"},
         {"pos", this->pos.GetMetaData()},
-        {"data", {
-          {"lhs", expr.lhs->GetMetaData()},
-          {"member", expr.access->GetMetaData()}
-        }}
+        {"lhs", expr.lhs->GetMetaData()},
+        {"member", expr.access->GetMetaData()}
       };
     } else {
       static_assert(always_false<T>::value, "non-exhaustive vistor!");
@@ -367,7 +351,7 @@ json PowerExpr::GetMetaData() const {
     return {
       {"name", "PowerExpr"},
       {"pos", this->pos.GetMetaData()},
-      {"data", GetJsonForVec(exprs)}
+      {"children", GetJsonForVec(exprs)}
     };
   }
 }
@@ -385,10 +369,8 @@ json UnaryExpr::GetMetaData() const {
     return {
       {"name", "MultiplicativeExpr"},
       {"pos", this->pos.GetMetaData()},
-      {"data", {
-        {"rhs", rhs->GetMetaData()},
-        {"ops", data}
-      }}
+      {"rhs", rhs->GetMetaData()},
+      {"ops", data}
     };
   }
 }
@@ -407,10 +389,8 @@ json MultiplicativeExpr::GetMetaData() const {
     return {
       {"name", "MultiplicativeExpr"},
       {"pos", this->pos.GetMetaData()},
-      {"data", {
-        {"lhs", lhs->GetMetaData()},
-        {"ops", data}
-      }}
+      {"lhs", lhs->GetMetaData()},
+      {"ops", data}
     };
   }
 }
@@ -429,10 +409,8 @@ json AdditiveExpr::GetMetaData() const {
     return {
       {"name", "AdditiveExpr"},
       {"pos", this->pos.GetMetaData()},
-      {"data", {
-        {"lhs", lhs->GetMetaData()},
-        {"ops", data}
-      }}
+      {"lhs", lhs->GetMetaData()},
+      {"ops", data}
     };
   }
 }
@@ -451,10 +429,8 @@ json ComparisonExpr::GetMetaData() const {
     return {
       {"name", "ComparisonExpr"},
       {"pos", this->pos.GetMetaData()},
-      {"data", {
-        {"lhs", lhs->GetMetaData()},
-        {"ops", data}
-      }}
+      {"lhs", lhs->GetMetaData()},
+      {"ops", data}
     };
   }
 }
@@ -467,7 +443,7 @@ json LogicalAndExpr::GetMetaData() const {
     return {
       {"name", "LogicalAndExpr"},
       {"pos", this->pos.GetMetaData()},
-      {"data", GetJsonForVec(exprs)}
+      {"children", GetJsonForVec(exprs)}
     };
   }
 }
@@ -480,7 +456,7 @@ json LogicalOrExpr::GetMetaData() const {
     return {
       {"name", "LogicalOrExpr"},
       {"pos", this->pos.GetMetaData()},
-      {"data", GetJsonForVec(exprs)}
+      {"children", GetJsonForVec(exprs)}
     };
   }
 }
@@ -497,58 +473,47 @@ json Expr::GetMetaData() const {
       return {
         {"name", "FuncBlock"},
         {"pos", this->pos.GetMetaData()},
-        {"data", GetJsonForVec(expr)}
+        {"children", GetJsonForVec(expr)}
       };
     } else if constexpr (std::is_same_v<T, Expr::FuncDecl>) {
-      json data;
-      // if (expr.ret_type) {
-      //   data["ret_type"] = (*expr.ret_type)->GetMetaData();
-      // }
-      data["args"] = expr.args->GetMetaData();
-      data["block"] = GetJsonForVec(expr.block);
-
-      return {
+      json data = {
         {"name", "FuncDecl"},
         {"pos", this->pos.GetMetaData()},
-        {"data", std::move(data)}
+        {"args", expr.args->GetMetaData()},
+        {"block", GetJsonForVec(expr.block)},
       };
+      if (expr.ret_type) data["ret"] = (*expr.ret_type)->GetMetaData();
+      return data;
     } else if constexpr (std::is_same_v<T, Expr::StructDecl>) {
       return {
         {"name", "StructDecl"},
         {"pos", this->pos.GetMetaData()},
-        {"data", {
-          {"members", expr.members->GetMetaData()},
-          {"block", GetJsonForVec(expr.block)}
-        }}
+        {"members", expr.members->GetMetaData()},
+        {"block", GetJsonForVec(expr.block)}
       };
     } else if constexpr (std::is_same_v<T, Expr::RangeExpr>) {
-      json data;
+      json data = {
+        {"name", "RangeExpr"},
+        {"pos", this->pos.GetMetaData()},
+      };
       data["start"] = expr.start->GetMetaData();
       data["stop"] = expr.stop->GetMetaData();
       data["inclusive"] = expr.inclusive;
       if (expr.step) data["step"] = (*expr.step)->GetMetaData();
-      return {
-        {"name", "RangeExpr"},
-        {"pos", this->pos.GetMetaData()},
-        {"data", std::move(data)}
-      };
+      return data;
     } else if constexpr (std::is_same_v<T, Expr::MapExpr>) {
       return {
         {"name", "MapExpr"},
         {"pos", this->pos.GetMetaData()},
-        {"data", {
-          {"keys", GetJsonForVec(expr.keys)},
-          {"values", GetJsonForVec(expr.values)}
-        }}
+        {"keys", GetJsonForVec(expr.keys)},
+        {"values", GetJsonForVec(expr.values)}
       };
     } else if constexpr (std::is_same_v<T, Expr::CollectionExpr>) {
       return {
         {"name", "FuncBlock"},
         {"pos", this->pos.GetMetaData()},
-        {"data", {
-          {"is_array", expr.IsArray()},
-          {"values", GetJsonForVec(expr.values)}
-        }}
+        {"is_array", expr.IsArray()},
+        {"values", GetJsonForVec(expr.values)}
       };
     } else {
       static_assert(always_false<T>::value, "non-exhaustive vistor!");
@@ -560,10 +525,8 @@ json WhileBlock::GetMetaData() const {
   return {
     {"name", "While"},
     {"pos", this->pos.GetMetaData()},
-    {"data", {
-      {"expr", this->expr->GetMetaData()},
-      {"block", GetJsonForVec(this->block)}
-    }}
+    {"expr", this->expr->GetMetaData()},
+    {"block", GetJsonForVec(this->block)}
   };
 }
 
@@ -571,11 +534,9 @@ json ForBlock::GetMetaData() const {
   return {
     {"name", "For"},
     {"pos", this->pos.GetMetaData()},
-    {"data", {
-      {"id_list", this->id_list->GetMetaData()},
-      {"expr_list", GetJsonForVec(this->expr_list)},
-      {"block", GetJsonForVec(this->block)}
-    }}
+    {"id_list", this->id_list->GetMetaData()},
+    {"expr_list", GetJsonForVec(this->expr_list)},
+    {"block", GetJsonForVec(this->block)}
   };
 }
 
@@ -594,7 +555,7 @@ json IfBlock::GetMetaData() const {
   return {
     {"name", "If"},
     {"pos", this->pos.GetMetaData()},
-    {"data", data}
+    {"children", data}
   };
 }
 
@@ -605,7 +566,7 @@ json TypeExpr::GetMetaData() const {
       return {
         {"name", "TypeExpr"},
         {"pos", this->pos.GetMetaData()},
-        {"data", expr->GetMetaData()}
+        {"children", expr->GetMetaData()}
       };
     } else if constexpr (std::is_same_v<T, TypeExpr::GenericType>) {
       json arg_data = json::array();
@@ -618,42 +579,37 @@ json TypeExpr::GetMetaData() const {
       return {
         {"name", "TypeExpr"},
         {"pos", this->pos.GetMetaData()},
-        {"data", {
-          {"arg_data", std::move(arg_data)},
-          {"identifier", expr.ident->GetMetaData()}
-        }}
+        {"arg_data", std::move(arg_data)},
+        {"identifier", expr.ident->GetMetaData()}
       };
     } else if constexpr (std::is_same_v<T, TypeExpr::VariantType>) {
       return {
         {"name", "TypeExpr"},
         {"pos", this->pos.GetMetaData()},
-        {"data", {
-          {"lhs", expr.lhs->GetMetaData()},
-          {"rhs", GetJsonForVec(expr.rhs)}
-        }}
+        {"lhs", expr.lhs->GetMetaData()},
+        {"rhs", GetJsonForVec(expr.rhs)}
       };
     } else if constexpr (std::is_same_v<T, TypeExpr::FunctionType>) {
-      json data;
+      json data = {
+        {"name", "TypeExpr"},
+        {"pos", this->pos.GetMetaData()}
+      };
       if (expr.id) data["id"] = *expr.id;
       data["args"] = expr.args->GetMetaData();
       if (expr.ret_type) data["ret_type"] = (*expr.ret_type)->GetMetaData();
 
-      return {
-        {"name", "TypeExpr"},
-        {"pos", this->pos.GetMetaData()},
-        {"data", std::move(data)}
-      };
+      return data;
     } else if constexpr (std::is_same_v<T, TypeExpr::GenericId>) {
       return {
         {"name", "TypeExpr"},
         {"pos", this->pos.GetMetaData()},
-        {"data", expr}
+        {"children", expr}
       };
     } else if constexpr (std::is_same_v<T, std::unique_ptr<IdentifierAccess>>) {
       return {
         {"name", "TypeExpr"},
         {"pos", this->pos.GetMetaData()},
-        {"data", expr->GetMetaData()}
+        {"children", expr->GetMetaData()}
       };
     } else {
       static_assert(always_false<T>::value, "non-exhaustive vistor!");
@@ -665,7 +621,11 @@ json Constant::GetMetaData() const {
   return std::visit([this](auto &&expr)->json {
     using T = std::decay_t<decltype(expr)>;
     if constexpr (is_any<T, double, i64, std::string, char, bool>) {
-      return expr;
+      return {
+        {"name", "Constant"},
+        {"pos", this->pos.GetMetaData()},
+        {"value", expr}
+      };
     } else {
       static_assert(always_false<T>::value, "non-exhaustive vistor!");
     }

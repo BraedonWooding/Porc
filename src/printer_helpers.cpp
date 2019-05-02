@@ -9,13 +9,9 @@ std::ostream &operator <<(std::ostream &out, const LineRange &pos) {
 }
 
 json LineRange::GetMetaData() const {
-  std::string line = std::to_string(line_start) + " -> " +
-                     std::to_string(line_end);
-  std::string col =  std::to_string(col_start) + " -> " +
-                     std::to_string(col_end);
   return {
     { "file", this->file_name },
-    { "line", line },
-    { "col", col }
+    { "line", json::array({line_start, line_end}) },
+    { "col", json::array({col_start, col_end}) }
   };
 }
