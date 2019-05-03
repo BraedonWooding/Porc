@@ -2,6 +2,13 @@
 
 const fib = (n) => { if n <= 1 {1} else { fib(n - 1) + fib(n - 2) } };
 
+const x = 2
+run_something(array, (x) => x ** 2);
+
 fn main() {
   9 + println(fib("hello", 2))(5) * 2 ** 2;
+  x = 2;
+  if ({const x = 2;}) {
+    x
+  }
 }

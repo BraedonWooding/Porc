@@ -36,6 +36,11 @@ public:
   int SemanticErrors() const { return semantic_errors; }
 
   /*
+    Prints line information + some carat information if given.
+  */
+  void PrintFileLine(LineRange pos, std::string carat_extra = "");
+
+  /*
     Logs the error for when you have an undefined token;
     i.e. x = 1 ` y;
   */
@@ -65,7 +70,7 @@ public:
     For when you want to report a custom error that isn't really nicely grouped.
   */
   void ReportCustomErr(std::string msg, std::optional<LineRange> pos,
-                       ErrType type);
+                       ErrType type, std::string carat_msg = "");
 
   /*
     For when you try to narrow a tokens type for example to get an assignment

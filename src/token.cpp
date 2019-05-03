@@ -24,7 +24,10 @@ std::string Token::ToString() const {
   Unreachable("Case not handled");
 }
 
-const char *Token::ToErrorMsg() const {
+std::string Token::ToErrorMsg() const {
+  if (type == Token::Identifier || type == Token::Flt || type == Token::Int) {
+    return std::string(GetKindErrorMsg(type)) + ": " + ToString();
+  }
   return GetKindErrorMsg(type);
 }
 

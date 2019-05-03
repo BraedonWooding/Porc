@@ -43,18 +43,18 @@ int main(int argc, char *argv[]) {
     for (auto file: filenames) {
       using namespace porc::internals;
 
-      std::cout << "\t== " << file << " ==" << std::endl;
       TokenStream stream(std::make_unique<CFileReader>(file.c_str()));
       Parser parser = Parser(std::move(stream));
       auto top_level = parser.ParseFileDecl();
       if (!top_level) {
-        std::cerr << "Error couldn't parse file: " << file << std::endl;
+        std::cerr << rang::fg::red << "Error couldn't parse file: "
+                  << file << rang::style::reset << std::endl;
       } else if (ast_output) {
         std::fstream out;
         out.open(file + ".json", std::ios::out);
         if (!out) {
-          std::cerr << "Error couldn't open file: " << file << ".json"
-                    << std::endl;
+          std::cerr << rang::fg::red << "Error couldn't open file: "
+                    << file << ".json" << rang::style::reset << std::endl;
         } else {
           out << (*top_level)->GetMetaData().dump(4) << std::endl;
           out.close();
@@ -62,8 +62,6 @@ int main(int argc, char *argv[]) {
       } else {
         std::cout << (*top_level)->GetMetaData().dump(4) << std::endl;
       }
-
-      std::cout << "\t== Finished ==" << std::endl;
     }
   });
   auto tokens = dev->add_subcommand("tokens", "Tokenizes the files")
@@ -78,7 +76,8 @@ int main(int argc, char *argv[]) {
       TokenStream stream(std::make_unique<CFileReader>(file.c_str()));
       for (auto tok = stream.PopCur(); tok; tok = stream.PopCur()) {
         if (tok.type == Token::Undefined) {
-          std::cerr << "ERROR: Undefined token" << std::endl;
+          std::cerr << rang::fg::red << "ERROR: Undefined token"
+                    << rang::style::reset << std::endl;
           break;
         }
         std::cout << "(" << tok.ToName() << "): "

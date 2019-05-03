@@ -52,7 +52,7 @@ class Token {
 
   const char *ToName() const;
   std::string ToString() const;
-  const char *ToErrorMsg() const;
+  std::string ToErrorMsg() const;
 
   Token()
       : pos(-1, -1, -1, -1, 

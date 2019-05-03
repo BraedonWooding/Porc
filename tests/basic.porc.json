@@ -2,8 +2,8 @@
     "name": "FileDecl",
     "pos": {
         "file": "../tests/basic.porc",
-        "line": [3, 6],
-        "col": [0, 69]
+        "line": [3, 12],
+        "col": [0, 64]
     },
     "children": [
         {
@@ -11,7 +11,7 @@
             "pos": {
                 "file": "../tests/basic.porc",
                 "line": [3, 3],
-                "col": [0, 69]
+                "col": [0, 64]
             },
             "mut": false,
             "children": [
@@ -22,7 +22,7 @@
                         "pos": {
                             "file": "../tests/basic.porc",
                             "line": [3, 3],
-                            "col": [12, 63]
+                            "col": [12, 64]
                         },
                         "args": {
                             "name": "TupleDecl",
@@ -45,7 +45,7 @@
                                 "pos": {
                                     "file": "../tests/basic.porc",
                                     "line": [3, 3],
-                                    "col": [24, 63]
+                                    "col": [24, 64]
                                 },
                                 "children": {
                                     "statements": [
@@ -109,7 +109,7 @@
                                             "pos": {
                                                 "file": "../tests/basic.porc",
                                                 "line": [3, 3],
-                                                "col": [42, 63]
+                                                "col": [42, 64]
                                             },
                                             "ret": true,
                                             "children": {
@@ -117,14 +117,14 @@
                                                 "pos": {
                                                     "file": "../tests/basic.porc",
                                                     "line": [3, 3],
-                                                    "col": [42, 63]
+                                                    "col": [42, 64]
                                                 },
                                                 "lhs": {
                                                     "name": "FuncCall",
                                                     "pos": {
                                                         "file": "../tests/basic.porc",
                                                         "line": [3, 3],
-                                                        "col": [42, 50]
+                                                        "col": [42, 51]
                                                     },
                                                     "func": {
                                                         "name": "Identifier",
@@ -177,7 +177,7 @@
                                                             "pos": {
                                                                 "file": "../tests/basic.porc",
                                                                 "line": [3, 3],
-                                                                "col": [55, 63]
+                                                                "col": [55, 64]
                                                             },
                                                             "func": {
                                                                 "name": "Identifier",
@@ -238,16 +238,138 @@
             "name": "FuncBlock",
             "pos": {
                 "file": "../tests/basic.porc",
-                "line": [5, 6],
-                "col": [2, 41]
+                "line": [5, 5],
+                "col": [0, 10]
             },
             "ret": true,
             "children": {
                 "name": "VarDecl",
                 "pos": {
                     "file": "../tests/basic.porc",
-                    "line": [5, 6],
-                    "col": [2, 41]
+                    "line": [5, 5],
+                    "col": [0, 10]
+                },
+                "mut": false,
+                "children": [
+                    {
+                        "id": "x",
+                        "expr": {
+                            "name": "Constant",
+                            "pos": {
+                                "file": "../tests/basic.porc",
+                                "line": [5, 5],
+                                "col": [10, 10]
+                            },
+                            "value": 2
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "FuncCall",
+            "pos": {
+                "file": "../tests/basic.porc",
+                "line": [6, 6],
+                "col": [0, 34]
+            },
+            "func": {
+                "name": "Identifier",
+                "pos": {
+                    "file": "../tests/basic.porc",
+                    "line": [6, 6],
+                    "col": [0, 12]
+                },
+                "children": "run_something"
+            },
+            "args": [
+                {
+                    "name": "Identifier",
+                    "pos": {
+                        "file": "../tests/basic.porc",
+                        "line": [6, 6],
+                        "col": [14, 18]
+                    },
+                    "children": "array"
+                },
+                {
+                    "name": "FuncDecl",
+                    "pos": {
+                        "file": "../tests/basic.porc",
+                        "line": [6, 6],
+                        "col": [21, 33]
+                    },
+                    "args": {
+                        "name": "TupleDecl",
+                        "pos": {
+                            "file": "../tests/basic.porc",
+                            "line": [6, 6],
+                            "col": [21, 26]
+                        },
+                        "children": [
+                            {
+                                "id": "x",
+                                "generic": false,
+                                "mut": false
+                            }
+                        ]
+                    },
+                    "block": [
+                        {
+                            "name": "FuncBlock",
+                            "pos": {
+                                "file": "../tests/basic.porc",
+                                "line": [6, 6],
+                                "col": [28, 33]
+                            },
+                            "ret": true,
+                            "children": {
+                                "name": "PowerExpr",
+                                "pos": {
+                                    "file": "../tests/basic.porc",
+                                    "line": [6, 6],
+                                    "col": [28, 33]
+                                },
+                                "children": [
+                                    {
+                                        "name": "Identifier",
+                                        "pos": {
+                                            "file": "../tests/basic.porc",
+                                            "line": [6, 6],
+                                            "col": [28, 28]
+                                        },
+                                        "children": "x"
+                                    },
+                                    {
+                                        "name": "Constant",
+                                        "pos": {
+                                            "file": "../tests/basic.porc",
+                                            "line": [6, 6],
+                                            "col": [33, 33]
+                                        },
+                                        "value": 2
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "FuncBlock",
+            "pos": {
+                "file": "../tests/basic.porc",
+                "line": [8, 12],
+                "col": [4, 20]
+            },
+            "ret": true,
+            "children": {
+                "name": "VarDecl",
+                "pos": {
+                    "file": "../tests/basic.porc",
+                    "line": [8, 12],
+                    "col": [4, 20]
                 },
                 "mut": false,
                 "children": [
@@ -257,14 +379,14 @@
                             "name": "FuncDecl",
                             "pos": {
                                 "file": "../tests/basic.porc",
-                                "line": [5, 6],
-                                "col": [2, 41]
+                                "line": [8, 12],
+                                "col": [4, 20]
                             },
                             "args": {
                                 "name": "TupleDecl",
                                 "pos": {
                                     "file": "../tests/basic.porc",
-                                    "line": [5, 5],
+                                    "line": [8, 8],
                                     "col": [8, 8]
                                 },
                                 "children": []
@@ -274,14 +396,14 @@
                                     "name": "AdditiveExpr",
                                     "pos": {
                                         "file": "../tests/basic.porc",
-                                        "line": [6, 6],
+                                        "line": [9, 9],
                                         "col": [2, 41]
                                     },
                                     "lhs": {
                                         "name": "Constant",
                                         "pos": {
                                             "file": "../tests/basic.porc",
-                                            "line": [6, 6],
+                                            "line": [9, 9],
                                             "col": [2, 2]
                                         },
                                         "value": 9
@@ -293,28 +415,28 @@
                                                 "name": "MultiplicativeExpr",
                                                 "pos": {
                                                     "file": "../tests/basic.porc",
-                                                    "line": [6, 6],
+                                                    "line": [9, 9],
                                                     "col": [6, 41]
                                                 },
                                                 "lhs": {
                                                     "name": "FuncCall",
                                                     "pos": {
                                                         "file": "../tests/basic.porc",
-                                                        "line": [6, 6],
-                                                        "col": [6, 31]
+                                                        "line": [9, 9],
+                                                        "col": [6, 32]
                                                     },
                                                     "func": {
                                                         "name": "FuncCall",
                                                         "pos": {
                                                             "file": "../tests/basic.porc",
-                                                            "line": [6, 6],
-                                                            "col": [6, 27]
+                                                            "line": [9, 9],
+                                                            "col": [6, 29]
                                                         },
                                                         "func": {
                                                             "name": "Identifier",
                                                             "pos": {
                                                                 "file": "../tests/basic.porc",
-                                                                "line": [6, 6],
+                                                                "line": [9, 9],
                                                                 "col": [6, 12]
                                                             },
                                                             "children": "println"
@@ -324,14 +446,14 @@
                                                                 "name": "FuncCall",
                                                                 "pos": {
                                                                     "file": "../tests/basic.porc",
-                                                                    "line": [6, 6],
-                                                                    "col": [14, 27]
+                                                                    "line": [9, 9],
+                                                                    "col": [14, 28]
                                                                 },
                                                                 "func": {
                                                                     "name": "Identifier",
                                                                     "pos": {
                                                                         "file": "../tests/basic.porc",
-                                                                        "line": [6, 6],
+                                                                        "line": [9, 9],
                                                                         "col": [14, 16]
                                                                     },
                                                                     "children": "fib"
@@ -341,7 +463,7 @@
                                                                         "name": "Constant",
                                                                         "pos": {
                                                                             "file": "../tests/basic.porc",
-                                                                            "line": [6, 6],
+                                                                            "line": [9, 9],
                                                                             "col": [18, 24]
                                                                         },
                                                                         "value": "hello"
@@ -350,7 +472,7 @@
                                                                         "name": "Constant",
                                                                         "pos": {
                                                                             "file": "../tests/basic.porc",
-                                                                            "line": [6, 6],
+                                                                            "line": [9, 9],
                                                                             "col": [27, 27]
                                                                         },
                                                                         "value": 2
@@ -364,7 +486,7 @@
                                                             "name": "Constant",
                                                             "pos": {
                                                                 "file": "../tests/basic.porc",
-                                                                "line": [6, 6],
+                                                                "line": [9, 9],
                                                                 "col": [31, 31]
                                                             },
                                                             "value": 5
@@ -378,7 +500,7 @@
                                                             "name": "PowerExpr",
                                                             "pos": {
                                                                 "file": "../tests/basic.porc",
-                                                                "line": [6, 6],
+                                                                "line": [9, 9],
                                                                 "col": [36, 41]
                                                             },
                                                             "children": [
@@ -386,7 +508,7 @@
                                                                     "name": "Constant",
                                                                     "pos": {
                                                                         "file": "../tests/basic.porc",
-                                                                        "line": [6, 6],
+                                                                        "line": [9, 9],
                                                                         "col": [36, 36]
                                                                     },
                                                                     "value": 2
@@ -395,7 +517,7 @@
                                                                     "name": "Constant",
                                                                     "pos": {
                                                                         "file": "../tests/basic.porc",
-                                                                        "line": [6, 6],
+                                                                        "line": [9, 9],
                                                                         "col": [41, 41]
                                                                     },
                                                                     "value": 2
@@ -407,6 +529,73 @@
                                             }
                                         }
                                     ]
+                                },
+                                {
+                                    "name": "VarDecl",
+                                    "pos": {
+                                        "file": "../tests/basic.porc",
+                                        "line": [10, 10],
+                                        "col": [2, 12]
+                                    },
+                                    "mut": false,
+                                    "children": [
+                                        {
+                                            "id": "x",
+                                            "expr": {
+                                                "name": "Constant",
+                                                "pos": {
+                                                    "file": "../tests/basic.porc",
+                                                    "line": [10, 10],
+                                                    "col": [12, 12]
+                                                },
+                                                "value": 2
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name": "If",
+                                    "pos": {
+                                        "file": "../tests/basic.porc",
+                                        "line": [11, 12],
+                                        "col": [4, 20]
+                                    },
+                                    "children": {
+                                        "statements": [
+                                            {
+                                                "cond": {
+                                                    "name": "FuncBlock",
+                                                    "pos": {
+                                                        "file": "../tests/basic.porc",
+                                                        "line": [11, 11],
+                                                        "col": [20, 20]
+                                                    },
+                                                    "is_array": false,
+                                                    "values": []
+                                                },
+                                                "block": [
+                                                    {
+                                                        "name": "FuncBlock",
+                                                        "pos": {
+                                                            "file": "../tests/basic.porc",
+                                                            "line": [12, 12],
+                                                            "col": [4, 4]
+                                                        },
+                                                        "ret": true,
+                                                        "children": {
+                                                            "name": "Identifier",
+                                                            "pos": {
+                                                                "file": "../tests/basic.porc",
+                                                                "line": [12, 12],
+                                                                "col": [4, 4]
+                                                            },
+                                                            "children": "x"
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
                                 }
                             ]
                         }

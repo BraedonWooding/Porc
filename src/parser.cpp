@@ -76,22 +76,34 @@ std::optional<To> Parser::TokenCast(Token tok) {
 }
 
 optional_unique_ptr<FileDecl> Parser::ParseFileDecl() {
-  std::vector<std::unique_ptr<FuncBlock>> expressions;
+  std::vector<std::unique_ptr<FuncBlock>> exprs;
   optional_unique_ptr<FuncBlock> expr;
-  while (stream.PeekCur().type != Token::EndOfFile &&
-        (expr = ParseFuncBlock()).has_value()) {
-    expressions.push_back(std::move(*expr));
+  while (stream.PeekCur().type != Token::EndOfFile) {
+    if ((expr = ParseFuncBlock()).has_value()) {
+      exprs.push_back(std::move(*expr));
+    } else {
+      return std::nullopt;
+        // @TODO: we want something like this;
+        // probably have to do it locally per func
+          /*else {
+          // we want to go till we reach a different line number
+          // @HACK: later on we want to improve this a lot!
+          int num = stream.PopCur().pos.line_end;
+          while (num == stream.PeekCur().pos.line_end) stream.PopCur();
+        }*/
+    }
   }
 
-  if (!expr) return std::nullopt;
-  LineRange range = FindRangeOfVector(expressions);
-  return std::make_unique<FileDecl>(range, std::move(expressions));
+  LineRange range = stream.PeekCur().pos;
+  if (exprs.size() > 0) range = FindRangeOfVector(exprs);
+  return std::make_unique<FileDecl>(range, std::move(exprs));
 }
 
 optional_unique_ptr<FuncBlock> Parser::ParseFuncBlock() {
   Token tok = stream.PeekCur();
   LineRange start = tok.pos;
   optional_unique_ptr<FuncBlock> expr;
+
   bool ret = false;
   if (tok.type == Token::Return) {
     ret = true;
@@ -136,11 +148,32 @@ optional_unique_ptr<FuncBlock> Parser::ParseFuncBlock() {
 
   if (!expr) return std::nullopt;
 
-  if (stream.PeekCur().type == Token::SemiColon) {
-    if (!ConsumeToken(Token::SemiColon)) return std::nullopt;
-  } else if (!(*expr)->IsBlockExpr()) {
+  /*
+    We are expecting a semicolon IFF we aren't on a new line and the previous
+    wasn't a block expr.  If it was then we can still get a semicolon
+  */
+
+  // @HACK (ish): this will work but its not greattt...  Or maybe its okay?
+  bool diff_line = stream.PeekCur().pos.line_start != (*expr)->pos.line_end;
+  bool is_block = (*expr)->IsBlockExpr();
+  tok = stream.PeekCur();
+
+  if (tok.type == Token::SemiColon ||
+      (!diff_line && tok.type != Token::SemiColon && !is_block &&
+      tok.type != Token::RightBrace && tok.type != Token::Comma &&
+      tok.type != Token::RightParen)) {
+    if (tok.type != Token::SemiColon) {
+      err.ReportCustomErr("Was expecting ';' '}' ',' ')' or an operator and got an invalid token.",
+                          (*expr)->pos, ErrStream::SyntaxErr, "';' '}' ',' ')' or an operator");
+      // err.ReportInvalidTokenCast(tok, "';' '}' ',' ')' or an operator");
+      return std::nullopt;
+    }
+    stream.PopCur();
+  } else if (!is_block) {
+    // diff line and not a semi_colon
     ret = true;
   }
+
   (*expr)->ret = ret;
   return expr;
 }
@@ -274,9 +307,12 @@ optional_unique_ptr<VarDecl> Parser::ParseStructDecl() {
     exprs.push_back(std::move(*expr));
   }
 
+  LineRange end = stream.PeekCur().pos;
+  if (exprs.size() > 0) end = FindRangeOfVector(exprs);
+
   if (!ConsumeToken((Token::RightBrace))) return std::nullopt;
 
-  LineRange pos = LineRange((*tuple_decl)->pos, FindRangeOfVector(exprs));
+  LineRange pos = LineRange((*tuple_decl)->pos, end);
   auto tmp = std::make_unique<Expr>(pos, std::move(*tuple_decl),
                                     std::move(exprs));
   std::vector<VarDecl::Declaration> decl;
@@ -324,9 +360,11 @@ optional_unique_ptr<Expr> Parser::ParseExprFuncOrStruct(
       expressions.push_back(std::move(*expr));
     }
     if (!expr) return std::nullopt;
-    if (!ConsumeToken((Token::RightBrace))) return std::nullopt;
 
-    LineRange range = FindRangeOfVector(expressions);
+    LineRange range = stream.PeekCur().pos;
+    if (expressions.size() > 0) range = FindRangeOfVector(expressions);
+
+    if (!ConsumeToken((Token::RightBrace))) return std::nullopt;
     return std::make_unique<Expr>(range, std::move(tuple_decl),
                                   std::move(expressions));
   } else if (tok.type == Token::FatArrow) {
@@ -536,10 +574,10 @@ optional_unique_ptr<Expr> Parser::ParseExprOrTupleDecl() {
 
   // convert all declarations into expressions anyway
   if (expressions.size() == 0) {
-      std::for_each(declarations.cbegin(), declarations.cend(),
-        [&expressions, this](auto &decl) {
-          expressions.push_back(ConvIdentToExpr(decl.id));
-        });
+    std::for_each(declarations.cbegin(), declarations.cend(),
+      [&expressions, this](auto &decl) {
+        expressions.push_back(ConvIdentToExpr(decl.id));
+      });
   }
 
   if (expressions.size() == 1 && !comma) {
@@ -601,12 +639,13 @@ optional_unique_ptr<Expr> Parser::ParseExpr() {
         if (comma && exprs.size() != 1) {
           err.ReportUnexpectedToken(Token::RightParen, last);
         }
+        LineRange pos = stream.PeekCur().pos;
+        if (exprs.size() > 0) pos = FindRangeOfVector(exprs);
         if (!ConsumeToken(Token::RightParen)) return std::nullopt;
 
         if (!comma && exprs.size() == 1) {
           expr = std::move(exprs[0]);
         } else {
-          LineRange pos = FindRangeOfVector(exprs);
           expr = std::make_unique<Expr>(pos, std::move(exprs), false);
         }
       }
@@ -646,8 +685,9 @@ optional_unique_ptr<Expr> Parser::ParseExpr() {
             (func_expr = ParseFuncBlock()).has_value()) {
         exprs.push_back(std::move(*func_expr));
       }
+      LineRange pos = stream.PeekCur().pos;
+      if (exprs.size() > 0) pos = FindRangeOfVector(exprs);;
       if (!func_expr || !ConsumeToken(Token::RightBrace)) return std::nullopt;
-      LineRange pos = FindRangeOfVector(exprs);
       expr = std::make_unique<Expr>(pos, std::move(exprs));
     } break;
     case Token::If: expr = ComposeExpr<Expr>(ParseIfBlock()); break;
@@ -724,7 +764,10 @@ optional_unique_ptr<VarDecl> Parser::ParseVarDecl() {
   while ((cur = stream.PopCur()).type != Token::Colon &&
          cur.type != Token::Assign) {
     if (cur.type != Token::Identifier) {
-      err.ReportUnexpectedToken(Token::Identifier, cur);
+      int line_end = cur.pos.line_end;
+      cur.pos = start;
+      cur.pos.line_end = line_end;
+      err.ReportInvalidTokenCast(cur, "':' '='");
       return std::nullopt;
     }
 
@@ -764,7 +807,7 @@ optional_unique_ptr<VarDecl> Parser::ParseVarDecl() {
     return std::nullopt;
   }
 
-  LineRange end = stream.PeekCur().pos;
+  LineRange end = decls[decls.size() - 1].GetPos();
   return std::make_unique<VarDecl>(LineRange(start, end), mut,
                                    std::move(decls));
 }
@@ -810,13 +853,18 @@ optional_unique_ptr<IfBlock> Parser::ParseIfBlock() {
       // else and then end the function
       auto func_block = ParseFuncBlockStatements();
       if (!func_block) return std::nullopt;
-      LineRange end = FindRangeOfVector(*func_block);
+      LineRange end = stream.PeekCur().pos;
+      if ((*func_block).size() > 0) end = FindRangeOfVector(*func_block);
       LineRange pos = LineRange(statements[0].cond->pos, end);
       return std::make_unique<IfBlock>(pos, std::move(statements),
                                        std::move(*func_block));
     }
   }
-  LineRange end = FindRangeOfVector(statements[statements.size() - 1].block);
+  LineRange end = stream.PeekCur().pos;
+  auto &block = statements[statements.size() - 1].block;
+  if (block.size() > 0) {
+    end = FindRangeOfVector(block);
+  }
   LineRange pos = LineRange(statements[0].cond->pos, end);
   return std::make_unique<IfBlock>(pos, std::move(statements), std::nullopt);
 }
@@ -873,13 +921,15 @@ optional_unique_ptr<FuncCall> Parser::ParseFuncCall() {
 
   if (!ConsumeToken(Token::LeftParen)) return std::nullopt;
 
-  // parse arguments
   std::vector<std::unique_ptr<Expr>> args;
-  if (!ParseList(&Parser::ParseExpr, PushBack, args)) return std::nullopt;
+  if (stream.PeekCur().type != Token::RightParen) {
+    // parse arguments
+    if (!ParseList(&Parser::ParseExpr, PushBack, args)) return std::nullopt;
+  }
 
+  LineRange pos = LineRange((*func)->pos, stream.PeekCur().pos);
   if (!ConsumeToken(Token::RightParen)) return std::nullopt;
 
-  LineRange pos = LineRange((*func)->pos, args.back()->pos);
   return std::make_unique<FuncCall>(pos, std::move(*func), std::move(args));
 }
 
@@ -1130,7 +1180,7 @@ optional_unique_ptr<Atom> Parser::ParseAtom() {
     LineRange pos = (*constant)->pos;
     atom = std::make_unique<Atom>(pos, std::move(*constant));
   } else {
-    err.ReportCustomErr("Invalid Atom Expr", peek.pos, ErrStream::SyntaxErr);
+    // err.ReportCustomErr("Invalid Atom Expr", peek.pos, ErrStream::SyntaxErr);
     err.ReportInvalidToken(peek);
     return std::nullopt;
   }
@@ -1146,11 +1196,13 @@ optional_unique_ptr<Atom> Parser::ParseAtom() {
       // func call
       // @FIXME: just copied from func call, should fix
       if (!ConsumeToken(Token::LeftParen)) return std::nullopt;
-      // parse arguments
       std::vector<std::unique_ptr<Expr>> args;
-      if (!ParseList(&Parser::ParseExpr, PushBack, args)) return std::nullopt;
+      if (stream.PeekCur().type != Token::RightParen) {
+        // parse arguments
+        if (!ParseList(&Parser::ParseExpr, PushBack, args)) return std::nullopt;
+      }
+      LineRange pos = LineRange(atom->pos, stream.PeekCur().pos);
       if (!ConsumeToken(Token::RightParen)) return std::nullopt;
-      LineRange pos = LineRange(atom->pos, args.back()->pos);
       auto func = std::make_unique<FuncCall>(pos, std::move(atom),
                                              std::move(args));
       atom = std::make_unique<Atom>(pos, std::move(func));
