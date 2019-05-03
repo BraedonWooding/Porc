@@ -134,19 +134,14 @@ optional_unique_ptr<FuncBlock> Parser::ParseFuncBlock() {
       }
   }
 
-  if (stream.PeekCur().type == Token::SemiColon) {
-    stream.PopCur();
-  }
-  // @TODO: if the last node didn't end with '}' then its now a ret
+  if (!expr) return std::nullopt;
 
-  if (expr && ret) {
-    if ((*expr)->ret) {
-      err.ReportCustomErr(DoubleReturnErrMsg, LineRange(start,(*expr)->pos),
-                          ErrStream::LexicalErr);
-      // we are still fine in this case so meh
-    }
-    (*expr)->ret = ret;
+  if (stream.PeekCur().type == Token::SemiColon) {
+    if (!ConsumeToken(Token::SemiColon)) return std::nullopt;
+  } else if (!(*expr)->IsBlockExpr()) {
+    ret = true;
   }
+  (*expr)->ret = ret;
   return expr;
 }
 
@@ -165,6 +160,7 @@ optional_unique_ptr<VarDecl> Parser::ParseFuncDecl() {
 
   std::optional<std::unique_ptr<TypeExpr>> ret_type = std::nullopt;
   if (stream.PeekCur().type != Token::LeftBrace) {
+    if (!ConsumeToken(Token::ReturnType)) return std::nullopt;
     auto type_expr = ParseTypeExpr();
     if (!type_expr) return std::nullopt;
     ret_type = std::move(*type_expr);
@@ -335,21 +331,38 @@ optional_unique_ptr<Expr> Parser::ParseExprFuncOrStruct(
                                   std::move(expressions));
   } else if (tok.type == Token::FatArrow) {
     stream.PopCur();
-    auto expr = ParseFuncBlockStatements();
-    if (!expr) return std::nullopt;
-    LineRange pos = LineRange(tuple_decl->pos, (*expr)[expr->size()-1]->pos);
+    std::vector<std::unique_ptr<FuncBlock>> block;
+    if (stream.PeekCur().type == Token::LeftBrace) {
+      auto expr = ParseFuncBlockStatements();
+      if (!expr) return std::nullopt;
+      block = std::move(*expr);
+    } else {
+      auto func_block = ParseFuncBlock();
+      if (!func_block) return std::nullopt;
+      block.push_back(std::move(*func_block));
+    }
+
+    LineRange pos = LineRange(tuple_decl->pos, (block)[block.size()-1]->pos);
     return std::make_unique<Expr>(pos, std::move(tuple_decl),
-                                  std::nullopt,  std::move(*expr));
+                                  std::nullopt,  std::move(block));
   } else {
     // has to be function just with a type
     auto ret = ParseTypeExpr();
     if (!ret) return std::nullopt;
     if (!ConsumeToken((Token::FatArrow))) return std::nullopt;
-    auto expr = ParseFuncBlockStatements();
-    if (!expr) return std::nullopt;
-    LineRange pos = LineRange(tuple_decl->pos, (*expr)[expr->size()-1]->pos);
+    std::vector<std::unique_ptr<FuncBlock>> block;
+    if (stream.PeekCur().type == Token::LeftBrace) {
+      auto expr = ParseFuncBlockStatements();
+      if (!expr) return std::nullopt;
+      block = std::move(*expr);
+    } else {
+      auto func_block = ParseFuncBlock();
+      if (!func_block) return std::nullopt;
+      block.push_back(std::move(*func_block));
+    }
+    LineRange pos = LineRange(tuple_decl->pos, (block)[block.size()-1]->pos);
     return std::make_unique<Expr>(pos, std::move(tuple_decl),
-                                  std::move(*ret), std::move(*expr));
+                                  std::move(*ret), std::move(block));
   }
 }
 
@@ -516,7 +529,6 @@ optional_unique_ptr<Expr> Parser::ParseExprOrTupleDecl() {
     }
     if (comma) err.ReportCustomErr("Extra ','", prev_tok.pos,
                                    ErrStream::LexicalErr);
-    // @FIXME: Fix this
     LineRange pos = LineRange(start, tok.pos);
     return ParseExprFuncOrStruct(std::make_unique<TupleDecl>(pos,
       std::move(declarations)));
@@ -765,11 +777,8 @@ std::optional<std::vector<std::unique_ptr<FuncBlock>>>
     return std::get<std::vector<std::unique_ptr<FuncBlock>>>(
         std::move((*expr)->expr));
   } else {
-    auto block = ParseFuncBlock();
-    std::vector<std::unique_ptr<FuncBlock>> vec;
-    if (!block) return std::nullopt;
-    vec.push_back(std::move(*block));
-    return std::move(vec);
+    err.ReportExpectedToken(Token::LeftBrace, stream.PeekCur().pos);
+    return std::nullopt;
   }
 }
 

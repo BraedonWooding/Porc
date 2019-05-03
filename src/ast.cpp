@@ -51,6 +51,28 @@ json GetJsonForVec(const std::vector<T> &vec) {
   return meta_data;
 }
 
+bool FuncBlock::IsBlockExpr() const {
+  if (auto expr = std::get_if<std::unique_ptr<Expr>>(&this->expr)) {
+    return (*expr)->IsBlock();
+  } else {
+    return false;
+  }
+}
+
+bool Expr::IsBlock() const {
+  return std::visit([this](auto &&expr)->json {
+    using T = std::decay_t<decltype(expr)>;
+    if constexpr (is_any<T, Expr::FuncDecl, Expr::StructDecl,
+                         std::unique_ptr<ForBlock>, std::unique_ptr<WhileBlock>,
+                         std::unique_ptr<IfBlock>,
+                         std::vector<std::unique_ptr<FuncBlock>>>) {
+      return true;
+    } else {
+      return false;
+    }
+  }, this->expr);
+}
+
 std::optional<AssignmentOp> AssignmentOp::FromToken(Token tok) {
   switch (tok.type) {
     case Token::AddAssign: return AssignmentOp::AdditionEqual;

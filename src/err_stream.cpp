@@ -13,8 +13,9 @@ void ErrStream::ReportUndefinedToken(std::string token_data, LineRange pos) {
 
 void ErrStream::ReportExpectedToken(Token::Kind expected, LineRange cur) {
   out << "Error " << cur.file_name << "(" << cur
-                          << "): Wasn't expecting EOF, was expecting to get; "
-                          << Token::GetKindErrorMsg(expected) << std::endl;
+                          << "): Wasn't expecting EOF, was expecting to get; '"
+                          << Token::GetKindErrorMsg(expected)
+                          << "'" << std::endl;
   syntax_errors++;
 }
 
@@ -33,10 +34,11 @@ void ErrStream::ReportCustomErr(std::string msg, std::optional<LineRange> pos,
 
 void ErrStream::ReportUnexpectedToken(Token::Kind expected, Token invalid) {
   out << "Error " << invalid.pos.file_name << "(" << invalid.pos
-                                  << "): Wasn't expecting "
+                                  << "): Wasn't expecting '"
                                     << invalid.ToErrorMsg()
-                                  << "was expecting; " 
+                                  << "' was expecting; '" 
                                     << Token::GetKindErrorMsg(expected)
+                                  << "'"
                                   << std::endl;
   syntax_errors++;
 }
@@ -44,8 +46,8 @@ void ErrStream::ReportUnexpectedToken(Token::Kind expected, Token invalid) {
 void ErrStream::ReportInvalidToken(Token invalid) {
   // @TODO: implement some nicer information this is very bare
   out << "Error " << invalid.pos.file_name << "(" << invalid.pos
-                                  << "): Invalid token "
-                                  << invalid.ToErrorMsg() << std::endl;
+                                  << "): Invalid token '"
+                                  << invalid.ToErrorMsg() << "'" << std::endl;
   syntax_errors++;
 }
 

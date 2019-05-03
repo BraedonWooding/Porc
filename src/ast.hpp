@@ -263,6 +263,8 @@ class FuncBlock : public BaseAST {
                std::unique_ptr<Expr>, std::unique_ptr<VarDecl>> expr;
   bool ret;
 
+  bool IsBlockExpr() const;
+
   FuncBlock(LineRange pos, std::unique_ptr<AssignmentExpr> expr,
             bool ret = false)
       : BaseAST(pos), expr(std::move(expr)), ret(ret) {}
@@ -615,6 +617,8 @@ class Expr : public BaseAST {
                std::unique_ptr<ForBlock>, std::unique_ptr<WhileBlock>,
                std::unique_ptr<IfBlock>, MapExpr, CollectionExpr,
                std::vector<std::unique_ptr<FuncBlock>>> expr;
+
+  bool IsBlock() const;
 
   Expr(LineRange pos, std::unique_ptr<LogicalOrExpr> arg)
       : expr(std::move(arg)), BaseAST(pos) {}
