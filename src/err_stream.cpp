@@ -31,7 +31,7 @@ void ErrStream::PrintFileLine(LineRange pos, std::string carat_extra) {
               << std::string(4 + pos.col_start - 1, ' ')
               << rang::fg::green
               << std::string(pos.col_end - pos.col_start + 1, '^')
-              << rang::style::reset << " " << carat_extra 
+              << rang::fg::blue << " " << carat_extra << rang::style::reset
               << std::endl;
         }
       }
@@ -53,7 +53,7 @@ void ErrStream::ReportUndefinedToken(std::string token_data, LineRange pos) {
 
 void ErrStream::ReportExpectedToken(Token::Kind expected, LineRange cur) {
   out << rang::fg::red << "Error " << cur.file_name << "(" << cur
-                          << "): Wasn't expecting EOF, was expecting to get; '"
+                          << "): was expecting '"
                           << Token::GetKindErrorMsg(expected)
                           << "'" << rang::style::reset << std::endl;
   PrintFileLine(cur);
@@ -90,10 +90,10 @@ void ErrStream::ReportMissingToken(Token::Kind expected, LineRange pos) {
 
 void ErrStream::ReportUnexpectedToken(Token::Kind expected, Token invalid) {
   out << rang::fg::red << "Error " << invalid.pos.file_name << "("
-                                  << invalid.pos << "): Wasn't expecting '"
-                                    << invalid.ToErrorMsg()
-                                  << "' was expecting; '" 
+                                  << invalid.pos << "): was expecting '"
                                     << Token::GetKindErrorMsg(expected)
+                                  << "' but instead got '"
+                                    << invalid.ToErrorMsg()
                                   << "'"
                                   << rang::style::reset << std::endl;
   PrintFileLine(invalid.pos, Token::GetKindErrorMsg(expected));

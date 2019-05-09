@@ -11,6 +11,8 @@ fn main() {
     2
   }
 
+  zl = () => {2;
+
   9 + println(fib("hello", 2))(5) * 2 ** 2;
   x = 2
   if (const x = 2) {

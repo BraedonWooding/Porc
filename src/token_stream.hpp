@@ -62,13 +62,13 @@ class TokenStream {
   uint read_size = 0;
 
   /* The current vertical height */
-  uint line = 1;
+  int line = 1;
 
   /* Current horizontal height */
-  uint col = 1;
+  int col = 1;
 
-  uint old_line = 0;
-  uint old_col = 0;
+  int old_line = 0;
+  int old_col = 0;
 
   /* The reader to read in data */
   std::unique_ptr<Reader> reader;

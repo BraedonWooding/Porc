@@ -48,7 +48,8 @@ int main(int argc, char *argv[]) {
       auto top_level = parser.ParseFileDecl();
       if (!top_level) {
         std::cerr << rang::fg::red << "Error couldn't parse file: "
-                  << file << rang::style::reset << std::endl;
+                  << file << " due to errors shown above"
+                  << rang::style::reset << std::endl;
       } else if (ast_output) {
         std::fstream out;
         out.open(file + ".json", std::ios::out);

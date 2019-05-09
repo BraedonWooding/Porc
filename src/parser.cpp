@@ -19,11 +19,13 @@ namespace porc::internals {
   accurate AST (it is going to be wrong regardless).
 */
 
+// @TODO: add consumeToken but using missing since sometimes we want that
+
 bool Parser::ConsumeToken(Token::Kind wanted) {
   Token tok = stream.PeekCur();
   // check if next token is what we want
   if (tok.type == Token::EndOfFile) {
-    err.ReportExpectedToken(wanted, tok.pos);
+    err.ReportMissingToken(wanted, tok.pos);
     return false;
   } else if (tok.type != wanted) {
     err.ReportUnexpectedToken(wanted, tok);
@@ -117,10 +119,6 @@ optional_unique_ptr<FuncBlock> Parser::ParseFuncBlock(bool file_scope) {
     stream.PopCur();
     tok = stream.PeekCur();
   }
-
-  // @BUG: when return is the last token it'll just ignore it
-  //       rather than raising an error
-  if (tok.type == Token::EndOfFile) return std::nullopt;
 
   if (tok.type == Token::Const || tok.type == Token::Mut) {
     // var decl
@@ -544,6 +542,7 @@ optional_unique_ptr<Expr> Parser::ParseExprOrTupleDecl() {
   tok = stream.PeekCur();
   if (tok.type == Token::DoubleColon ||
       tok.type == Token::FatArrow) {
+    // @QUESTION: wattt? is this doing
     if (expressions.size() != 0) {
       err.ReportInvalidToken(tok);
       return std::nullopt;
@@ -589,7 +588,9 @@ optional_unique_ptr<Expr> Parser::ParseExpr() {
       // tuple/func/struct or simply '(' expr ')'
       Token tok = stream.PopCur();
       Token next = stream.PeekCur();
-      if (next.type == Token::Mut) {
+
+      // empty tuple or we see something that indicates function
+      if (next.type == Token::Mut || next.type == Token::RightParen) {
         // either func/struct
         stream.Push(tok);
         auto tuple_decl = ParseTupleDecl();
@@ -605,7 +606,7 @@ optional_unique_ptr<Expr> Parser::ParseExpr() {
         // has to be a tuple
         std::vector<std::unique_ptr<Expr>> exprs;
         bool comma = false;
-        Token last = stream.PeekCur();
+        Token last = next;
         while (stream.PeekCur().type != Token::RightParen) {
           comma = false;
           auto expr = ParseExpr();
@@ -794,11 +795,12 @@ std::optional<std::vector<std::unique_ptr<FuncBlock>>> Parser::ParseBlock() {
   optional_unique_ptr<FuncBlock> func_expr;
 
   while (stream.PeekCur().type != Token::RightBrace &&
+        stream.PeekCur().type != Token::EndOfFile &&
         (func_expr = ParseFuncBlock()).has_value()) {
     exprs.push_back(std::move(*func_expr));
   }
 
-  if (!func_expr || !ConsumeToken(Token::RightBrace)) return std::nullopt;
+  if (!ConsumeToken(Token::RightBrace) || !func_expr) return std::nullopt;
   return std::move(exprs);
 }
 
@@ -1157,8 +1159,7 @@ optional_unique_ptr<Atom> Parser::ParseAtom() {
     LineRange pos = (*constant)->pos;
     atom = std::make_unique<Atom>(pos, std::move(*constant));
   } else {
-    // err.ReportCustomErr("Invalid Atom Expr", peek.pos, ErrStream::SyntaxErr);
-    err.ReportInvalidToken(peek);
+    err.ReportCustomErr("Invalid Atom Expr", peek.pos, ErrStream::SyntaxErr);
     return std::nullopt;
   }
 
