@@ -167,10 +167,9 @@ private:
   optional_unique_ptr<TupleDecl> ParseRestTupleDeclExpr(
     std::vector<TupleDecl::ArgDecl> declarations);
   std::optional<IfBlock::IfStatement> ParseIfStatement();
-  std::optional<std::vector<std::unique_ptr<FuncBlock>>>
-    ParseFuncBlockStatements();
 
   optional_unique_ptr<Atom> ParseSliceOrIndex(std::unique_ptr<Atom> lhs);
+  std::optional<std::vector<std::unique_ptr<FuncBlock>>> ParseBlock();
 
 public:
   Parser(TokenStream stream, std::ostream &out = std::cerr)
@@ -186,7 +185,7 @@ public:
   optional_unique_ptr<VarDecl> ParseVarDecl();
 
   optional_unique_ptr<StructBlock> ParseStructBlock();
-  optional_unique_ptr<FuncBlock> ParseFuncBlock();
+  optional_unique_ptr<FuncBlock> ParseFuncBlock(bool file_scope = false);
   optional_unique_ptr<IfBlock> ParseIfBlock();
   optional_unique_ptr<WhileBlock> ParseWhileBlock();
   optional_unique_ptr<ForBlock> ParseForBlock();

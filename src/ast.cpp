@@ -77,7 +77,7 @@ std::optional<AssignmentOp> AssignmentOp::FromToken(Token tok) {
   switch (tok.type) {
     case Token::AddAssign: return AssignmentOp::AdditionEqual;
     case Token::SubtractAssign: return AssignmentOp::SubtractionEqual;
-    case Token::Equal: return AssignmentOp::Equal;
+    case Token::Assign: return AssignmentOp::Assign;
     case Token::DivideAssign: return AssignmentOp::DivisionEqual;
     case Token::PowerAssign: return AssignmentOp::PowerEqual;
     case Token::ModulusAssign: return AssignmentOp::ModulusEqual;
@@ -130,7 +130,7 @@ const char *AssignmentOp::ToStr() const {
   switch (value) {
     case AssignmentOp::AdditionEqual: return "+=";
     case AssignmentOp::SubtractionEqual: return "-=";
-    case AssignmentOp::Equal: return "=";
+    case AssignmentOp::Assign: return "=";
     case AssignmentOp::DivisionEqual: return "/=";
     case AssignmentOp::PowerEqual: return "**=";
     case AssignmentOp::ModulusEqual: return "%=";

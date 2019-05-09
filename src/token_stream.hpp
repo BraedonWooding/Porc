@@ -62,10 +62,10 @@ class TokenStream {
   uint read_size = 0;
 
   /* The current vertical height */
-  uint line = 0;
+  uint line = 1;
 
   /* Current horizontal height */
-  uint col = 0;
+  uint col = 1;
 
   uint old_line = 0;
   uint old_col = 0;
@@ -131,7 +131,7 @@ class TokenStream {
 
  public:
 
-  bool ignore_comments = false;
+  bool ignore_comments = true;
 
   /*
     Returns the current token.  Can only be called once per Next.

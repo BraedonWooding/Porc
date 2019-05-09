@@ -66,6 +66,9 @@ int main(int argc, char *argv[]) {
   });
   auto tokens = dev->add_subcommand("tokens", "Tokenizes the files")
     ->ignore_case()->fallthrough();
+  bool ignore_comments = false;
+  tokens->add_flag("--remove-comments", ignore_comments,
+                   "Remove comment tokens");
   tokens->callback([&](){
     if (verbose) std::cout << "Running subcommand `dev/tokens`";
 
@@ -74,6 +77,7 @@ int main(int argc, char *argv[]) {
 
       std::cout << "\t== " << file << " ==" << std::endl;
       TokenStream stream(std::make_unique<CFileReader>(file.c_str()));
+      stream.ignore_comments = ignore_comments;
       for (auto tok = stream.PopCur(); tok; tok = stream.PopCur()) {
         if (tok.type == Token::Undefined) {
           std::cerr << rang::fg::red << "ERROR: Undefined token"
@@ -81,7 +85,7 @@ int main(int argc, char *argv[]) {
           break;
         }
         std::cout << "(" << tok.ToName() << "): "
-                  << tok.ToString() << std::endl;
+                  << tok.ToString() << "\t:" << tok.pos << std::endl;
       }
       std::cout << "\t== Finished ==" << std::endl;
     }

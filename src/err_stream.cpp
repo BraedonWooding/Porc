@@ -8,33 +8,36 @@ namespace porc::internals {
 void ErrStream::PrintFileLine(LineRange pos, std::string carat_extra) {
     std::ifstream file(pos.file_name);
     std::string line;
-    unsigned int line_number = 1;
+
+    unsigned int line_number = 0;
     auto line_str = std::to_string(pos.line_end);
     out << std::string(line_str.size() + 1, ' ') << '|' << std::endl;
-    bool done = false;
-    while (std::getline(file, line))
+    while (std::getline(file, line) && line_number < pos.line_end)
     {
-      if (line_number >= pos.line_start && line_number <= pos.line_end)
+      line_number++;
+      // @HACK: (Slight) just to give nicer err messages
+      //        we are going to give err messages minus one line
+      //        this isn't a perfect fix and we should rather kind of look
+      //        and concatenating blank lines so we don't just give more blank
+      //        lines
+      // @NOTE: using ::isspace so its clear its not the std one
+      if (line_number >= pos.line_start - 1 && line_number <= pos.line_end &&
+          !std::all_of(line.cbegin(), line.cend(), ::isspace))
       {
         line_str = std::to_string(line_number);
         out << line_str << " |" << "    " << line << std::endl;
         if (line_number == pos.line_start) {
           out << std::string(line_str.size() + 1, ' ') << '|'
-              << std::string(4 + pos.col_start, ' ')
+              << std::string(4 + pos.col_start - 1, ' ')
               << rang::fg::green
               << std::string(pos.col_end - pos.col_start + 1, '^')
               << rang::style::reset << " " << carat_extra 
               << std::endl;
         }
       }
-      if (line_number == pos.line_end) {
-        done = true;
-        break;
-      }
-      line_number++;
     }
     out << std::string(line_str.size() + 1, ' ') << '|' << std::endl;
-    if (!done) {
+    if (line_number != pos.line_end) {
       out << "Internal Compiler Error Invalid Position: " << pos << std::endl;
     }
 }
@@ -62,7 +65,6 @@ void ErrStream::ReportCustomErr(std::string msg, std::optional<LineRange> pos,
   switch (type) {
     case ErrStream::TokenErr:     tokenizer_errors++;   break;
     case ErrStream::SyntaxErr:    syntax_errors++;      break;
-    case ErrStream::LexicalErr:   lexical_errors++;     break;
     case ErrStream::SemanticErr:  semantic_errors++;    break;
   }
   if (pos) {
@@ -74,6 +76,16 @@ void ErrStream::ReportCustomErr(std::string msg, std::optional<LineRange> pos,
   else {
     out << rang::fg::red << "Error: " << msg << rang::style::reset << std::endl;
   }
+}
+
+void ErrStream::ReportMissingToken(Token::Kind expected, LineRange pos) {
+  out << rang::fg::red << "Error " << pos.file_name << "("
+                                  << pos << "): Missing '" 
+                                    << Token::GetKindErrorMsg(expected)
+                                  << "'"
+                                  << rang::style::reset << std::endl;
+  PrintFileLine(pos, Token::GetKindErrorMsg(expected));
+  syntax_errors++;
 }
 
 void ErrStream::ReportUnexpectedToken(Token::Kind expected, Token invalid) {

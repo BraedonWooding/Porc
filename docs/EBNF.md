@@ -59,7 +59,7 @@ struct_block
   : var_decl ';'
   | func_decl
   | struct_decl
-  | macro_expr [';']
+  | macro_expr ';'
   ;
 
 file_decl
@@ -151,7 +151,7 @@ expr
   ;
 
 lambda_decl
-  : tuple_decl ['->' type_expr] '=>' func_block
+  : tuple_decl ['->' type_expr] '=>' '{' func_block '}'
   ;
 
 func_decl

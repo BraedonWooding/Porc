@@ -51,6 +51,9 @@ inline void TokenStream::BeginLineRange() {
   old_col = col;
 }
 
+// @TODO: the line ranges for this are slightly wrong since it'll represent
+//        them as 0:-1 -> 1:-1 if col_offset < 0 and col and/or old_col = -1
+//        maybe we should somehow handle this nicer.
 inline LineRange TokenStream::EndLineRange(int col_offset) const {
   return LineRange(old_line, line, old_col, col + col_offset, GetFileName());
 }
@@ -79,8 +82,11 @@ bool TokenStream::Next() {
          "Can't `Next()` consecutively more than `Lookaheads`",
          MaxLookaheads);
   Token tok = Parse();
-  while (tok.type == Token::LineComment || tok.type == Token::BlockComment)
-    tok = Parse();
+  if (ignore_comments) {
+    while (tok.type == Token::LineComment || tok.type == Token::BlockComment) {
+      tok = Parse();
+    }
+  }
 
   tokens[cur_token_size++] = tok;
   return tok;
@@ -94,7 +100,7 @@ void TokenStream::SkipWs() {
   while(!IsEOF() && std::isspace(read_buf[cur_index])) {
     if (read_buf[cur_index] == '\n') {
       line++;
-      col = 0;
+      col = 1;
     } else {
       col++;
     }
@@ -116,8 +122,9 @@ std::string TokenStream::ParseLineComment() {
     col++;
   }
   if (read_buf[cur_index] == '\n') {
-    col = 0;
+    col = 1;
     line++;
+    cur_index++;
   }
 
   return buf;
@@ -161,7 +168,7 @@ std::optional<std::string> TokenStream::ParseBlockComment() {
       } else {
         buf.push_back(read_buf[cur_index]);
         if (read_buf[cur_index] == '\n') {
-          col = 0;
+          col = 1;
           line++;
         }
       }
@@ -173,7 +180,7 @@ std::optional<std::string> TokenStream::ParseBlockComment() {
       } else {
         buf.push_back(read_buf[cur_index]);
         if (read_buf[cur_index] == '\n') {
-          col = 0;
+          col = 1;
           line++;
         }
       }
@@ -181,7 +188,7 @@ std::optional<std::string> TokenStream::ParseBlockComment() {
     } else {
       buf.push_back(read_buf[cur_index]);
       if (read_buf[cur_index] == '\n') {
-        col = 0;
+        col = 1;
         line++;
       }
     }

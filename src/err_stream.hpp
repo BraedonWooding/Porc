@@ -13,7 +13,6 @@ private:
   std::ostream &out;
   int tokenizer_errors = 0;
   int syntax_errors = 0;
-  int lexical_errors = 0;
   int semantic_errors = 0;
   // and so on
 
@@ -21,7 +20,6 @@ public:
   enum ErrType {
     TokenErr,
     SyntaxErr,
-    LexicalErr,
     SemanticErr
   };
 
@@ -30,8 +28,6 @@ public:
   int TokenizerErrors() const { return tokenizer_errors; }
 
   int SyntaxErrors() const { return syntax_errors; }
-
-  int LexicalErrors() const { return lexical_errors; }
 
   int SemanticErrors() const { return semantic_errors; }
 
@@ -57,6 +53,12 @@ public:
     For example you were expecting a 'comma' but got a number instead.
   */
   void ReportUnexpectedToken(Token::Kind expected, Token invalid);
+
+  /*
+    For when you are missing a token like `;` at the end of a line.
+    Gives a nicer error then saying the error is on the next line.
+  */
+  void ReportMissingToken(Token::Kind expected, LineRange pos);
 
   /*
     For when an operator was invalid basically identical to above

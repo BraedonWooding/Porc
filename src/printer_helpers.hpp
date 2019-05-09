@@ -28,6 +28,16 @@ public:
   friend std::ostream &operator <<(std::ostream &out, const LineRange &pos);
   json GetMetaData() const;
 
+  LineRange End(int col_offset = 0) const {
+    return LineRange(line_end, line_end, col_end + col_offset,
+                     col_end + col_offset, file_name);
+  }
+
+  LineRange Start(int col_offset = 0) const {
+    return LineRange(line_start, line_start, col_start + col_offset,
+                     col_start + col_offset, file_name);
+  }
+
   LineRange() {
     std::cerr << "Internal Error: Constructed an empty line range, FIXME"
               << std::endl;

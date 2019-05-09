@@ -12,7 +12,7 @@ std::string Token::ToString() const {
   if (type == Token::Str || type == Token::Identifier)
     return std::get<std::string>(data);
   if (type == Token::LineComment) {
-    return std::string("//").append(std::get<std::string>(data));
+    return std::string("#").append(std::get<std::string>(data));
   }
   if (type == Token::BlockComment) {
     return std::string("/*").append(std::get<std::string>(data)).append("*/");
@@ -47,7 +47,7 @@ bool Token::IsAssignmentOp() const {
   switch (type) {
     case Token::AddAssign:
     case Token::SubtractAssign:
-    case Token::Equal:
+    case Token::Assign:
     case Token::DivideAssign:
     case Token::PowerAssign:
     case Token::ModulusAssign:

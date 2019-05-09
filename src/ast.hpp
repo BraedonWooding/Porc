@@ -83,7 +83,7 @@ class AssignmentOp {
   enum Kind {
     AdditionEqual,
     SubtractionEqual,
-    Equal,
+    Assign,
     DivisionEqual,
     PowerEqual,
     ModulusEqual,
