@@ -611,6 +611,8 @@ optional_unique_ptr<Expr> Parser::ParseExpr() {
           comma = false;
           auto expr = ParseExpr();
           if (!expr) return std::nullopt;
+          exprs.push_back(std::move(*expr));
+
           if (stream.PeekCur().type == Token::Comma) {
             last = stream.PopCur();
             comma = true;
@@ -622,6 +624,7 @@ optional_unique_ptr<Expr> Parser::ParseExpr() {
 
         if (comma && exprs.size() != 1) {
           err.ReportUnexpectedToken(Token::RightParen, last);
+          return std::nullopt;
         }
         LineRange pos = stream.PeekCur().pos;
         if (exprs.size() > 0) pos = FindRangeOfVector(exprs);
