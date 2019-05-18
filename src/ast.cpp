@@ -340,9 +340,9 @@ json Atom::GetMetaData() const {
         {"pos", this->pos.GetMetaData()},
         {"obj", expr.obj->GetMetaData()}
       };
-      if (expr.start) data["start"] = expr.start.value()->GetMetaData();
-      if (expr.stop) data["stop"] = expr.stop.value()->GetMetaData();
-      if (expr.step) data["step"] = expr.step.value()->GetMetaData();
+      if (expr.start) data["start"] = (*expr.start)->GetMetaData();
+      if (expr.stop) data["stop"] = (*expr.stop)->GetMetaData();
+      if (expr.step) data["step"] = (*expr.step)->GetMetaData();
       return data;
     } else if constexpr (std::is_same_v<T, Atom::FoldExpr>) {
       return {

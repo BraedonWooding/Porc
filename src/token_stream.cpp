@@ -327,7 +327,7 @@ Token TokenStream::Parse() {
       // missing `*/`
       return cur = Token(Token::Undefined, EndLineRange());
     }
-    cur.data = comment.value();
+    cur.data = *comment;
     cur.pos = EndLineRange(-1);
   }
 
@@ -380,7 +380,7 @@ void TokenStream::ConvEscapeCodes(std::string &str) {
     case 'x': {
       // hex
       auto num = ParseSimpleNumber(3, 16);
-      if (num) str.push_back(static_cast<unsigned char>(num.value()));
+      if (num) str.push_back(static_cast<unsigned char>(*num));
       else {
         // @TODO: error
         std::cerr << "Invalid hex str lit!!!  TODO: better errors" << std::endl;
@@ -409,7 +409,7 @@ void TokenStream::ConvEscapeCodes(std::string &str) {
       cur_index--;
       col--;
       auto num = ParseSimpleNumber(3, 8);
-      if (num) str.push_back(static_cast<unsigned char>(num.value()));
+      if (num) str.push_back(static_cast<unsigned char>(*num));
       else {
         // @TODO: error
         std::cerr << "Invalid oct str lit!!!  TODO: better errors" << std::endl;
