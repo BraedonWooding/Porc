@@ -17,9 +17,12 @@ A few notes:
 
 TODO:
 
-- Is `x..y:z <| f()` parsed correclty as `f(x..y:z)`?
+- Is `x..y:z |> f()` parsed correclty as `f(x..y:z)`? and same for `f() <| x..y:z`
+  - Yes I believe so!  However a bug exists due to the semicolons see range.porc seems to only be with ranges
 - Folding expressions `|>` and `<|` are parsed incorrectly I think??
   - I think I want `g() <| x + 2 == 4 <| f()` parsed as `g(x + 2) == f(4)`
+  - It should work now
+- Bitwise operations with proper associativity and precedence
 
 ```ebnf
 // Fragments
@@ -55,33 +58,42 @@ AssignmentOp ::= '=' | '*=' | '/=' | '**=' | '%/=' | '%=' | '+=' | '-='
 
 // == Blocks ==
 
-struct_block
-  : var_decl ';'
-  | func_decl
-  | struct_decl
-  | macro_expr ';'
+file_decl
+  : (func_block | type_decl)*
   ;
 
-file_decl
-  : func_block*
+type_decl
+  // the semicolon is purely optional if you include the block
+  : 'type' identifier 'is' type_expr ['{' struct_block* '}'] ';'?
+  | 'type' identifier '{' struct_block* '}' ';'
+  ;
+
+struct_block
+  // identifier access has lower priority to var_decl
+  : identifier_access? var_decl ';'?
+  | macro_expr ';'
+  | type_decl
   ;
 
 func_block
-// you can leave it out for auto return
-// also don't need it for control flow exprs
-  : func_decl
-  | struct_decl
-  | assignment_expr ';'
-  | ['return'] expr [';']
+  : assignment_expr ';'?
+  | var_decl ';'?
+  // you require a semicolon for all expressions that aren't just a block
+  // for example x := if (y) 2 else 4;
+  // you don't require them for any function definitions (unless you call them)
+  // note this also applies to folding expressions if you use any folding you
+  // have to end it with `;` i.e. A :: () => { } |> ((a) => a())();
+  | ['yield'] ['return' | 'continue' | '=' | 'break'] expr ';'?
   ;
 
 if_block
+  // you can elide the `;` for if statements that return values (i.e. no block just expr)
   : 'if' expr func_block ('else if' expr func_block)* ['else' func_block]
   ;
 
 for_block
-// we have to explicitly allow the '(' ')'
-// since the inside statement isn't an expr
+  // we have to explicitly allow the '(' ')'
+  // since the inside statement isn't an expr
   : 'for' '(' identifier_list 'in' expr_list ')' func_block
   | 'for' identifier_list 'in' expr_list func_block
   ;
@@ -93,11 +105,11 @@ while_block
 // == Declarations ==
 
 tuple_value_decl
-  : tuple_type_decl ['=' expr]
+  : Identifier [':' type_expr] ['=' expr]
   ;
 
 tuple_type_decl
-  : ['mut'] ['$'] Identifier [':' type_expr]
+  : '(' [ Identifier ':' ] type_expr (',' [ Identifier ':' ] type_expr ) ')'
   ;
 
 tuple_decl
@@ -105,9 +117,9 @@ tuple_decl
   ;
 
 var_decl
-  : ['const' | 'mut'] identifier_list ':' type_expr_list '=' expr_list
-  | ['const' | 'mut'] identifier_list '=' expr_list
-  | ['const' | 'mut'] identifier_list ':' type_expr_list
+  : identifier_list ':' type_expr_list (':' | '=') expr_list
+  | identifier_list ':' type_expr_list
+  | identifier_list ('::' | ':=') expr_list
   ;
 
 // == Expressions ==
@@ -116,21 +128,11 @@ macro_expr
   : '@' identifier_access '(' expr_list? ')'
   ;
 
-generic_type_decl
-  : constant
-  | type_expr
-  ;
-
 type_expr
   : '(' tuple_decl ')'
-  | 'fn' Identifier? tuple_decl ['->' type_expr]
-// @TODO: decide if we want to just allow idents or if we want to allow type exprs
-//        for example `Array[int] | List[int]` vs `(Array | List)[int]`
-//        I'm leaning towards the first but I'm not sure
-// @NOTE: I'm pretty sure I want the first I don't see a use for the second.
-//          It is just too specific
+  | tuple_decl '->' type_expr
   | '$' identifier
-  | identifier_access '[' generic_type_decl (',' generic_type_decl)+ ']'
+  | identifier_access '[' type_expr (',' type_expr)+ ']'
   | identifier_access
   | type_expr ('|' type_expr)+
   ;
@@ -141,11 +143,10 @@ assignment_expr
 
 expr
   : logical_or_expr                // arithmetic
-  | var_decl
-  | logical_or_expr '..' '='? logical_or_expr [':' logical_or_expr] // range
-  | anonymous_struct_decl
+  | 'let' var_decl
+  | additive_expr '..' '='? additive_expr [':' additive_expr] // range
   | lambda_decl
-  | map_expr | array_expr | tuple_expr
+  | array_expr | tuple_expr
   | if_block | while_block | for_block
   | '{' func_block* '}'
   ;
@@ -154,30 +155,12 @@ lambda_decl
   : tuple_decl ['->' type_expr] '=>' '{' func_block '}'
   ;
 
-func_decl
-  : 'fn' Identifier tuple_decl ['->' type_expr] '{' func_block* '}'
-  ;
-
-anonymous_struct_decl
-  : tuple_decl '::' '{' struct_block* '}'
-  ;
-
-struct_decl
-  : 'struct' Identifier tuple_decl '{' struct_block* '}'
-  ;
-
 tuple_expr
-  : '(' ')'
-  | '(' expr ',' ')'
-  | '(' expr_list ')' // has to have 2 or more (otherwise will match above)
+  : '(' expr_list? ')'
   ;
 
 array_expr
   : '[' expr_list ']'
-  ;
-
-map_expr
-  : '[' expr_pair_list ']'
   ;
 
 func_call
@@ -187,8 +170,11 @@ func_call
 atom
   : '(' expr ')'
   | '@' identifier_access '(' expr_list ')'
-  | expr '|>' atom
-  | atom '<|' expr
+  // @POSSIBLE_FIX: fix folds not having a nice associativity
+  //       I think this is the fix that we want (moved from expr to additive)
+  //       But I will need to think abou it!
+  | additive_expr '|>' atom
+  | atom '<|' additive_expr
   | func_call
   // i.e. array[1] or array[1:] or array[1::] or array[1:2:]
   // or array[] (lexical error) or array[:2:] ... and so on
@@ -248,12 +234,5 @@ type_expr_list
 
 expr_list
   : expr (',' expr)*
-  ;
-
-expr_pair_list
-  : expr ':' expr (',' expr ':' expr)*
-
-var_decl_list
-  : var_decl (',' var_decl)*
   ;
 ```

@@ -1,0 +1,73 @@
+{
+    "name": "FileDecl",
+    "pos": {
+        "file": "../tests/range.porc",
+        "line": [1, 1],
+        "col": [1, 13]
+    },
+    "children": [
+        {
+            "name": "FoldExpr",
+            "pos": {
+                "file": "../tests/range.porc",
+                "line": [1, 1],
+                "col": [1, 13]
+            },
+            "folds_right": true,
+            "lhs": {
+                "name": "FuncCall",
+                "pos": {
+                    "file": "../tests/range.porc",
+                    "line": [1, 1],
+                    "col": [11, 13]
+                },
+                "func": {
+                    "name": "Identifier",
+                    "pos": {
+                        "file": "../tests/range.porc",
+                        "line": [1, 1],
+                        "col": [11, 11]
+                    },
+                    "children": "f"
+                },
+                "args": []
+            },
+            "fold_expr": {
+                "name": "RangeExpr",
+                "pos": {
+                    "file": "../tests/range.porc",
+                    "line": [1, 1],
+                    "col": [1, 6]
+                },
+                "start": {
+                    "name": "Identifier",
+                    "pos": {
+                        "file": "../tests/range.porc",
+                        "line": [1, 1],
+                        "col": [1, 1]
+                    },
+                    "children": "x"
+                },
+                "stop": {
+                    "name": "Identifier",
+                    "pos": {
+                        "file": "../tests/range.porc",
+                        "line": [1, 1],
+                        "col": [4, 4]
+                    },
+                    "children": "y"
+                },
+                "inclusive": false,
+                "step": {
+                    "name": "Identifier",
+                    "pos": {
+                        "file": "../tests/range.porc",
+                        "line": [1, 1],
+                        "col": [6, 6]
+                    },
+                    "children": "z"
+                }
+            }
+        }
+    ]
+}

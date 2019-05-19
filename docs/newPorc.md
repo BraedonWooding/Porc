@@ -139,11 +139,6 @@ const call_f = (f : fn[$T](List[T])->void, data: List[T]) => {
   f(data);
 }
 
-const write = (out: $T) => {
-  # COMPILER ERROR: invalid type expecting string!!!
-  io.stdout.write(str(out));
-}
-
 call_f[flt](println, [1.0, 2.0, 3.0]);
 
 mut map = ["2": 2, "3": 3, "bob": 9];
