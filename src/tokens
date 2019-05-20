@@ -60,8 +60,13 @@ FatArrow            "=>"
 FoldLeft            "<|"
 FoldRight           "|>"
 ReturnType          "->"
+
+// these are terrible names for things
+// should describe what it represents
+// not what it is!
 Colon               ":"
 DoubleColon         "::"
+ColonAssign         ":="
 Variant             "|"
 Dot                 "."
 Range               ".."
@@ -78,10 +83,9 @@ False               "false"
 Void                "void"
 
 // Reserved names
-Const               "const"
-Mut                 "mut"
-Struct              "struct"
-Func                "fn"
+Type                "type"
+Yield               "yield"
+Let                 "let"
 Return              "return"
 While               "while"
 For                 "for"

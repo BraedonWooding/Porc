@@ -21,28 +21,44 @@ private:
   TokenStream stream;
   ErrStream err;
 
+  /*
+    Consumes a token if it matches the given type returning true.
+    Else it prints out an error and returns false.
+  */
   bool ConsumeToken(Token::Kind type);
 
+  /*
+    Parses a sequence of identifiers with the given token kind being the sep.
+    Returns std::nullopt if there is not a ident or some other kind of syntax
+    error and prints out the err msg.
+  */
   optional_unique_ptr<IdentifierAccess>
     ParseIdentifierAccess(Token::Kind continuer);
 
+  /*
+    Is a safe not error printing alternative to ParseConstant.
+    Tries to parse a constant and if it can't it'll return std::nullopt.
+  */
   optional_unique_ptr<Constant> TryParseConstant();
 
+  /*
+    Wraps up an fold expr so that it fits as a standard expr.
+  */
   std::unique_ptr<Expr> ExprToFold(std::unique_ptr<Expr> expr,
                                    bool folding_right, LineRange pos,
                                    std::unique_ptr<Atom> func);
+  
+  /*
+    Converts an identifier to an expr.
+  */
   std::unique_ptr<Expr> ConvIdentToExpr(LineStr id);
+
+  /*
+    Places the given expr inside parentheses.
+  */
   std::unique_ptr<Expr> ParenthesiseExpr(std::unique_ptr<Expr> expr);
 
   optional_unique_ptr<Expr> ParseExprFuncOrStruct(std::unique_ptr<TupleDecl> decl);
-
-  /*
-
-    These could be improved, I haven't yet been able to find a method to do this
-    my belief is that I can use fold expressions to partially eval all them
-    But I don't know if it is possible.
-
-  */
 
   /*
     We have to do the parse lists this way so we get nicer syntax for using them
@@ -52,25 +68,33 @@ private:
     value explicitly (rather than a template return type), then also have to
     make args parsed by reference otherwise it'll complain since it won't match
 
-    If you get some weird error about `type` not existing it just means you
-    stuffed up the type parsing make sure things are by reference like Args&...
-    rather than just Args...
-
-    Also I need to duplicate the ForEach since well one it is simpler and two
-    I don't know how to do it and not conflict with the fact that args are
-    variadic, if you do know how give it a go!
+    NOTE: If when using this you get errors about types not existing then
+          you just need to make sure that all arg objects are passed by
+          reference and not moved! i.e. Args&... args
   */
   template<typename Fn>
   using ForEachInnerType = typename std::invoke_result_t<Fn, Parser>::value_type;
 
+  /*
+    Since args are variadic I don't think I can generalize this.
+    I don't need it to be generalized anyways so this is just an easy way.
+  */
   template<typename Fn, typename ...Args>
   using ForEach1 = void(*)
-    (int, ForEachInnerType<Fn>, Args&... args);
+    (int index, ForEachInnerType<Fn> a, Args&... args);
 
   template<typename Fn, typename ...Args>
   using ForEach2 = void(*)
-    (int, ForEachInnerType<Fn>, ForEachInnerType<Fn>, Args&... args);
+    (int index, ForEachInnerType<Fn> a, ForEachInnerType<Fn> b, Args&... args);
 
+  /*
+    Parses a list of objects where there are pairs of two objects (of same type)
+    separated by next_pair and in each pair the objects are separated by
+    pair_sep.
+
+    Note: The extra args passed in aren't forwarded by move constructors but
+          rather should be parsed in by reference.
+  */
   template<Token::Kind pair_sep = Token::Colon,
            Token::Kind next_pair = Token::Comma,
            typename Fn, typename ...Args>
@@ -93,6 +117,14 @@ private:
     return true;
   }
 
+  /*
+    Parses a list of objects with a continuer token.
+    Calling the ForEach method with an index (starts at 0 increments for each
+    parsed item), the item parsed and forwards any args given.
+    Note: the args are parsed in by referenced and AREN'T std::forward'd
+          this is because they have to be passed in for each item.
+          your for_each function should take references for the other args!!!
+  */
   template<Token::Kind continuer = Token::Comma, typename Fn, typename ...Args>
   bool ParseList(Fn fn, ForEach1<Fn, Args...> for_each, Args&... args) {
     int index = 0;
@@ -110,6 +142,16 @@ private:
     return true;
   }
 
+  /*
+    - Parses a list of objects with operators inbetween them.
+    - Handles errors and return std::nullopt on error, printing out msg.
+    - Requires the ObjTo object to contain a sub struct called OpExpr that
+      has a constructor taking the operator and the ObjTo object as a rhs.
+    - Also requires the ObjTo object to have a constructor taking the LineRange
+      as well as the first ObjTo and a vector of ObjTo::OpExpr's.
+    for example:
+      - useful to parse additive expressions and multiplicative expressions.
+  */
   template<typename OpTo, typename ObjTo, typename ParseFn>
   optional_unique_ptr<ObjTo> ParseOpList(ParseFn fn) {
     using Inner = typename ObjTo::OpExpr;
@@ -140,18 +182,18 @@ private:
   /*
     Simple common wrappers around common operations.
   */
+
+  /*
+    Just a wrapper for a vector pushback
+  */
   template<typename Inner>
   static void PushBack(int index, Inner obj, std::vector<Inner> &vec) {
     vec.push_back(std::move(obj));
   }
 
-  template<typename Inner>
-  static void PushBackMap(int index, Inner key, Inner val,
-                          std::vector<Inner> &keys, std::vector<Inner> &vals) {
-    keys.push_back(std::move(key));
-    vals.push_back(std::move(val));
-  }
-
+  /*
+    A wrapper to set a vector at a given index.
+  */
   template<typename Inner>
   static void SetIndex(int index, Inner obj, std::vector<Inner> &vec) {
     Assert(index >= 0 && index <= vec.size(),
@@ -159,8 +201,21 @@ private:
     vec[index] = std::move(obj);
   }
 
+  /*
+    A wrapper around To::FromToken(Token) that prints out a nice error message
+    in the case that this fails.
+
+    NOTE: if you want a truly conditional token cast that doesn't error out
+          use To::FromToken(Token)
+  */
   template<typename To>
   std::optional<To> TokenCast(Token tok);
+
+  /*
+    Parses the RHS of the var decl including operators (i.e. `:`, `::`, ...)
+  */
+  optional_unique_ptr<VarDecl> Parser::ParseRhsVarDecl(
+    std::vector<VarDecl::Declaration> decls);
 
   std::optional<TupleDecl::ArgDecl> ParseTupleDeclSegment();
   optional_unique_ptr<Expr> ParseExprOrTupleDecl();
@@ -171,14 +226,29 @@ private:
   optional_unique_ptr<Atom> ParseSliceOrIndex(std::unique_ptr<Atom> lhs);
   std::optional<std::vector<std::unique_ptr<FuncBlock>>> ParseBlock();
 
+  /*
+    Parse the assignment expression based on the ids parsed from the hint of
+    var decl.
+  */
+  optional_unique_ptr<AssignmentExpr> Parser::ParseAssignmentExprVarDeclHint(
+    std::vector<LineStr> ids);
+
+  /*
+    Parses the RHS of the assignment expr including the operator.
+  */
+  optional_unique_ptr<AssignmentExpr> Parser::ParseRhsAssignmentExpr(
+    std::vector<std::unique_ptr<Expr>> lhs);
+
 public:
   Parser(TokenStream stream, std::ostream &out = std::cerr)
       : stream(std::move(stream)), err(out) {
     stream.ignore_comments = true;
   }
 
-  optional_unique_ptr<VarDecl> ParseFuncDecl();
-  optional_unique_ptr<VarDecl> ParseStructDecl();
+  // optional_unique_ptr<VarDecl> ParseFuncDecl();
+  // optional_unique_ptr<VarDecl> ParseStructDecl();
+
+  optional_unique_ptr<TypeDecl> ParseTypeDecl();
 
   optional_unique_ptr<FileDecl> ParseFileDecl();
   optional_unique_ptr<TupleDecl> ParseTupleDecl();

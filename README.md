@@ -71,8 +71,12 @@ Are you interested?  Maybe check out the [Language Guide](docs/LanguageGuide.md)
 ## Roadmap
 
 - [x] AST
-  - Done
+  - Done! :D
 - [x] Parser
-  - First version is done it just needs some tweaks around fixing precedence.
+  - Done! :D
 - [ ] Bytecode Instruction Set
+  - Basics are setup
 - [ ] Basic Bytecode Codegen
+- [ ] Interpreter
+- [ ] standard library implementation
+- [ ] Possibly JIT

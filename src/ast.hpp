@@ -293,7 +293,7 @@ class FuncBlock : public BaseAST {
                std::unique_ptr<Expr>, std::unique_ptr<VarDecl>> expr;
 
   enum PrefixKind: u8 {
-    None      = 0b00000000,
+    NoPrefix  = 0b00000000,
     Yield     = 0b00000001,   // reserving the first bit for yield
     Return    = 0b00000010,   // the rest fully ignore the first bit
     Continue  = 0b00000100,

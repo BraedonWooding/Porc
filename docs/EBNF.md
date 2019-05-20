@@ -65,7 +65,7 @@ file_decl
 type_decl
   // the semicolon is purely optional if you include the block
   : 'type' identifier 'is' type_expr ['{' struct_block* '}'] ';'?
-  | 'type' identifier '{' struct_block* '}' ';'
+  | 'type' identifier '{' struct_block* '}' ';'?
   ;
 
 struct_block
@@ -143,7 +143,7 @@ assignment_expr
 
 expr
   : logical_or_expr                // arithmetic
-  | 'let' var_decl
+  | 'let' (var_decl | assignment_expr)
   | additive_expr '..' '='? additive_expr [':' additive_expr] // range
   | lambda_decl
   | array_expr | tuple_expr

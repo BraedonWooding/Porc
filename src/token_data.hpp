@@ -49,6 +49,7 @@ static const char *tokenToStrMap[(int)Token::Kind::NumTokens] = {
   [(int)Token::Kind::ReturnType] = "->",
   [(int)Token::Kind::Colon] = ":",
   [(int)Token::Kind::DoubleColon] = "::",
+  [(int)Token::Kind::ColonAssign] = ":=",
   [(int)Token::Kind::Variant] = "|",
   [(int)Token::Kind::Dot] = ".",
   [(int)Token::Kind::Range] = "..",
@@ -57,10 +58,9 @@ static const char *tokenToStrMap[(int)Token::Kind::NumTokens] = {
   [(int)Token::Kind::True] = "true",
   [(int)Token::Kind::False] = "false",
   [(int)Token::Kind::Void] = "void",
-  [(int)Token::Kind::Const] = "const",
-  [(int)Token::Kind::Mut] = "mut",
-  [(int)Token::Kind::Struct] = "struct",
-  [(int)Token::Kind::Func] = "fn",
+  [(int)Token::Kind::Type] = "type",
+  [(int)Token::Kind::Yield] = "yield",
+  [(int)Token::Kind::Let] = "let",
   [(int)Token::Kind::Return] = "return",
   [(int)Token::Kind::While] = "while",
   [(int)Token::Kind::For] = "for",
@@ -119,6 +119,7 @@ static const char *tokenToNameMap[(int)Token::Kind::NumTokens] = {
   [(int)Token::Kind::ReturnType] = "ReturnType",
   [(int)Token::Kind::Colon] = "Colon",
   [(int)Token::Kind::DoubleColon] = "DoubleColon",
+  [(int)Token::Kind::ColonAssign] = "ColonAssign",
   [(int)Token::Kind::Variant] = "Variant",
   [(int)Token::Kind::Dot] = "Dot",
   [(int)Token::Kind::Range] = "Range",
@@ -127,10 +128,9 @@ static const char *tokenToNameMap[(int)Token::Kind::NumTokens] = {
   [(int)Token::Kind::True] = "True",
   [(int)Token::Kind::False] = "False",
   [(int)Token::Kind::Void] = "Void",
-  [(int)Token::Kind::Const] = "Const",
-  [(int)Token::Kind::Mut] = "Mut",
-  [(int)Token::Kind::Struct] = "Struct",
-  [(int)Token::Kind::Func] = "Func",
+  [(int)Token::Kind::Type] = "Type",
+  [(int)Token::Kind::Yield] = "Yield",
+  [(int)Token::Kind::Let] = "Let",
   [(int)Token::Kind::Return] = "Return",
   [(int)Token::Kind::While] = "While",
   [(int)Token::Kind::For] = "For",
@@ -263,6 +263,7 @@ static const TokenSet tokenFromStrMap = {
     [':'] = {
       (int[ASCII_SET]){
         [':'] = (int)Token::Kind::DoubleColon,
+        ['='] = (int)Token::Kind::ColonAssign,
       },
       NULL,
     },
@@ -286,12 +287,21 @@ static const TokenSet tokenFromStrMap = {
             },
           },
         },
+        ['y'] = {
+          NULL,
+          (TokenSet[ASCII_SET]){
+            ['p'] = {
+              (int[ASCII_SET]){
+                ['e'] = (int)Token::Kind::Type,
+              },
+              NULL,
+            },
+          },
+        },
       },
     },
     ['f'] = {
-      (int[ASCII_SET]){
-        ['n'] = (int)Token::Kind::Func,
-      },
+      NULL,
       (TokenSet[ASCII_SET]){
         ['a'] = {
           NULL,
@@ -333,41 +343,20 @@ static const TokenSet tokenFromStrMap = {
         },
       },
     },
-    ['c'] = {
+    ['y'] = {
       NULL,
       (TokenSet[ASCII_SET]){
-        ['o'] = {
+        ['i'] = {
           NULL,
           (TokenSet[ASCII_SET]){
-            ['n'] = {
+            ['e'] = {
               NULL,
               (TokenSet[ASCII_SET]){
-                ['s'] = {
+                ['l'] = {
                   (int[ASCII_SET]){
-                    ['t'] = (int)Token::Kind::Const,
+                    ['d'] = (int)Token::Kind::Yield,
                   },
                   NULL,
-                },
-                ['t'] = {
-                  NULL,
-                  (TokenSet[ASCII_SET]){
-                    ['i'] = {
-                      NULL,
-                      (TokenSet[ASCII_SET]){
-                        ['n'] = {
-                          NULL,
-                          (TokenSet[ASCII_SET]){
-                            ['u'] = {
-                              (int[ASCII_SET]){
-                                ['e'] = (int)Token::Kind::Continue,
-                              },
-                              NULL,
-                            },
-                          },
-                        },
-                      },
-                    },
-                  },
                 },
               },
             },
@@ -375,40 +364,14 @@ static const TokenSet tokenFromStrMap = {
         },
       },
     },
-    ['m'] = {
+    ['l'] = {
       NULL,
       (TokenSet[ASCII_SET]){
-        ['u'] = {
+        ['e'] = {
           (int[ASCII_SET]){
-            ['t'] = (int)Token::Kind::Mut,
+            ['t'] = (int)Token::Kind::Let,
           },
           NULL,
-        },
-      },
-    },
-    ['s'] = {
-      NULL,
-      (TokenSet[ASCII_SET]){
-        ['t'] = {
-          NULL,
-          (TokenSet[ASCII_SET]){
-            ['r'] = {
-              NULL,
-              (TokenSet[ASCII_SET]){
-                ['u'] = {
-                  NULL,
-                  (TokenSet[ASCII_SET]){
-                    ['c'] = {
-                      (int[ASCII_SET]){
-                        ['t'] = (int)Token::Kind::Struct,
-                      },
-                      NULL,
-                    },
-                  },
-                },
-              },
-            },
-          },
         },
       },
     },
@@ -473,6 +436,42 @@ static const TokenSet tokenFromStrMap = {
                     ['k'] = (int)Token::Kind::Break,
                   },
                   NULL,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    ['c'] = {
+      NULL,
+      (TokenSet[ASCII_SET]){
+        ['o'] = {
+          NULL,
+          (TokenSet[ASCII_SET]){
+            ['n'] = {
+              NULL,
+              (TokenSet[ASCII_SET]){
+                ['t'] = {
+                  NULL,
+                  (TokenSet[ASCII_SET]){
+                    ['i'] = {
+                      NULL,
+                      (TokenSet[ASCII_SET]){
+                        ['n'] = {
+                          NULL,
+                          (TokenSet[ASCII_SET]){
+                            ['u'] = {
+                              (int[ASCII_SET]){
+                                ['e'] = (int)Token::Kind::Continue,
+                              },
+                              NULL,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
                 },
               },
             },
