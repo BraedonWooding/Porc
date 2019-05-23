@@ -2,7 +2,7 @@
 
 #include "token_data.hpp"
 
-namespace porc::internals {
+namespace porc {
 
 Token::operator bool() const {
   return type != Token::Undefined && type != Token::EndOfFile;
@@ -21,6 +21,7 @@ std::string Token::ToString() const {
   if (type == Token::Int) return std::to_string(std::get<i64>(data));
   if (tokenToStrMap[type] != NULL) return std::string(tokenToStrMap[type]);
 
+  std::cerr << "Case not handled for type id: " << type << std::endl;
   Unreachable("Case not handled");
 }
 

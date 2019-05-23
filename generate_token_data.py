@@ -87,7 +87,7 @@ def generate(file):
 
 #define ASCII_SET 128
 
-namespace porc::internals {
+namespace porc {
 \n"""
     )
 

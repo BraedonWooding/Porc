@@ -13,6 +13,7 @@ void Assert(bool expr_res, std::string expr_str, std::string msg, uint line,
       std::cerr << "Extra Data:\t";
       ((std::cerr << std::forward<Args>(args)), ...);
     }
+    std::cerr << std::endl;
     std::abort();
   }
 }

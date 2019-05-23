@@ -1,24 +1,20 @@
 # Just a basic Porc test
 # Bug x = ((n) => {2})
+main :: () => {
+  x :: () => 2;
 
-const fib = (n) => { if n <= 1 {1} else { fib(n - 1) + fib(n - 2) } };
-
-const x = 2;
-run_something(array, (x) => {x * 2.});
-
-fn main() {
-  fn x() {
-    2
-  }
-
-  keb = ((n) => {2});
+  keb = ((n) => 2);
   keb = (2,);
 
-  zl = () => {2};
+  zl :: () => {= 2;}
 
   9 + println(fib("hello", 2))(5) * 2 ** 2;
-  x = 2
-  if (const x = 2) {
-    x
+  x = 2;
+  if (let x := 2) {
+    = x;
   }
+}
+
+k :: () => {
+
 }

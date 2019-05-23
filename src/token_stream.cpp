@@ -40,11 +40,7 @@
   @TODO:  decouple these functions
 */
 
-namespace porc::internals {
-
-void TokenStream::ReadAll() {
-  Read(BufSize, 0);
-}
+namespace porc {
 
 inline void TokenStream::BeginLineRange() {
   old_line = line;
@@ -58,29 +54,47 @@ inline LineRange TokenStream::EndLineRange(int col_offset) const {
   return LineRange(old_line, line, old_col, col + col_offset, GetFileName());
 }
 
+/*
+  @TODO: the if(cur.type == ...) last = cur
+  is a hacky ish fix, for when you leave out the `;` on the last statement
+  it seems that we are overriding the last token incorrectly??
+  Perhaps we are actually doing it correctly but we still want this to behave
+  like this.
+*/
+
 Token TokenStream::PeekCur() {
   if (cur_token_size == 0) Next();
-  return tokens[cur_token_size - 1];
+  return cur;
 }
 
 Token TokenStream::PopCur() {
   if (cur_token_size == 0) Next();
-  Token tok = tokens[cur_token_size - 1];
   cur_token_size--;
-  return tok;
+  if (cur.type != Token::EndOfFile && cur.type != Token::Undefined) last = cur;
+  Token tmp = cur;
+  cur = next_cur;
+  next_cur = Token();
+  return tmp;
+}
+
+Token TokenStream::LastSeen() {
+  Assert(last.type != Token::Undefined, "No last seen token");
+  return last;
 }
 
 void TokenStream::Push(Token tok) {
-  Assert(cur_token_size < MaxLookaheads,
-         "Can't `Push()` consecutively more than `MaxLookaheads`",
-         MaxLookaheads);
-  tokens[cur_token_size++] = tok;
+  Assert(cur_token_size < TokenizerMaxLookahead,
+         "Can't `Push()` consecutively more than `TokenizerMaxLookahead`",
+         TokenizerMaxLookahead);
+  next_cur = cur;
+  cur = tok;
+  cur_token_size++;
 }
 
-bool TokenStream::Next() {
-  Assert(cur_token_size < MaxLookaheads,
+void TokenStream::Next() {
+  Assert(cur_token_size < TokenizerMaxLookahead,
          "Can't `Next()` consecutively more than `Lookaheads`",
-         MaxLookaheads);
+         TokenizerMaxLookahead);
   Token tok = Parse();
   if (ignore_comments) {
     while (tok.type == Token::LineComment || tok.type == Token::BlockComment) {
@@ -88,8 +102,7 @@ bool TokenStream::Next() {
     }
   }
 
-  tokens[cur_token_size++] = tok;
-  return tok;
+  Push(tok);
 }
 
 void TokenStream::SkipWs() {
@@ -105,7 +118,7 @@ void TokenStream::SkipWs() {
       col++;
     }
     cur_index++;
-    if (cur_index == read_size) ReadAll();
+    if (cur_index == read_size) Read();
   }
 
   Assert(cur_index < read_size || IsEOF(),
@@ -116,7 +129,7 @@ void TokenStream::SkipWs() {
 std::string TokenStream::ParseLineComment() {
   std::string buf;
   while (true) {
-    if (cur_index == read_size) ReadAll();
+    if (cur_index == read_size) Read();
     if (IsEOF() || read_buf[cur_index] == '\n') break;
     buf.push_back(read_buf[cur_index++]);
     col++;
@@ -130,27 +143,13 @@ std::string TokenStream::ParseLineComment() {
   return buf;
 }
 
-bool TokenStream::BufMatches(std::string str) {
-  for (int i = 0; i < str.size(); i++) {
-    if (cur_index == read_size) ReadAll();
-    if (IsEOF()) return false;
-    if (str[i] != read_buf[cur_index]) return false;
-    // @TODO: do we want to also increment line if we reach the end
-    //        I don't think our str can have newlines and behave properly
-    //        but we don't want weird things like that occurring
-    cur_index++;
-    col++;
-  }
-  return true;
-}
-
 // supports nesting
 std::optional<std::string> TokenStream::ParseBlockComment() {
   std::string buf;
   int depth = 1;
 
   while (depth > 0) {
-    if (cur_index == read_size) ReadAll();
+    if (cur_index == read_size) Read();
     // block comment not ended
     if (IsEOF()) return std::nullopt;
     if (read_buf[cur_index] == '*') {
@@ -159,7 +158,7 @@ std::optional<std::string> TokenStream::ParseBlockComment() {
       // else its an EOF
       cur_index++;
       col++;
-      if (cur_index == read_size) ReadAll();
+      if (cur_index == read_size) Read();
       if (IsEOF()) return std::nullopt;
 
       if (read_buf[cur_index] == '/') {
@@ -197,83 +196,62 @@ std::optional<std::string> TokenStream::ParseBlockComment() {
 }
 
 Token TokenStream::ParseSimpleToken() {
-  char *buf = &read_buf[cur_index];
-  size_t len = read_size - cur_index;
+  if (cur_index > 0) ReadOffset();
   Token cur;
   cur.type = Token::Undefined;
 
-  // @OPTIMISATION: these will be more common so maybe we should put these above the others
+  // @OPTIMISATION: these will be more common so maybe we should put these
+  //                above the others
   // or we should see if we can jump straight to the first token easily
   const TokenSet *current_set = &tokenFromStrMap;
   const TokenSet *previous_set = NULL;
   int i = 0;
 
   // Recursively call on each child token set till we reach a dead end
-  // either we can go back one level and step into the 'value' section of the tree
-  // or we can't and thus no token can be found. i.e. `+>` will parse the `+` and `>` separately
-  // `+=>` will parse as `+=` and `>`.  Of course this may not be preferred so we may want to
+  // either we can go back one level and step into the 'value' section of the
+  // tree or we can't and thus no token can be found. i.e. `+>` will parse the
+  // `+` and `>` separately  `+=>` will parse as `+=` and `>`.
+  // Of course this may not be preferred so we may want to
   // have a precendence for tokens, I think it is fine though for now.
   while (true) {
-    if (cur_index + i == BufSize) {
-      Assert(cur_index != 0, "We can't have a token with a length more than BufSize", cur_index);
-      // This is incase I ever change things and break this offcase
-      // We should never get to this point and to not have iterated i
-      // Since that would mean that our buf is full which can't be the case at this pt
-      // if we have not read using i.
-      Assert(i > 0, "Buffer shouldn't be full if i == 0", i);
-
-      // shuffle the important bits down the the front of the buffer
-      // @TODO: is this correct?
-      memmove(static_cast<char*>(read_buf),
-              static_cast<char*>(read_buf) + cur_index + 1, i + 1);
-
-      // now we can read into the buffer
-      Read(read_size - i, i);
-      buf = read_buf;
-      len = read_size;
-      cur_index = i;
-
-      if (IsEOF()) {
-        // Our token wasn't finished
-        // @TEST: This may trigger incorrectly if the last token is something like
-        // `cont` or similar.
-        // @POSSIBLE_FIX: I think I have fixed it as the identifier will grab
-        // it if it can be regarded as an identifier/number, again test/check
-        read_buf[i + 1] = 0;
-        std::cerr << "Possibly incorrect trigger read text so far is " << read_buf + cur_index << std::endl;
-        col += i + 1;
-        cur = Token(Token::Undefined, EndLineRange(-1));
-        break;
-      }
-    }
+    Assert(cur_index + i < TokenizerBufSize, "We can't have a token with a"
+          "length more than TokenizerBufSize", cur_index);
 
     // trie leaf
-    // @NOTE: you can't have WS in tokens that is a token can't contain a line break
-    // or any kinda of ws in the middle of it i.e = > is always going to be `=` and `>` and never `=>`.
-    // This statement allows us to just increment col as expected.
-    if (current_set->child_tokens == NULL || (current_set->child_tokens[buf[i]].child_tokens == NULL && 
-                          current_set->child_tokens[buf[i]].tokens == NULL)) {
-      // We hit a dead end but can we find a value node either in our current node
-      // or go back one token
-      if (current_set->tokens != NULL && current_set->tokens[buf[i]] != static_cast<int>(Token::Undefined)) {
+    // @NOTE: you can't have WS in tokens that is a token can't contain a
+    //        line break or any kinda of ws in the middle of it i.e = > is
+    //        always going to be `=` and `>` and never `=>`.
+    //        This statement allows us to just increment col as expected.
+    int undefined = static_cast<int>(Token::Undefined);
+    if (current_set->child_tokens == NULL ||
+       (current_set->child_tokens[read_buf[i]].child_tokens == NULL && 
+        current_set->child_tokens[read_buf[i]].tokens == NULL)) {
+      // We hit a dead end but can we find a value node either in our current
+      // node or go back one token
+      if (current_set->tokens != NULL &&
+          current_set->tokens[read_buf[i]] != undefined &&
+          (!std::isalnum(read_buf[i + 1]) || !std::isalnum(read_buf[i]))) {
         col += i + 1;
         cur_index += i + 1;
-        cur = Token(static_cast<Token::Kind>(current_set->tokens[buf[i]]),
+        cur = Token(static_cast<Token::Kind>(current_set->tokens[read_buf[i]]),
                     EndLineRange(-1));
-      } else {
+      } else if (previous_set != NULL && previous_set->tokens != NULL &&
+                 previous_set->tokens[read_buf[i - 1]] != undefined &&
+                 !std::isalnum(read_buf[i])) {
         // i.e. parse `<!` as `<` and `!`
-        if (previous_set != NULL && previous_set->tokens != NULL && previous_set->tokens[buf[i - 1]] != static_cast<int>(Token::Undefined)) {
-          col += i;
-          cur = Token(static_cast<Token::Kind>(previous_set->tokens[buf[i - 1]]),
-                      EndLineRange(-1));
-          cur_index += i;
-        }
+        col += i;
+        cur = Token(static_cast<Token::Kind>(previous_set->tokens[read_buf[i - 1]]),
+                    EndLineRange(-1));
+        cur_index += i;
       }
+      // Else there is nothing to match so we just don't do anything
+      // for example `z` is not a starting character for any tokens
+      // so it would hit this section.
       break;
     } else {
       // go deeper into set
       previous_set = current_set;
-      current_set = &current_set->child_tokens[buf[i]];
+      current_set = &current_set->child_tokens[read_buf[i]];
       i++;
     }
   }
@@ -293,7 +271,7 @@ Token TokenStream::Parse() {
   Token cur;
   cur.type = Token::Undefined;
 
-  if (cur_index == read_size) ReadAll();
+  if (cur_index == read_size) Read();
   SkipWs();
 
   BeginLineRange();
@@ -345,7 +323,7 @@ std::optional<int> TokenStream::ParseSimpleNumber(int max_digits, int base) {
   int cur_digits = 0;
 
   while (cur_digits < max_digits) {
-    if (cur_index == read_size) ReadAll();
+    if (cur_index == read_size) Read();
     // I guess this could be valid (though I don't see how since it won't have a string ender)
     // Still should be rigorous I guess
     if (IsEOF()) break;
@@ -439,7 +417,7 @@ Token TokenStream::ParseStr() {
     // for big strings or awkard places where the string is
     // towards the end of the 1024 boundary
     if (i == len) {
-      ReadAll();
+      Read();
       if (IsEOF()) {
         // if we are EOF then just set the undefined token and ret
         cur = Token(Token::Undefined, EndLineRange());
@@ -495,19 +473,10 @@ Token TokenStream::ParseNum() {
     Note: Not allowed `_` to avoid any of the cases above
   */
 
-  // Super ugly, should be hoistered into callsite
-  // or we should just exit gracefully???
   if (!is_num(buf[0])) {
     if (cur_index >= read_size - 2) {
-      // since we need at most three to see
-      // should be rare enough that this doesn't matter
-      // @BUG: this is a @HACK to fix it.
-      read_buf[0] = buf[0];
-      if (cur_index == read_size - 2) read_buf[1] = buf[1];
-      if (cur_index == read_size - 3) read_buf[2] = buf[2];
-      Read(BufSize - 2, cur_index + 2);
+      ReadOffset();
       buf = read_buf;
-      cur_index = 0;
     }
 
     if (buf[0] != '.' || !is_num(buf[1])) {
@@ -527,7 +496,7 @@ Token TokenStream::ParseNum() {
   // just parsing a sequence of digits
   for (;;) {
     if (i >= len) {
-      ReadAll();
+      Read();
       // EOF is valid so just break
       if (IsEOF()) break;
       // reset
@@ -612,13 +581,12 @@ Token TokenStream::ParseId() {
 
   Token cur;
   std::string str = std::string();
-  str.push_back(read_buf[cur_index++]);
-  col++;
 
-  while (valid_id_char(read_buf[cur_index])) {
+  do {
     str.push_back(read_buf[cur_index++]);
     col++;
-  }
+    if (cur_index == read_size) Read();
+  } while (valid_id_char(read_buf[cur_index]));
 
   cur.type = Token::Identifier;
   cur.data = str;
@@ -626,9 +594,19 @@ Token TokenStream::ParseId() {
   return cur;
 }
 
-void TokenStream::Read(uint len, uint offset) {
-  read_size = reader->Read(static_cast<char*>(read_buf) + offset, len);
-  cur_index = offset;
+void TokenStream::Read() {
+  read_size = reader->Read(static_cast<char*>(read_buf), TokenizerBufSize);
+  cur_index = 0;
+}
+
+void TokenStream::ReadOffset() {
+  int offset = read_size - cur_index;
+  memmove(static_cast<char*>(read_buf),
+          static_cast<char*>(read_buf) + cur_index, read_size - cur_index);
+  read_size = reader->Read(static_cast<char*>(read_buf) + offset,
+                           TokenizerBufSize - offset);
+  cur_index = 0;
+  read_size += offset;
 }
 
 }

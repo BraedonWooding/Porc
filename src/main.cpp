@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
   ast->callback([&](){
     if (verbose) std::cout << "Running subcommand `dev/ast`";
     for (auto file: filenames) {
-      using namespace porc::internals;
+      using namespace porc;
 
       TokenStream stream(std::make_unique<CFileReader>(file.c_str()));
       Parser parser = Parser(std::move(stream));
@@ -74,12 +74,13 @@ int main(int argc, char *argv[]) {
     if (verbose) std::cout << "Running subcommand `dev/tokens`";
 
     for (auto file: filenames) {
-      using namespace porc::internals;
+      using namespace porc;
 
       std::cout << "\t== " << file << " ==" << std::endl;
       TokenStream stream(std::make_unique<CFileReader>(file.c_str()));
       stream.ignore_comments = ignore_comments;
-      for (auto tok = stream.PopCur(); tok; tok = stream.PopCur()) {
+      for (auto tok = stream.PopCur(); tok.type != Token::EndOfFile;
+           tok = stream.PopCur()) {
         if (tok.type == Token::Undefined) {
           std::cerr << rang::fg::red << "ERROR: Undefined token"
                     << rang::style::reset << std::endl;

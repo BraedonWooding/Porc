@@ -44,6 +44,13 @@ There are the following commands for basic arithmetic;
 - `DIV` division (both args are promoted to floats)
 - `INT_DIV` integer division (both are demoted to ints)
 - `MOD` modulus
+- `POW` power
+
+#### Specialised Arithmetic
+
+Each arithmetic command also has a `REG_` version in which the instruction guarantees that the given memory addresses are 8 bytes.
+
+There are also `INT_` and `FLT_` versions of all instructions denoting that both are integers or both are floating points (respectively) this is implicitly also a `REG_` command.
 
 ### Movement
 

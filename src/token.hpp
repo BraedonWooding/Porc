@@ -12,7 +12,7 @@
 // @TEST: test if this generator is faster/slower than just loading all tokens at once
 //        - make sure to test using parallelisation as well since that could be much slower.
 
-namespace porc::internals {
+namespace porc {
 
 /*
   @Question: does this leak memory?  Because std::string's destructor isn't

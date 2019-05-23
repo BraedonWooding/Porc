@@ -3,7 +3,7 @@
 #include <fstream>
 #include <rang.hpp>
 
-namespace porc::internals {
+namespace porc {
 
 void ErrStream::PrintFileLine(LineRange pos, std::string carat_extra) {
     std::ifstream file(pos.file_name);

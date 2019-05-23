@@ -11,13 +11,7 @@
 #include "token.hpp"
 #include "defs.hpp"
 
-namespace porc::internals {
-
-// @TODO: make these static constants or something idk
-// I just don't want them to be #defines and I haven't decided if array
-// should just be two tokens 'hard' coded.
-#define MaxLookaheads (2)
-#define BufSize (1024)
+namespace porc {
 
 /*
   A token stream built for efficient lookaheads
@@ -49,11 +43,14 @@ namespace porc::internals {
 */
 class TokenStream {
  private:
-  std::array<Token, MaxLookaheads> tokens;
+  Token cur;
+  Token next_cur;
+  Token last;
+
   int cur_token_size = 0;
 
   /* For storing the data read into the stream */
-  char read_buf[BufSize + 1];
+  char read_buf[TokenizerBufSize + 1];
 
   /* Current index into read_buf */
   uint cur_index = 0;
@@ -73,11 +70,13 @@ class TokenStream {
   /* The reader to read in data */
   std::unique_ptr<Reader> reader;
 
-  // Reads len bytes into read_buf starting at read_buf + offset
-  void Read(uint len, uint offset);
+  // Reads max of TokenizerBufSize bytes into read_buf
+  void Read();
 
-  // Equivalent to Read(BufSize, 0);
-  void ReadAll();
+  // Reads max of TokenizerBufSize bytes into read_buf saving from cur_index
+  // forwards
+  void ReadOffset();
+
   Token Parse();
 
   // setup the old line / col
@@ -102,8 +101,8 @@ class TokenStream {
 
   /*
     Skips all whitespace incrementing cur_index and reading in new segments.
-    Preconditions: read_size == 0 || cur_index < read_size
-    Postconditions: cur_index < read_size || read_size == 0
+    Preconditions: read_size == 0 (EOF) || cur_index < read_size
+    Postconditions: cur_index < read_size || read_size == 0 (EOF)
   */
   void SkipWs();
   Token ParseStr();
@@ -114,24 +113,17 @@ class TokenStream {
 
   /*
     Parses a simple token into cur.
-    Postconditions: read_size == 0 || cur_index < read_size
+    Postconditions: read_size == 0 (EOF) || cur_index < read_size
   */
   Token ParseSimpleToken();
   std::optional<std::string> ParseBlockComment();
   void ConvEscapeCodes(std::string &str);
 
-  // Returns true if the buffer (will read more if it crosses boundaries)
-  // contains str
-  // @NOTE:   cur_index will update and will point to the first
-  //          character that doesn't match.
-  //          you can't also guarantee that the entire string still
-  //          exists within the current read buffer as it doesn't preserve
-  //          the string.
-  bool BufMatches(std::string str);
-
  public:
 
   bool ignore_comments = true;
+
+  Token GetLast();
 
   /*
     Returns the current token.  Can only be called once per Next.
@@ -144,15 +136,19 @@ class TokenStream {
   Token PeekCur();
 
   /*
-    Moves last into cur
+    Stores the last seen token.  Invalid to call at the start of the stream.
+    Tokens that count as last seen are non undefined/EOF tokens that were popped
+    effectively it is the 'last popped token'.
   */
-  bool Next();
+  Token LastSeen();
+
+  void Next();
   void Push(Token tok);
 
   const std::string &GetFileName() const { return reader->file_name; };
 
   TokenStream(std::unique_ptr<Reader> reader)
-      : reader(std::move(reader)), tokens{} {}
+      : reader(std::move(reader)) {}
 };
 
 }

@@ -104,16 +104,20 @@ while_block
 
 // == Declarations ==
 
-tuple_value_decl
+tuple_value
   : Identifier [':' type_expr] ['=' expr]
   ;
 
-tuple_type_decl
-  : '(' [ Identifier ':' ] type_expr (',' [ Identifier ':' ] type_expr ) ')'
+tuple_type
+  : [ Identifier ':' ] type_expr
   ;
 
-tuple_decl
-  : '(' [tuple_value_decl (',' tuple_value_decl)*] ')'
+tuple_value_decl
+  : '(' [tuple_value (',' tuple_value)*] ')'
+  ;
+
+tuple_type_decl
+  : '(' [tuple_type (',' tuple_type)*] ')'
   ;
 
 var_decl
@@ -129,8 +133,8 @@ macro_expr
   ;
 
 type_expr
-  : '(' tuple_decl ')'
-  | tuple_decl '->' type_expr
+  : tuple_type_decl
+  | tuple_type_decl '->' type_expr
   | '$' identifier
   | identifier_access '[' type_expr (',' type_expr)+ ']'
   | identifier_access
@@ -144,7 +148,6 @@ assignment_expr
 expr
   : logical_or_expr                // arithmetic
   | 'let' (var_decl | assignment_expr)
-  | additive_expr '..' '='? additive_expr [':' additive_expr] // range
   | lambda_decl
   | array_expr | tuple_expr
   | if_block | while_block | for_block
@@ -152,7 +155,7 @@ expr
   ;
 
 lambda_decl
-  : tuple_decl ['->' type_expr] '=>' '{' func_block '}'
+  : tuple_value_decl ['->' type_expr] '=>' '{' func_block '}'
   ;
 
 tuple_expr
@@ -193,8 +196,13 @@ unary_expr
 multiplicative_expr
   : power_expr (('*' | '/' | '%' | '//') power_expr)*
 
+// NOTE: this is slightly wrong
+//       range can only be applied to a single additive expr
+//       or rather it itself isn't really one... but it has to be
+//       so its a weird mix?  Basically it can't include itself
 additive_expr
   : multiplicative_expr (('+' | '-') multiplicative_expr)*
+  | additive_expr? '..' '='? additive_expr? [':' additive_expr]
   ;
 
 comparison_expr

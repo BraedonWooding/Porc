@@ -6,7 +6,7 @@
 
 #define ASCII_SET 128
 
-namespace porc::internals {
+namespace porc {
 
 static const char *tokenToStrMap[(int)Token::Kind::NumTokens] = {
   [(int)Token::Kind::Comma] = ",",
@@ -68,6 +68,7 @@ static const char *tokenToStrMap[(int)Token::Kind::NumTokens] = {
   [(int)Token::Kind::Continue] = "continue",
   [(int)Token::Kind::In] = "in",
   [(int)Token::Kind::If] = "if",
+  [(int)Token::Kind::Is] = "is",
   [(int)Token::Kind::Else] = "else",
 };
 
@@ -138,6 +139,7 @@ static const char *tokenToNameMap[(int)Token::Kind::NumTokens] = {
   [(int)Token::Kind::Continue] = "Continue",
   [(int)Token::Kind::In] = "In",
   [(int)Token::Kind::If] = "If",
+  [(int)Token::Kind::Is] = "Is",
   [(int)Token::Kind::Else] = "Else",
 };
 
@@ -483,6 +485,7 @@ static const TokenSet tokenFromStrMap = {
       (int[ASCII_SET]){
         ['n'] = (int)Token::Kind::In,
         ['f'] = (int)Token::Kind::If,
+        ['s'] = (int)Token::Kind::Is,
       },
       NULL,
     },

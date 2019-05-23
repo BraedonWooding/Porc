@@ -7,14 +7,7 @@
 #include "ast.hpp"
 #include "err_stream.hpp"
 
-namespace porc::internals {
-
-static const char *DoubleReturnErrMsg =
-    "Can't have a return followed by another return.\n"
-    "This applies to implicit returns as well.";
-
-template<typename T>
-using optional_unique_ptr  = std::optional<std::unique_ptr<T>>;
+namespace porc {
 
 class Parser {
 private:
@@ -36,6 +29,12 @@ private:
     ParseIdentifierAccess(Token::Kind continuer);
 
   /*
+    Parses a sequence of ids with the given continuer exits when sequence ends.
+    Prints out no error.
+  */
+  std::vector<LineStr> ParseIds(Token::Kind continuer);
+
+  /*
     Is a safe not error printing alternative to ParseConstant.
     Tries to parse a constant and if it can't it'll return std::nullopt.
   */
@@ -44,7 +43,7 @@ private:
   /*
     Wraps up an fold expr so that it fits as a standard expr.
   */
-  std::unique_ptr<Expr> ExprToFold(std::unique_ptr<Expr> expr,
+  std::unique_ptr<AdditiveExpr> ExprToFold(std::unique_ptr<AdditiveExpr> expr,
                                    bool folding_right, LineRange pos,
                                    std::unique_ptr<Atom> func);
   
@@ -58,7 +57,7 @@ private:
   */
   std::unique_ptr<Expr> ParenthesiseExpr(std::unique_ptr<Expr> expr);
 
-  optional_unique_ptr<Expr> ParseExprFuncOrStruct(std::unique_ptr<TupleDecl> decl);
+  optional_unique_ptr<Expr> ParseFuncExpr(std::unique_ptr<TupleValueDecl> decl);
 
   /*
     We have to do the parse lists this way so we get nicer syntax for using them
@@ -214,34 +213,59 @@ private:
   /*
     Parses the RHS of the var decl including operators (i.e. `:`, `::`, ...)
   */
-  optional_unique_ptr<VarDecl> Parser::ParseRhsVarDecl(
+  optional_unique_ptr<VarDecl> ParseRhsVarDecl(
     std::vector<VarDecl::Declaration> decls);
 
-  std::optional<TupleDecl::ArgDecl> ParseTupleDeclSegment();
-  optional_unique_ptr<Expr> ParseExprOrTupleDecl();
-  optional_unique_ptr<TupleDecl> ParseRestTupleDeclExpr(
-    std::vector<TupleDecl::ArgDecl> declarations);
+  std::optional<TupleValueDecl::ArgDecl> ParseTupleValueDeclSegment();
+  optional_unique_ptr<Expr> ParseExprOrTupleValueDecl();
+  optional_unique_ptr<TupleValueDecl> ParseRestTupleValueDeclExpr(
+    std::vector<TupleValueDecl::ArgDecl> declarations);
   std::optional<IfBlock::IfStatement> ParseIfStatement();
 
   optional_unique_ptr<Atom> ParseSliceOrIndex(std::unique_ptr<Atom> lhs);
-  std::optional<std::vector<std::unique_ptr<FuncBlock>>> ParseBlock();
+
+  std::optional<TupleTypeDecl::ArgDecl> ParseTupleTypeSegment();
+  optional_unique_ptr<TupleTypeDecl> ParseTupleType();
+
+  /*
+    Parses our loose definition of block.
+    It either parses;
+      - A proper 'block' which is brace delimited series of func blocks
+      - Or just a single func block with no braces surrounding it
+        in which case it marks it as prefix: BlockVal in the case it hasn't
+        already been associated a prefix.
+  */
+  optional_vector_unique_ptr<FuncBlock> ParseBlock();
+
+  /*
+    Parses the prefix for a funcblock.
+
+    That is; ['yield'] ['continue' | 'break' | '=' | 'return']
+  */
+  FuncBlock::PrefixKind ParseFuncBlockPrefix();
 
   /*
     Parse the assignment expression based on the ids parsed from the hint of
     var decl.
   */
-  optional_unique_ptr<AssignmentExpr> Parser::ParseAssignmentExprVarDeclHint(
+  optional_unique_ptr<AssignmentExpr> ParseAssignmentExprVarDeclHint(
     std::vector<LineStr> ids);
+
+  /*
+    Parses either var decl or assignment expr
+  */
+  optional_unique_ptr<Expr> ParseVarDeclOrAssignmentExpr();
 
   /*
     Parses the RHS of the assignment expr including the operator.
   */
-  optional_unique_ptr<AssignmentExpr> Parser::ParseRhsAssignmentExpr(
-    std::vector<std::unique_ptr<Expr>> lhs);
+  optional_unique_ptr<AssignmentExpr> ParseRhsAssignmentExpr(
+    vector_unique_ptr<Expr> lhs);
 
 public:
   Parser(TokenStream stream, std::ostream &out = std::cerr)
       : stream(std::move(stream)), err(out) {
+    // Parser presumes that we won't get comments from the stream.
     stream.ignore_comments = true;
   }
 
@@ -251,11 +275,12 @@ public:
   optional_unique_ptr<TypeDecl> ParseTypeDecl();
 
   optional_unique_ptr<FileDecl> ParseFileDecl();
-  optional_unique_ptr<TupleDecl> ParseTupleDecl();
+  optional_unique_ptr<TupleValueDecl> ParseTupleValueDecl();
   optional_unique_ptr<VarDecl> ParseVarDecl();
 
   optional_unique_ptr<StructBlock> ParseStructBlock();
-  optional_unique_ptr<FuncBlock> ParseFuncBlock(bool file_scope = false);
+  optional_unique_ptr<FuncBlock> ParseFuncBlock(bool file_scope = false,
+      bool force_terminator_if_req = true);
   optional_unique_ptr<IfBlock> ParseIfBlock();
   optional_unique_ptr<WhileBlock> ParseWhileBlock();
   optional_unique_ptr<ForBlock> ParseForBlock();

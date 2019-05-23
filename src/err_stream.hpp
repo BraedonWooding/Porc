@@ -6,7 +6,7 @@
 
 #include "token_stream.hpp"
 
-namespace porc::internals {
+namespace porc {
 
 class ErrStream {
 private:
