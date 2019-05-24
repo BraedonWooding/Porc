@@ -35,12 +35,6 @@ private:
   std::vector<LineStr> ParseIds(Token::Kind continuer);
 
   /*
-    Is a safe not error printing alternative to ParseConstant.
-    Tries to parse a constant and if it can't it'll return std::nullopt.
-  */
-  optional_unique_ptr<Constant> TryParseConstant();
-
-  /*
     Wraps up an fold expr so that it fits as a standard expr.
   */
   std::unique_ptr<AdditiveExpr> ExprToFold(std::unique_ptr<AdditiveExpr> expr,
@@ -216,15 +210,40 @@ private:
   optional_unique_ptr<VarDecl> ParseRhsVarDecl(
     std::vector<VarDecl::Declaration> decls);
 
+  /*
+    Parses an individual tuple element.
+  */
   std::optional<TupleValueDecl::ArgDecl> ParseTupleValueDeclSegment();
+
+  /*
+    Parses either an expr or a tuple value.
+  */
   optional_unique_ptr<Expr> ParseExprOrTupleValueDecl();
+
+  /*
+    Parses the rest of a tuple value given some initial declarations.
+  */
   optional_unique_ptr<TupleValueDecl> ParseRestTupleValueDeclExpr(
     std::vector<TupleValueDecl::ArgDecl> declarations);
+
+  /*
+    Parses an if statement.
+  */
   std::optional<IfBlock::IfStatement> ParseIfStatement();
 
+  /*
+    Parses slice/index expressions i.e. a[1:100:2]
+  */
   optional_unique_ptr<Atom> ParseSliceOrIndex(std::unique_ptr<Atom> lhs);
 
+  /*
+    Parses an individual tuple type inside a tuple.
+  */
   std::optional<TupleTypeDecl::ArgDecl> ParseTupleTypeSegment();
+
+  /*
+    Parses a tuple of types.
+  */
   optional_unique_ptr<TupleTypeDecl> ParseTupleType();
 
   /*
@@ -235,14 +254,14 @@ private:
         in which case it marks it as prefix: BlockVal in the case it hasn't
         already been associated a prefix.
   */
-  optional_vector_unique_ptr<FuncBlock> ParseBlock();
+  optional_vector_unique_ptr<FuncStatement> ParseBlock();
 
   /*
-    Parses the prefix for a funcblock.
+    Parses the prefix for a FuncStatement.
 
     That is; ['yield'] ['continue' | 'break' | '=' | 'return']
   */
-  FuncBlock::PrefixKind ParseFuncBlockPrefix();
+  FuncStatement::PrefixKind ParseFuncStatementPrefix();
 
   /*
     Parse the assignment expression based on the ids parsed from the hint of
@@ -262,42 +281,12 @@ private:
   optional_unique_ptr<AssignmentExpr> ParseRhsAssignmentExpr(
     vector_unique_ptr<Expr> lhs);
 
-public:
-  Parser(TokenStream stream, std::ostream &out = std::cerr)
-      : stream(std::move(stream)), err(out) {
-    // Parser presumes that we won't get comments from the stream.
-    stream.ignore_comments = true;
-  }
-
-  // optional_unique_ptr<VarDecl> ParseFuncDecl();
-  // optional_unique_ptr<VarDecl> ParseStructDecl();
-
-  optional_unique_ptr<TypeDecl> ParseTypeDecl();
-
-  optional_unique_ptr<FileDecl> ParseFileDecl();
   optional_unique_ptr<TupleValueDecl> ParseTupleValueDecl();
   optional_unique_ptr<VarDecl> ParseVarDecl();
-
-  optional_unique_ptr<StructBlock> ParseStructBlock();
-  optional_unique_ptr<FuncBlock> ParseFuncBlock(bool file_scope = false,
-      bool force_terminator_if_req = true);
   optional_unique_ptr<IfBlock> ParseIfBlock();
   optional_unique_ptr<WhileBlock> ParseWhileBlock();
   optional_unique_ptr<ForBlock> ParseForBlock();
-
   optional_unique_ptr<FuncCall> ParseFuncCall();
-  optional_unique_ptr<Constant> ParseConstant();
-
-  optional_unique_ptr<MacroExpr> ParseMacroExpr();
-  optional_unique_ptr<TypeExpr> ParseTypeExpr();
-  optional_unique_ptr<AssignmentExpr> ParseAssignmentExpr();
-  optional_unique_ptr<Expr> ParseExpr();
-
-  // @TODO: Do I need these?  I'm not using them so far?? Perhaps I should
-  //        factor the logic outside of ParseExpr to get a generic collection.
-  // std::optional<Expr::MapExpr> ParseMapExpr();
-  // std::optional<Expr::CollectionExpr> ParseArrayExpr();
-  // std::optional<Expr::CollectionExpr> ParseTupleExpr();
 
   optional_unique_ptr<Atom> ParseAtom();
   optional_unique_ptr<PowerExpr> ParsePowerExpr();
@@ -307,6 +296,57 @@ public:
   optional_unique_ptr<ComparisonExpr> ParseComparisonExpr();
   optional_unique_ptr<LogicalAndExpr> ParseLogicalAndExpr();
   optional_unique_ptr<LogicalOrExpr> ParseLogicalOrExpr();
+  optional_unique_ptr<AssignmentExpr> ParseAssignmentExpr();
+  optional_unique_ptr<MacroExpr> ParseMacroExpr();
+
+public:
+  Parser(TokenStream stream, std::ostream &out = std::cerr)
+      : stream(std::move(stream)), err(out) {
+    // Parser presumes that we won't get comments from the stream.
+    stream.ignore_comments = true;
+  }
+
+  /*
+    Parses a type declaration. i.e.
+    type <ID> is <TupleTypeDecl> <TypeStatement>
+  */
+  optional_unique_ptr<TypeDecl> ParseTypeDecl();
+
+  /*
+    Parses a top level file.
+  */
+  optional_unique_ptr<FileDecl> ParseFileDecl();
+
+  /*
+    Parses an individual statement inside a type block.
+  */
+  optional_unique_ptr<TypeStatement> ParseTypeStatement();
+  optional_unique_ptr<FuncStatement> ParseFuncStatement(bool file_scope = false,
+      bool force_terminator_if_req = true);
+
+  /*
+    Similar to TryParseConstant but raises an appropriate error if it can't
+    create a constant.
+  */
+  optional_unique_ptr<Constant> ParseConstant();
+  
+  /*
+    Is a safe not error printing alternative to ParseConstant.
+    Tries to parse a constant and if it can't it'll return std::nullopt.
+  */
+  optional_unique_ptr<Constant> TryParseConstant();
+
+  /*
+    Parses a given type expr.
+    TypeExpressions are a sequence of types such as `a | (c.d, B[int])`
+  */
+  optional_unique_ptr<TypeExpr> ParseTypeExpr();
+
+  /*
+    Parses an expression.
+    Expressions are a statement that can be evaluable.
+  */
+  optional_unique_ptr<Expr> ParseExpr();
 };
 
 }

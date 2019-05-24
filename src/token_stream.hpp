@@ -136,11 +136,10 @@ class TokenStream {
   Token PeekCur();
 
   /*
-    Stores the last seen token.  Invalid to call at the start of the stream.
-    Tokens that count as last seen are non undefined/EOF tokens that were popped
-    effectively it is the 'last popped token'.
+    Stores the last popped token.  Invalid to call at the start of the stream.
+    Tokens that count as last popped are non undefined/EOF tokens
   */
-  Token LastSeen();
+  Token LastPopped();
 
   void Next();
   void Push(Token tok);

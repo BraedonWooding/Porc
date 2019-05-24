@@ -47,9 +47,9 @@ class BaseAST {
 
 class IdentifierAccess;
 class FileDecl;
-class StructBlock;
+class TypeStatement;
 class AssignmentExpr;
-class FuncBlock;
+class FuncStatement;
 class FuncCall;
 class Atom;
 class UnaryExpr;
@@ -214,10 +214,10 @@ class IdentifierAccess : public BaseAST {
 
 class FileDecl : public BaseAST {
  public:
-  vector_unique_ptr<FuncBlock> exprs;
+  vector_unique_ptr<FuncStatement> exprs;
   vector_unique_ptr<TypeDecl> types;
 
-  FileDecl(LineRange pos, vector_unique_ptr<FuncBlock> exprs,
+  FileDecl(LineRange pos, vector_unique_ptr<FuncStatement> exprs,
            vector_unique_ptr<TypeDecl> types)
       : exprs(std::move(exprs)), BaseAST(pos) {}
 
@@ -228,11 +228,11 @@ class TypeDecl : public BaseAST {
  public:
   LineStr id;
   optional_unique_ptr<TypeExpr> type;
-  vector_unique_ptr<StructBlock> block;
+  vector_unique_ptr<TypeStatement> block;
 
   TypeDecl(LineRange pos, LineStr id,
            optional_unique_ptr<TypeExpr> type,
-           vector_unique_ptr<StructBlock> block)
+           vector_unique_ptr<TypeStatement> block)
       : BaseAST(pos), id(std::move(id)), type(std::move(type)),
         block(std::move(block)) {}
 
@@ -262,7 +262,7 @@ class VarDecl : public BaseAST {
   json GetMetaData() const;
 };
 
-class StructBlock : public BaseAST {
+class TypeStatement : public BaseAST {
  public:
   struct Declaration {
     std::unique_ptr<VarDecl> decl;
@@ -276,20 +276,20 @@ class StructBlock : public BaseAST {
   std::variant<std::unique_ptr<TypeDecl>, Declaration,
                std::unique_ptr<MacroExpr>> expr;
 
-  StructBlock(LineRange pos, std::unique_ptr<TypeDecl> expr)
+  TypeStatement(LineRange pos, std::unique_ptr<TypeDecl> expr)
       : BaseAST(pos), expr(std::move(expr)) {}
 
-  StructBlock(LineRange pos, std::unique_ptr<VarDecl> expr,
+  TypeStatement(LineRange pos, std::unique_ptr<VarDecl> expr,
               std::unique_ptr<IdentifierAccess> id)
       : BaseAST(pos), expr(Declaration(std::move(expr), std::move(id))) {}
 
-  StructBlock(LineRange pos, std::unique_ptr<MacroExpr> expr)
+  TypeStatement(LineRange pos, std::unique_ptr<MacroExpr> expr)
       : BaseAST(pos), expr(std::move(expr)) {}
 
   json GetMetaData() const;
 };
 
-class FuncBlock : public BaseAST {
+class FuncStatement : public BaseAST {
  public:
   std::variant<std::unique_ptr<AssignmentExpr>,
                std::unique_ptr<Expr>, std::unique_ptr<VarDecl>> expr;
@@ -307,13 +307,13 @@ class FuncBlock : public BaseAST {
 
   bool HasPrefix(PrefixKind kind) const { return (prefix & kind) != 0; }
 
-  FuncBlock(LineRange pos, std::unique_ptr<AssignmentExpr> expr)
+  FuncStatement(LineRange pos, std::unique_ptr<AssignmentExpr> expr)
       : BaseAST(pos), expr(std::move(expr)), prefix(NoPrefix) {}
 
-  FuncBlock(LineRange pos, std::unique_ptr<Expr> expr, PrefixKind kind)
+  FuncStatement(LineRange pos, std::unique_ptr<Expr> expr, PrefixKind kind)
       : BaseAST(pos), expr(std::move(expr)), prefix(kind) {}
 
-  FuncBlock(LineRange pos, std::unique_ptr<VarDecl> expr)
+  FuncStatement(LineRange pos, std::unique_ptr<VarDecl> expr)
       : BaseAST(pos), expr(std::move(expr)), prefix(NoPrefix) {}
 
   json GetMetaData() const;
@@ -613,11 +613,11 @@ class Expr : public BaseAST {
   struct FuncDecl {
     std::unique_ptr<TupleValueDecl> args;
     optional_unique_ptr<TypeExpr> ret_type;
-    vector_unique_ptr<FuncBlock> block;
+    vector_unique_ptr<FuncStatement> block;
 
     FuncDecl(std::unique_ptr<TupleValueDecl> args,
              optional_unique_ptr<TypeExpr> ret_type,
-             vector_unique_ptr<FuncBlock> block)
+             vector_unique_ptr<FuncStatement> block)
         : args(std::move(args)), block(std::move(block)),
           ret_type(std::move(ret_type)) {}
   };
@@ -653,7 +653,7 @@ class Expr : public BaseAST {
                std::unique_ptr<ForBlock>, std::unique_ptr<WhileBlock>,
                std::unique_ptr<IfBlock>, CollectionExpr,
                std::unique_ptr<AssignmentExpr>,
-               vector_unique_ptr<FuncBlock>> expr;
+               vector_unique_ptr<FuncStatement>> expr;
 
   Expr(LineRange pos, std::unique_ptr<LogicalOrExpr> arg)
       : expr(std::move(arg)), BaseAST(pos) {}
@@ -669,7 +669,7 @@ class Expr : public BaseAST {
                   inclusive)) {}
   Expr(LineRange pos, std::unique_ptr<TupleValueDecl> args,
        optional_unique_ptr<TypeExpr> ret_type,
-       vector_unique_ptr<FuncBlock> block)
+       vector_unique_ptr<FuncStatement> block)
       : BaseAST(pos),
         expr(FuncDecl(std::move(args), std::move(ret_type),
                       std::move(block))) {}
@@ -681,7 +681,7 @@ class Expr : public BaseAST {
       : expr(std::move(arg)), BaseAST(pos) {}
   Expr(LineRange pos, std::unique_ptr<ForBlock> arg)
       : expr(std::move(arg)), BaseAST(pos) {}
-  Expr(LineRange pos, vector_unique_ptr<FuncBlock> block)
+  Expr(LineRange pos, vector_unique_ptr<FuncStatement> block)
       : expr(std::move(block)), BaseAST(pos) {}
 
   json GetMetaData() const;
@@ -690,10 +690,10 @@ class Expr : public BaseAST {
 class WhileBlock : public BaseAST {
  public:
   std::unique_ptr<Expr> expr;
-  vector_unique_ptr<FuncBlock> block;
+  vector_unique_ptr<FuncStatement> block;
 
   WhileBlock(LineRange pos, std::unique_ptr<Expr> expr,
-             vector_unique_ptr<FuncBlock> block)
+             vector_unique_ptr<FuncStatement> block)
       : BaseAST(pos), expr(std::move(expr)), block(std::move(block)) {}
 
   json GetMetaData() const;
@@ -703,11 +703,11 @@ class ForBlock : public BaseAST {
  public:
   std::unique_ptr<IdentifierAccess> id_list;
   vector_unique_ptr<Expr> expr_list;
-  vector_unique_ptr<FuncBlock> block;
+  vector_unique_ptr<FuncStatement> block;
 
   ForBlock(LineRange pos, std::unique_ptr<IdentifierAccess> id_list,
            vector_unique_ptr<Expr> expr_list,
-           vector_unique_ptr<FuncBlock> block)
+           vector_unique_ptr<FuncStatement> block)
       : BaseAST(pos), id_list(std::move(id_list)),
         expr_list(std::move(expr_list)), block(std::move(block)) {}
 
@@ -718,18 +718,18 @@ class IfBlock : public BaseAST {
  public:
   struct IfStatement {
     std::unique_ptr<Expr> cond;
-    vector_unique_ptr<FuncBlock> block;
+    vector_unique_ptr<FuncStatement> block;
 
     IfStatement(std::unique_ptr<Expr> cond,
-                vector_unique_ptr<FuncBlock> block)
+                vector_unique_ptr<FuncStatement> block)
         : cond(std::move(cond)), block(std::move(block)) {}
   };
 
   std::vector<IfStatement> statements; // series of if { } else if { } ...
-  optional_vector_unique_ptr<FuncBlock> else_block; // else {}
+  optional_vector_unique_ptr<FuncStatement> else_block; // else {}
 
   IfBlock(LineRange pos, std::vector<IfStatement> statements,
-          optional_vector_unique_ptr<FuncBlock> else_block)
+          optional_vector_unique_ptr<FuncStatement> else_block)
       : BaseAST(pos), statements(std::move(statements)),
         else_block(std::move(else_block)) {}
 

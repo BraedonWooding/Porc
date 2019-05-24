@@ -212,7 +212,7 @@ json VarDecl::GetMetaData() const {
   };
 }
 
-json StructBlock::GetMetaData() const {
+json TypeStatement::GetMetaData() const {
   return std::visit([this](auto &&expr)->json {
     using T = std::decay_t<decltype(expr)>;
     if constexpr (is_any<T, std::unique_ptr<TypeDecl>,
@@ -220,7 +220,7 @@ json StructBlock::GetMetaData() const {
       return expr->GetMetaData();
     } else if constexpr (std::is_same_v<T, Declaration>) {
       return {
-        {"name", "StrutBlockDeclaration"},
+        {"name", "TypeStatement"},
         {"pos", pos.GetMetaData()},
         {"decl", expr.decl->GetMetaData()},
         {"access", expr.access->GetMetaData()}
@@ -231,7 +231,7 @@ json StructBlock::GetMetaData() const {
   }, this->expr);
 }
 
-json FuncBlock::GetMetaData() const {
+json FuncStatement::GetMetaData() const {
   json data = std::visit([](auto &value)->json { 
     return value->GetMetaData();
   }, this->expr);
@@ -248,7 +248,7 @@ json FuncBlock::GetMetaData() const {
   }
 
   return {
-    {"name", "FuncBlock"},
+    {"name", "FuncStatement"},
     {"pos", this->pos.GetMetaData()},
     {"prefix", prefix},
     {"children", data}
@@ -505,9 +505,9 @@ json Expr::GetMetaData() const {
                 std::unique_ptr<AssignmentExpr>>) {
       return expr->GetMetaData();
     } else if constexpr (std::is_same_v<T,
-                        std::vector<std::unique_ptr<FuncBlock>>>) {
+                        std::vector<std::unique_ptr<FuncStatement>>>) {
       return {
-        {"name", "FuncBlock"},
+        {"name", "FuncStatement"},
         {"pos", this->pos.GetMetaData()},
         {"children", GetJsonForVec(expr)}
       };
@@ -532,7 +532,7 @@ json Expr::GetMetaData() const {
       return data;
     } else if constexpr (std::is_same_v<T, Expr::CollectionExpr>) {
       return {
-        {"name", "FuncBlock"},
+        {"name", "FuncStatement"},
         {"pos", this->pos.GetMetaData()},
         {"is_array", expr.IsArray()},
         {"values", GetJsonForVec(expr.values)}

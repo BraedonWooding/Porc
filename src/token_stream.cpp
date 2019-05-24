@@ -54,14 +54,6 @@ inline LineRange TokenStream::EndLineRange(int col_offset) const {
   return LineRange(old_line, line, old_col, col + col_offset, GetFileName());
 }
 
-/*
-  @TODO: the if(cur.type == ...) last = cur
-  is a hacky ish fix, for when you leave out the `;` on the last statement
-  it seems that we are overriding the last token incorrectly??
-  Perhaps we are actually doing it correctly but we still want this to behave
-  like this.
-*/
-
 Token TokenStream::PeekCur() {
   if (cur_token_size == 0) Next();
   return cur;
@@ -77,7 +69,7 @@ Token TokenStream::PopCur() {
   return tmp;
 }
 
-Token TokenStream::LastSeen() {
+Token TokenStream::LastPopped() {
   Assert(last.type != Token::Undefined, "No last seen token");
   return last;
 }

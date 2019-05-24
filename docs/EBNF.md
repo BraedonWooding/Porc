@@ -59,23 +59,23 @@ AssignmentOp ::= '=' | '*=' | '/=' | '**=' | '%/=' | '%=' | '+=' | '-='
 // == Blocks ==
 
 file_decl
-  : (func_block | type_decl)*
+  : (func_statement | type_decl)*
   ;
 
 type_decl
   // the semicolon is purely optional if you include the block
-  : 'type' identifier 'is' type_expr ['{' struct_block* '}'] ';'?
-  | 'type' identifier '{' struct_block* '}' ';'?
+  : 'type' identifier 'is' type_expr ['{' type_statement* '}'] ';'?
+  | 'type' identifier '{' type_statement* '}' ';'?
   ;
 
-struct_block
+type_statement
   // identifier access has lower priority to var_decl
   : identifier_access? var_decl ';'?
   | macro_expr ';'
   | type_decl
   ;
 
-func_block
+func_statement
   : assignment_expr ';'?
   | var_decl ';'?
   // you require a semicolon for all expressions that aren't just a block
@@ -88,18 +88,18 @@ func_block
 
 if_block
   // you can elide the `;` for if statements that return values (i.e. no block just expr)
-  : 'if' expr func_block ('else if' expr func_block)* ['else' func_block]
+  : 'if' expr func_statement ('else if' expr func_statement)* ['else' func_statement]
   ;
 
 for_block
   // we have to explicitly allow the '(' ')'
   // since the inside statement isn't an expr
-  : 'for' '(' identifier_list 'in' expr_list ')' func_block
-  | 'for' identifier_list 'in' expr_list func_block
+  : 'for' '(' identifier_list 'in' expr_list ')' func_statement
+  | 'for' identifier_list 'in' expr_list func_statement
   ;
 
 while_block
-  : 'while' expr func_block
+  : 'while' expr func_statement
   ;
 
 // == Declarations ==
@@ -151,11 +151,11 @@ expr
   | lambda_decl
   | array_expr | tuple_expr
   | if_block | while_block | for_block
-  | '{' func_block* '}'
+  | '{' func_statement* '}'
   ;
 
 lambda_decl
-  : tuple_value_decl ['->' type_expr] '=>' '{' func_block '}'
+  : tuple_value_decl ['->' type_expr] '=>' '{' func_statement '}'
   ;
 
 tuple_expr

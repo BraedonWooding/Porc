@@ -79,7 +79,7 @@ std::optional<To> Parser::TokenCast(Token tok) {
 }
 
 optional_unique_ptr<FileDecl> Parser::ParseFileDecl() {
-  vector_unique_ptr<FuncBlock> exprs;
+  vector_unique_ptr<FuncStatement> exprs;
   vector_unique_ptr<TypeDecl> types;
   Token tok;
 
@@ -92,7 +92,7 @@ optional_unique_ptr<FileDecl> Parser::ParseFileDecl() {
         return std::nullopt;
       }
     } else {
-      if (auto expr = ParseFuncBlock(true)) {
+      if (auto expr = ParseFuncStatement(true)) {
         exprs.push_back(std::move(*expr));
       } else {
         // @TODO: recover
@@ -113,46 +113,46 @@ optional_unique_ptr<FileDecl> Parser::ParseFileDecl() {
   return std::make_unique<FileDecl>(range, std::move(exprs), std::move(types));
 }
 
-FuncBlock::PrefixKind Parser::ParseFuncBlockPrefix() {
-  u8 ret = FuncBlock::NoPrefix;
+FuncStatement::PrefixKind Parser::ParseFuncStatementPrefix() {
+  u8 ret = FuncStatement::NoPrefix;
   if (stream.PeekCur().type == Token::Yield) {
     stream.PopCur();
-    ret |= FuncBlock::Yield;
+    ret |= FuncStatement::Yield;
   }
 
   switch (stream.PeekCur().type) {
     case Token::Return: {
       stream.PopCur();
-      ret |= FuncBlock::Return;
+      ret |= FuncStatement::Return;
     } break;
     case Token::Continue: {
       stream.PopCur();
-      ret |= FuncBlock::Continue;
+      ret |= FuncStatement::Continue;
     } break;
     case Token::Break: {
       stream.PopCur();
-      ret |= FuncBlock::Break;
+      ret |= FuncStatement::Break;
     } break;
     case Token::Assign: {
       stream.PopCur();
-      ret |= FuncBlock::BlockVal;
+      ret |= FuncStatement::BlockVal;
     } break;
     default: break;
   }
 
-  return static_cast<FuncBlock::PrefixKind>(ret);
+  return static_cast<FuncStatement::PrefixKind>(ret);
 }
 
 // @TODO: choose better name than force_terminator_if_req
-optional_unique_ptr<FuncBlock> Parser::ParseFuncBlock(bool file_scope,
+optional_unique_ptr<FuncStatement> Parser::ParseFuncStatement(bool file_scope,
       bool force_terminator_if_req) {
   Token tok = stream.PeekCur();
   LineRange start = tok.pos;
-  optional_unique_ptr<FuncBlock> expr = std::nullopt;
+  optional_unique_ptr<FuncStatement> expr = std::nullopt;
 
   bool is_block_decl = false;
-  FuncBlock::PrefixKind ret = ParseFuncBlockPrefix();
-  if (file_scope && ret != FuncBlock::NoPrefix) {
+  FuncStatement::PrefixKind ret = ParseFuncStatementPrefix();
+  if (file_scope && ret != FuncStatement::NoPrefix) {
     err.ReportCustomErr("Can't yield, return, continue, evaluate, or break"
                         " from file scope", tok.pos, ErrStream::SemanticErr);
     return std::nullopt;
@@ -170,9 +170,9 @@ optional_unique_ptr<FuncBlock> Parser::ParseFuncBlock(bool file_scope,
     for (auto &id : lhs_str) {
       decls.push_back(VarDecl::Declaration(id, std::nullopt, std::nullopt));
     }
-    expr = ComposeExpr<FuncBlock>(ParseRhsVarDecl(std::move(decls)));
+    expr = ComposeExpr<FuncStatement>(ParseRhsVarDecl(std::move(decls)));
   } else if (tok.IsAssignmentOp()) {
-    expr = ComposeExpr<FuncBlock>(ParseAssignmentExprVarDeclHint(
+    expr = ComposeExpr<FuncStatement>(ParseAssignmentExprVarDeclHint(
       std::move(lhs_str)));
   } else {
     // has to be an expr
@@ -185,12 +185,12 @@ optional_unique_ptr<FuncBlock> Parser::ParseFuncBlock(bool file_scope,
                         static_cast<std::string>(lhs_str[0])));
     }
     is_expr = true;
-    expr = ComposeExpr<FuncBlock>(ParseExpr(), ret);
+    expr = ComposeExpr<FuncStatement>(ParseExpr(), ret);
   }
 
   if (!expr) return std::nullopt;
 
-  Token last = stream.LastSeen();
+  Token last = stream.LastPopped();
   // if the last token passed was a right brace we don't need a line terminator
   bool requires_terminator = last.type != Token::RightBrace &&
                              force_terminator_if_req;
@@ -204,7 +204,7 @@ optional_unique_ptr<FuncBlock> Parser::ParseFuncBlock(bool file_scope,
     stream.PopCur();
   }
 
-  if (!is_expr && ret != FuncBlock::NoPrefix) {
+  if (!is_expr && ret != FuncStatement::NoPrefix) {
     err.ReportCustomErr("Can't yield, return, continue, evaluate, or break"
                         " a non expr", tok.pos, ErrStream::SemanticErr);
     return std::nullopt;
@@ -223,7 +223,7 @@ optional_unique_ptr<TypeDecl> Parser::ParseTypeDecl() {
   }
   auto id = *tok.ToLineStr();
   optional_unique_ptr<TypeExpr> type = std::nullopt;
-  vector_unique_ptr<StructBlock> block;
+  vector_unique_ptr<TypeStatement> block;
 
   tok = stream.PeekCur();
   if (tok.type == Token::Is) {
@@ -239,10 +239,10 @@ optional_unique_ptr<TypeDecl> Parser::ParseTypeDecl() {
   LineRange end = stream.PeekCur().pos;
 
   if (tok.type == Token::LeftBrace) {
-    optional_unique_ptr<StructBlock> expr;
+    optional_unique_ptr<TypeStatement> expr;
     Token tok;
     while ((tok = stream.PeekCur()).type != Token::RightBrace &&
-          tok.type != Token::EndOfFile && (expr = ParseStructBlock())) {
+          tok.type != Token::EndOfFile && (expr = ParseTypeStatement())) {
       block.push_back(std::move(*expr));
     }
     if (!expr) return std::nullopt;
@@ -382,11 +382,11 @@ optional_unique_ptr<IdentifierAccess>
 
 //   if (!ConsumeToken((Token::LeftBrace))) return std::nullopt;
 
-//   optional_unique_ptr<StructBlock> expr;
-//   vector_unique_ptr<StructBlock> exprs;
+//   optional_unique_ptr<TypeStatement> expr;
+//   vector_unique_ptr<TypeStatement> exprs;
 
 //   while (stream.PeekCur().type != Token::RightBrace &&
-//         (expr = ParseStructBlock()).has_value()) {
+//         (expr = ParseTypeStatement()).has_value()) {
 //     exprs.push_back(std::move(*expr));
 //   }
 
@@ -403,23 +403,23 @@ optional_unique_ptr<IdentifierAccess>
 //   return std::make_unique<VarDecl>(pos, false, std::move(decl));
 // }
 
-optional_unique_ptr<StructBlock> Parser::ParseStructBlock() {
+optional_unique_ptr<TypeStatement> Parser::ParseTypeStatement() {
   Token tok = stream.PeekCur();
-  optional_unique_ptr<StructBlock> ret;
+  optional_unique_ptr<TypeStatement> ret;
 
   if (tok.type == Token::Macro) {
-    ret = ComposeExpr<StructBlock>(ParseMacroExpr());
+    ret = ComposeExpr<TypeStatement>(ParseMacroExpr());
     if (!ret || !ConsumeToken((Token::SemiColon))) return std::nullopt;
   } else if (tok.type == Token::Type) {
-    ret = ComposeExpr<StructBlock>(ParseTypeDecl());
+    ret = ComposeExpr<TypeStatement>(ParseTypeDecl());
     if (!ret) return std::nullopt;
   } else {
     auto idents = ParseIdentifierAccess(Token::Dot);
     if (!idents) return std::nullopt;
-    auto ret = ComposeExpr<StructBlock>(ParseVarDecl(), std::move(*idents));
+    auto ret = ComposeExpr<TypeStatement>(ParseVarDecl(), std::move(*idents));
     if (!ret) return std::nullopt;
 
-    Token last = stream.LastSeen();
+    Token last = stream.LastPopped();
     // if the last token passed was a right brace we don't need a line terminator
     bool requires_terminator = last.type != Token::RightBrace;
 
@@ -912,10 +912,10 @@ optional_unique_ptr<VarDecl> Parser::ParseVarDecl() {
   return ParseRhsVarDecl(std::move(decls));
 }
 
-std::optional<vector_unique_ptr<FuncBlock>> Parser::ParseBlock() {
+std::optional<vector_unique_ptr<FuncStatement>> Parser::ParseBlock() {
   Token tok = stream.PeekCur();
-  vector_unique_ptr<FuncBlock> exprs;
-  optional_unique_ptr<FuncBlock> func_expr;
+  vector_unique_ptr<FuncStatement> exprs;
+  optional_unique_ptr<FuncStatement> func_expr;
 
   if (tok.type == Token::LeftBrace) {
     stream.PopCur();
@@ -923,7 +923,7 @@ std::optional<vector_unique_ptr<FuncBlock>> Parser::ParseBlock() {
     if (stream.PeekCur().type != Token::RightBrace) {
       while (stream.PeekCur().type != Token::RightBrace &&
             stream.PeekCur().type != Token::EndOfFile &&
-            (func_expr = ParseFuncBlock())) {
+            (func_expr = ParseFuncStatement())) {
         exprs.push_back(std::move(*func_expr));
       }
 
@@ -934,13 +934,13 @@ std::optional<vector_unique_ptr<FuncBlock>> Parser::ParseBlock() {
       stream.PopCur();
     }
   } else {
-    func_expr = ParseFuncBlock(false, false);
+    func_expr = ParseFuncStatement(false, false);
     if (!func_expr) return std::nullopt;
     // note: we only want to apply the 'block_val' in the case that this is
     //       an expr.  If it is a vardecl/assignment then we don't apply this
     if (std::holds_alternative<std::unique_ptr<Expr>>((*func_expr)->expr) &&
-        (*func_expr)->prefix == FuncBlock::NoPrefix) {
-      (*func_expr)->prefix = FuncBlock::BlockVal;
+        (*func_expr)->prefix == FuncStatement::NoPrefix) {
+      (*func_expr)->prefix = FuncStatement::BlockVal;
     }
     exprs.push_back(std::move(*func_expr));
   }
