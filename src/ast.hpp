@@ -30,6 +30,55 @@
 
 namespace porc {
 
+enum class KindAST {
+  Identifier,
+  Double,
+  Int,
+  String,
+  Character,
+  Boolean,
+  IdentifierAccess,
+  FileDecl,
+  TypeStatement,
+  TypeStatementDeclaration,
+  AssignmentExpr,
+  FuncStatement,
+  FuncCall,
+  Atom,
+  AtomIndexExpr,
+  AtomSliceExpr,
+  AtomFoldExpr,
+  AtomMemberAccessExpr,
+  UnaryExpr,
+  PowerExpr,
+  TypeDecl,
+  MultiplicativeExpr,
+  AdditiveExpr,
+  ComparisonExpr,
+  LogicalAndExpr,
+  LogicalOrExpr,
+  VarDecl,
+  VarDeclDeclaration,
+  Expr,
+  ExprFuncDecl,
+  ExprRangeExpr,
+  ExprCollectionExpr,
+  ExprBlock,
+  WhileBlock,
+  ForBlock,
+  IfBlock,
+  IfBlockStatement,
+  ElseBlock,
+  TypeExpr,
+  TypeExprGeneric,
+  TypeExprVariant,
+  TypeExprFunction,
+  Constant,
+  MacroExpr,
+  TupleValueDecl,
+  TupleTypeDecl,
+};
+
 // @TODO: remove this, it was just here so I didn't forget anything
 //        either that or make it so that you can't take a reference to it
 //        or try todo any polymorphic stuff
@@ -39,8 +88,10 @@ class BaseAST {
 
  public:
   LineRange pos;
-
   BaseAST() = delete;
+
+  // probably want to remove on things that just unwrap themselves...
+  virtual KindAST UnwrapToLowest(void **ast) = 0;
 
   virtual json GetMetaData() const = 0;
 };
@@ -58,7 +109,6 @@ class TypeDecl;
 class MultiplicativeExpr;
 class AdditiveExpr;
 class ComparisonExpr;
-class TupleTypeDecl;
 class LogicalAndExpr;
 class LogicalOrExpr;
 class VarDecl;
@@ -71,6 +121,7 @@ class TypeExpr;
 class Constant;
 class MacroExpr;
 class TupleValueDecl;
+class TupleTypeDecl;
 
 /* TODO: when concepts finally come around this really could be useful here! 
    Something like:
@@ -210,6 +261,7 @@ class IdentifierAccess : public BaseAST {
       : idents(std::move(idents)), BaseAST(pos) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class FileDecl : public BaseAST {
@@ -222,6 +274,7 @@ class FileDecl : public BaseAST {
       : exprs(std::move(exprs)), BaseAST(pos) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class TypeDecl : public BaseAST {
@@ -237,6 +290,7 @@ class TypeDecl : public BaseAST {
         block(std::move(block)) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class VarDecl : public BaseAST {
@@ -260,6 +314,7 @@ class VarDecl : public BaseAST {
       : decls(std::move(decls)), is_mut(is_mut), BaseAST(pos) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class TypeStatement : public BaseAST {
@@ -287,6 +342,7 @@ class TypeStatement : public BaseAST {
       : BaseAST(pos), expr(std::move(expr)) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class FuncStatement : public BaseAST {
@@ -317,8 +373,11 @@ class FuncStatement : public BaseAST {
       : BaseAST(pos), expr(std::move(expr)), prefix(NoPrefix) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
+// @TODO: Decide if we should unwrap these to their decls in the case
+//        that there is just one
 class TupleTypeDecl : public BaseAST {
  public:
   struct ArgDecl {
@@ -335,6 +394,7 @@ class TupleTypeDecl : public BaseAST {
       : args(std::move(args)), BaseAST(pos) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class TupleValueDecl : public BaseAST {
@@ -355,6 +415,7 @@ class TupleValueDecl : public BaseAST {
       : args(std::move(args)), BaseAST(pos) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class MacroExpr : public BaseAST {
@@ -368,6 +429,7 @@ class MacroExpr : public BaseAST {
         args(std::move(args)) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class AssignmentExpr : public BaseAST {
@@ -381,6 +443,7 @@ class AssignmentExpr : public BaseAST {
       : BaseAST(pos), lhs(std::move(lhs)), op(op), rhs(std::move(rhs)) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class FuncCall : public BaseAST {
@@ -393,6 +456,7 @@ class FuncCall : public BaseAST {
       : BaseAST(pos), func(std::move(expr)), args(std::move(args)) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class Atom : public BaseAST {
@@ -481,6 +545,7 @@ class Atom : public BaseAST {
       : BaseAST(pos), expr(std::move(expr)) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class PowerExpr : public BaseAST {
@@ -495,6 +560,7 @@ class PowerExpr : public BaseAST {
       : exprs(std::move(exprs)), BaseAST(pos) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class UnaryExpr : public BaseAST {
@@ -510,6 +576,7 @@ class UnaryExpr : public BaseAST {
       : BaseAST(pos), rhs(std::move(expr)), ops(ops) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class MultiplicativeExpr : public BaseAST {
@@ -532,6 +599,7 @@ class MultiplicativeExpr : public BaseAST {
       : exprs(std::move(exprs)), lhs(std::move(lhs)), BaseAST(pos) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class AdditiveExpr : public BaseAST {
@@ -554,6 +622,7 @@ class AdditiveExpr : public BaseAST {
       : exprs(std::move(exprs)), lhs(std::move(lhs)), BaseAST(pos) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class ComparisonExpr : public BaseAST {
@@ -576,6 +645,7 @@ class ComparisonExpr : public BaseAST {
       : exprs(std::move(exprs)), lhs(std::move(lhs)), BaseAST(pos) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class LogicalAndExpr : public BaseAST {
@@ -591,6 +661,7 @@ class LogicalAndExpr : public BaseAST {
       : exprs(std::move(exprs)), BaseAST(pos) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class LogicalOrExpr : public BaseAST {
@@ -606,6 +677,7 @@ class LogicalOrExpr : public BaseAST {
       : exprs(std::move(exprs)), BaseAST(pos) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class Expr : public BaseAST {
@@ -685,6 +757,7 @@ class Expr : public BaseAST {
       : expr(std::move(block)), BaseAST(pos) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class WhileBlock : public BaseAST {
@@ -697,6 +770,7 @@ class WhileBlock : public BaseAST {
       : BaseAST(pos), expr(std::move(expr)), block(std::move(block)) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class ForBlock : public BaseAST {
@@ -712,6 +786,7 @@ class ForBlock : public BaseAST {
         expr_list(std::move(expr_list)), block(std::move(block)) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class IfBlock : public BaseAST {
@@ -734,11 +809,11 @@ class IfBlock : public BaseAST {
         else_block(std::move(else_block)) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class TypeExpr : public BaseAST {
  public:
-  using GenericId = LineStr;
   struct GenericType {
     std::unique_ptr<IdentifierAccess> ident;
     vector_unique_ptr<TypeExpr> args;
@@ -767,9 +842,9 @@ class TypeExpr : public BaseAST {
   };
 
   std::variant<GenericType, VariantType, std::unique_ptr<IdentifierAccess>,
-               std::unique_ptr<TupleTypeDecl>, FunctionType, GenericId> expr;
+               std::unique_ptr<TupleTypeDecl>, FunctionType, LineStr> expr;
 
-  TypeExpr(LineRange pos, GenericId id)
+  TypeExpr(LineRange pos, LineStr id)
       : BaseAST(pos), expr(std::move(id)) {}
 
   TypeExpr(LineRange pos, std::unique_ptr<IdentifierAccess> id)
@@ -788,6 +863,7 @@ class TypeExpr : public BaseAST {
       : BaseAST(pos), expr(std::move(tuple_type)) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 class Constant : public BaseAST {
@@ -801,6 +877,7 @@ class Constant : public BaseAST {
   Constant(LineRange pos, bool arg) : data(arg), BaseAST(pos) {}
 
   json GetMetaData() const;
+  KindAST UnwrapToLowest(void **ast);
 };
 
 }

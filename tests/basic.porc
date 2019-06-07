@@ -1,5 +1,7 @@
 # Just a basic Porc test
 # Bug x = ((n) => {2})
+a, b := [1, 2]
+
 main :: () => {
   x :: () => 2;
 

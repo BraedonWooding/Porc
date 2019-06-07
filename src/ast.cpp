@@ -177,6 +177,16 @@ const char *ComparisonOp::AllMsg() {
   return ">, <, >=, <=, ==, !=";
 }
 
+KindAST IdentifierAccess::UnwrapToLowest(void **ast) {
+  if (idents.size() != 1) {
+    if (ast) *ast = this;
+    return KindAST::IdentifierAccess;
+  } else {
+    if (ast) *ast = &idents[0];
+    return KindAST::Identifier;
+  }
+}
+
 json IdentifierAccess::GetMetaData() const {
   return {
     {"name", "IdentAccess"},
@@ -187,12 +197,38 @@ json IdentifierAccess::GetMetaData() const {
   };
 }
 
+/*
+  @TODO: Should we resolve it to an expr if only one expr (and no types) exist?
+         Vice versa for types?
+  Could make some things easier I guess...????
+*/
+KindAST FileDecl::UnwrapToLowest(void **ast) {
+  if (exprs.size() == 1 && types.size() == 0) {
+    return exprs[0]->UnwrapToLowest(ast);
+  } else if (exprs.size() == 0 && types.size() == 1) {
+    return types[0]->UnwrapToLowest(ast);
+  } else {
+    if (ast) *ast = this;
+    return KindAST::FileDecl;
+  }
+}
+
 json FileDecl::GetMetaData() const {
   return {
     {"name", "FileDecl"},
     {"pos", this->pos.GetMetaData()},
     {"children", GetJsonForVec(exprs)}
   };
+}
+
+KindAST VarDecl::UnwrapToLowest(void **ast) {
+  if (decls.size() == 1) {
+    if (ast) *ast = &decls[0];
+    return KindAST::VarDeclDeclaration;
+  } else {
+    if (ast) *ast = this;
+    return KindAST::VarDecl;
+  }
 }
 
 json VarDecl::GetMetaData() const {
@@ -212,11 +248,26 @@ json VarDecl::GetMetaData() const {
   };
 }
 
+KindAST TypeStatement::UnwrapToLowest(void **ast) {
+  return std::visit([this, ast](auto &&expr)->KindAST {
+    using T = std::decay_t<decltype(expr)>;
+    if constexpr (is_any<T, std::unique_ptr<TypeDecl>,
+                            std::unique_ptr<MacroExpr>>) {
+      return expr->UnwrapToLowest(ast);
+    } else if constexpr (std::is_same_v<T, Declaration>) {
+      if (ast) *ast = static_cast<Declaration*>(&expr);
+      return KindAST::TypeStatementDeclaration;
+    } else {
+      static_assert(always_false<T>::value, "non-exhaustive vistor!");
+    }
+  }, this->expr);
+}
+
 json TypeStatement::GetMetaData() const {
   return std::visit([this](auto &&expr)->json {
     using T = std::decay_t<decltype(expr)>;
     if constexpr (is_any<T, std::unique_ptr<TypeDecl>,
-               std::unique_ptr<MacroExpr>>) {
+                            std::unique_ptr<MacroExpr>>) {
       return expr->GetMetaData();
     } else if constexpr (std::is_same_v<T, Declaration>) {
       return {
@@ -229,6 +280,17 @@ json TypeStatement::GetMetaData() const {
       static_assert(always_false<T>::value, "non-exhaustive vistor!");
     }
   }, this->expr);
+}
+
+KindAST FuncStatement::UnwrapToLowest(void **ast) {
+  if (HasPrefix(NoPrefix)) {
+    return std::visit([ast](auto &value)->KindAST { 
+      return value->UnwrapToLowest(ast);
+    }, this->expr);
+  } else {
+    if (ast) *ast = this;
+    return KindAST::FuncStatement;
+  }
 }
 
 json FuncStatement::GetMetaData() const {
@@ -255,6 +317,11 @@ json FuncStatement::GetMetaData() const {
   };
 }
 
+KindAST TupleValueDecl::UnwrapToLowest(void **ast) {
+  if (ast) *ast = this;
+  return KindAST::TupleValueDecl;
+}
+
 json TupleValueDecl::GetMetaData() const {
   std::vector<json> meta_data;
   for (auto &decl : this->args) {
@@ -268,6 +335,11 @@ json TupleValueDecl::GetMetaData() const {
     {"pos", this->pos.GetMetaData()},
     {"children", meta_data}
   };
+}
+
+KindAST TupleTypeDecl::UnwrapToLowest(void **ast) {
+  if (ast) *ast = this;
+  return KindAST::TupleTypeDecl;
 }
 
 json TupleTypeDecl::GetMetaData() const {
@@ -284,6 +356,11 @@ json TupleTypeDecl::GetMetaData() const {
   };
 }
 
+KindAST MacroExpr::UnwrapToLowest(void **ast) {
+  if (ast) *ast = this;
+  return KindAST::MacroExpr;
+}
+
 json MacroExpr::GetMetaData() const {
   return {
     {"name", "MacroExpr"},
@@ -291,6 +368,11 @@ json MacroExpr::GetMetaData() const {
     {"id", qualifying_name->GetMetaData()},
     {"args", GetJsonForVec(args)}
   };
+}
+
+KindAST AssignmentExpr::UnwrapToLowest(void **ast) {
+  if (ast) *ast = this;
+  return KindAST::AssignmentExpr;
 }
 
 json AssignmentExpr::GetMetaData() const {
@@ -303,6 +385,11 @@ json AssignmentExpr::GetMetaData() const {
   };
 }
 
+KindAST FuncCall::UnwrapToLowest(void **ast) {
+  if (ast) *ast = this;
+  return KindAST::FuncCall;
+}
+
 json FuncCall::GetMetaData() const {
   return {
     {"name", "FuncCall"},
@@ -312,16 +399,38 @@ json FuncCall::GetMetaData() const {
   };
 }
 
+KindAST Atom::UnwrapToLowest(void **ast) {
+  return std::visit([this, ast](auto &&expr)->KindAST {
+    using T = std::decay_t<decltype(expr)>;
+    if constexpr (is_any<T, std::unique_ptr<Expr>, std::unique_ptr<MacroExpr>,
+                       std::unique_ptr<Constant>, std::unique_ptr<FuncCall>>) {
+      return expr->UnwrapToLowest(ast);
+    } else if constexpr (std::is_same_v<T, LineStr>) {
+      if (ast) *ast = static_cast<LineStr*>(&expr);
+      return KindAST::Identifier;
+    } else if constexpr (std::is_same_v<T, Atom::IndexExpr>) {
+      if (ast) *ast = static_cast<Atom::IndexExpr*>(&expr);
+      return KindAST::AtomIndexExpr;
+    } else if constexpr (std::is_same_v<T, Atom::SliceExpr>) {
+      if (ast) *ast = static_cast<Atom::SliceExpr*>(&expr);
+      return KindAST::AtomSliceExpr;
+    } else if constexpr (std::is_same_v<T, Atom::FoldExpr>) {
+      if (ast) *ast = static_cast<Atom::FoldExpr*>(&expr);
+      return KindAST::AtomFoldExpr;
+    } else if constexpr (std::is_same_v<T, Atom::MemberAccessExpr>) {
+      if (ast) *ast = static_cast<Atom::MemberAccessExpr*>(&expr);
+      return KindAST::AtomMemberAccessExpr;
+    } else {
+      static_assert(always_false<T>::value, "non-exhaustive vistor!");
+    }
+  }, this->expr);
+}
+
 json Atom::GetMetaData() const {
   return std::visit([this](auto &&expr)->json {
     using T = std::decay_t<decltype(expr)>;
-    if constexpr (std::is_same_v<T, std::unique_ptr<Expr>>) {
-      return expr->GetMetaData();
-    } else if constexpr (std::is_same_v<T, std::unique_ptr<MacroExpr>>) {
-      return expr->GetMetaData();
-    } else if constexpr (std::is_same_v<T, std::unique_ptr<Constant>>) {
-      return expr->GetMetaData();
-    } else if constexpr (std::is_same_v<T, std::unique_ptr<FuncCall>>) {
+    if constexpr (is_any<T, std::unique_ptr<Expr>, std::unique_ptr<MacroExpr>,
+                       std::unique_ptr<Constant>, std::unique_ptr<FuncCall>>) {
       return expr->GetMetaData();
     } else if constexpr (std::is_same_v<T, LineStr>) {
       return {
@@ -367,6 +476,15 @@ json Atom::GetMetaData() const {
   }, this->expr);
 }
 
+KindAST PowerExpr::UnwrapToLowest(void **ast) {
+  if (exprs.size() > 1) {
+    if (ast) *ast = this;
+    return KindAST::PowerExpr;
+  } else {
+    return exprs[1]->UnwrapToLowest(ast);
+  }
+}
+
 json PowerExpr::GetMetaData() const {
   if (exprs.size() == 1) {
     // fallthrough
@@ -380,6 +498,11 @@ json PowerExpr::GetMetaData() const {
   }
 }
 
+KindAST TypeDecl::UnwrapToLowest(void **ast) {
+  if (ast) *ast = this;
+  return KindAST::TypeDecl;
+}
+
 json TypeDecl::GetMetaData() const {
   json data = {
     {"name", "TypeDecl"},
@@ -389,6 +512,15 @@ json TypeDecl::GetMetaData() const {
   };
   if (type) data["type"] = (*type)->GetMetaData();
   return data;
+}
+
+KindAST UnaryExpr::UnwrapToLowest(void **ast) {
+  if (ops.size() > 1) {
+    if (ast) *ast = this;
+    return KindAST::UnaryExpr;
+  } else {
+    return rhs->UnwrapToLowest(ast);
+  }
 }
 
 json UnaryExpr::GetMetaData() const {
@@ -407,6 +539,15 @@ json UnaryExpr::GetMetaData() const {
       {"rhs", rhs->GetMetaData()},
       {"ops", data}
     };
+  }
+}
+
+KindAST MultiplicativeExpr::UnwrapToLowest(void **ast) {
+  if (exprs.size() > 1) {
+    if (ast) *ast = this;
+    return KindAST::MultiplicativeExpr;
+  } else {
+    return lhs->UnwrapToLowest(ast);
   }
 }
 
@@ -430,6 +571,15 @@ json MultiplicativeExpr::GetMetaData() const {
   }
 }
 
+KindAST AdditiveExpr::UnwrapToLowest(void **ast) {
+  if (exprs.size() > 1) {
+    if (ast) *ast = this;
+    return KindAST::AdditiveExpr;
+  } else {
+    return lhs->UnwrapToLowest(ast);
+  }
+}
+
 json AdditiveExpr::GetMetaData() const {
   if (exprs.size() == 0) {
     // fallthrough
@@ -447,6 +597,15 @@ json AdditiveExpr::GetMetaData() const {
       {"lhs", lhs->GetMetaData()},
       {"ops", data}
     };
+  }
+}
+
+KindAST ComparisonExpr::UnwrapToLowest(void **ast) {
+  if (exprs.size() > 1) {
+    if (ast) *ast = this;
+    return KindAST::ComparisonExpr;
+  } else {
+    return lhs->UnwrapToLowest(ast);
   }
 }
 
@@ -470,6 +629,15 @@ json ComparisonExpr::GetMetaData() const {
   }
 }
 
+KindAST LogicalAndExpr::UnwrapToLowest(void **ast) {
+  if (exprs.size() > 1) {
+    if (ast) *ast = this;
+    return KindAST::LogicalAndExpr;
+  } else {
+    return exprs[0]->UnwrapToLowest(ast);
+  }
+}
+
 json LogicalAndExpr::GetMetaData() const {
   if (exprs.size() == 1) {
     // fallthrough
@@ -480,6 +648,15 @@ json LogicalAndExpr::GetMetaData() const {
       {"pos", this->pos.GetMetaData()},
       {"children", GetJsonForVec(exprs)}
     };
+  }
+}
+
+KindAST LogicalOrExpr::UnwrapToLowest(void **ast) {
+  if (exprs.size() > 1) {
+    if (ast) *ast = this;
+    return KindAST::LogicalOrExpr;
+  } else {
+    return exprs[0]->UnwrapToLowest(ast);
   }
 }
 
@@ -494,6 +671,37 @@ json LogicalOrExpr::GetMetaData() const {
       {"children", GetJsonForVec(exprs)}
     };
   }
+}
+
+KindAST Expr::UnwrapToLowest(void **ast) {
+  return std::visit([this, ast](auto &&expr)->KindAST {
+    using T = std::decay_t<decltype(expr)>;
+    if constexpr (is_any<T, std::unique_ptr<LogicalOrExpr>,
+                std::unique_ptr<WhileBlock>, std::unique_ptr<ForBlock>,
+                std::unique_ptr<IfBlock>, std::unique_ptr<VarDecl>,
+                std::unique_ptr<AssignmentExpr>>) {
+      return expr->UnwrapToLowest(ast);
+    } else if constexpr (std::is_same_v<T,
+                         std::vector<std::unique_ptr<FuncStatement>>>) {
+      if (expr.size() == 1) {
+        return expr[0]->UnwrapToLowest(ast);
+      } else {
+        if (ast) *ast = static_cast<vector_unique_ptr<FuncStatement>*>(&expr);
+        return KindAST::ExprBlock;
+      }
+    } else if constexpr (std::is_same_v<T, Expr::FuncDecl>) {
+      if (ast) *ast = static_cast<Expr::FuncDecl*>(&expr);
+      return KindAST::ExprFuncDecl;
+    } else if constexpr (std::is_same_v<T, Expr::RangeExpr>) {
+      if (ast) *ast = static_cast<Expr::RangeExpr*>(&expr);
+      return KindAST::ExprRangeExpr;
+    } else if constexpr (std::is_same_v<T, Expr::CollectionExpr>) {
+      if (ast) *ast = static_cast<Expr::CollectionExpr*>(&expr);
+      return KindAST::ExprCollectionExpr;
+    } else {
+      static_assert(always_false<T>::value, "non-exhaustive vistor!");
+    }
+  }, this->expr);
 }
 
 json Expr::GetMetaData() const {
@@ -543,6 +751,11 @@ json Expr::GetMetaData() const {
   }, this->expr);
 }
 
+KindAST WhileBlock::UnwrapToLowest(void **ast) {
+  if (ast) *ast = this;
+  return KindAST::WhileBlock;
+}
+
 json WhileBlock::GetMetaData() const {
   return {
     {"name", "While"},
@@ -550,6 +763,11 @@ json WhileBlock::GetMetaData() const {
     {"expr", this->expr->GetMetaData()},
     {"block", GetJsonForVec(this->block)}
   };
+}
+
+KindAST ForBlock::UnwrapToLowest(void **ast) {
+  if (ast) *ast = this;
+  return KindAST::ForBlock;
 }
 
 json ForBlock::GetMetaData() const {
@@ -560,6 +778,16 @@ json ForBlock::GetMetaData() const {
     {"expr_list", GetJsonForVec(this->expr_list)},
     {"block", GetJsonForVec(this->block)}
   };
+}
+
+KindAST IfBlock::UnwrapToLowest(void **ast) {
+  if (statements.size() == 1 && !else_block) {
+    if (ast) *ast = &statements[0];
+    return KindAST::IfBlockStatement;
+  } else {
+    if (ast) *ast = this;
+    return KindAST::IfBlock;
+  }
 }
 
 json IfBlock::GetMetaData() const {
@@ -579,6 +807,30 @@ json IfBlock::GetMetaData() const {
     {"pos", this->pos.GetMetaData()},
     {"children", data}
   };
+}
+
+KindAST TypeExpr::UnwrapToLowest(void **ast) {
+  return std::visit([this, ast](auto &&expr)->KindAST {
+    using T = std::decay_t<decltype(expr)>;
+    if constexpr (is_any<T, std::unique_ptr<TupleTypeDecl>,
+                            std::unique_ptr<IdentifierAccess>>) {
+      return expr->UnwrapToLowest(ast);
+    } else if constexpr (std::is_same_v<T, TypeExpr::GenericType>) {
+      if (ast) *ast = static_cast<TypeExpr::GenericType*>(&expr);
+      return KindAST::TypeExprGeneric;
+    } else if constexpr (std::is_same_v<T, TypeExpr::VariantType>) {
+      if (ast) *ast = static_cast<TypeExpr::VariantType*>(&expr);
+      return KindAST::TypeExprVariant;
+    } else if constexpr (std::is_same_v<T, TypeExpr::FunctionType>) {
+      if (ast) *ast = static_cast<TypeExpr::FunctionType*>(&expr);
+      return KindAST::TypeExprFunction;
+    } else if constexpr (std::is_same_v<T, LineStr>) {
+      if (ast) *ast = static_cast<LineStr*>(&expr);
+      return KindAST::Identifier;
+    } else {
+      static_assert(always_false<T>::value, "non-exhaustive vistor!");
+    }
+  }, this->expr);
 }
 
 json TypeExpr::GetMetaData() const {
@@ -611,7 +863,7 @@ json TypeExpr::GetMetaData() const {
         {"args", expr.args->GetMetaData()},
         {"ret_type", expr.ret_type->GetMetaData()}
       };
-    } else if constexpr (std::is_same_v<T, TypeExpr::GenericId>) {
+    } else if constexpr (std::is_same_v<T, LineStr>) {
       return {
         {"name", "TypeExpr"},
         {"pos", this->pos.GetMetaData()},
@@ -627,6 +879,30 @@ json TypeExpr::GetMetaData() const {
       static_assert(always_false<T>::value, "non-exhaustive vistor!");
     }
   }, this->expr);
+}
+
+KindAST Constant::UnwrapToLowest(void **ast) {
+  return std::visit([this, ast](auto &&expr)->KindAST {
+    using T = std::decay_t<decltype(expr)>;
+    if constexpr (std::is_same_v<T, double>) {
+      if (ast) *ast = static_cast<double*>(&expr);
+      return KindAST::Double;
+    } else if constexpr (std::is_same_v<T, i64>) {
+      if (ast) *ast = static_cast<i64*>(&expr);
+      return KindAST::Int;
+    } else if constexpr (std::is_same_v<T, std::string>) {
+      if (ast) *ast = static_cast<std::string*>(&expr);
+      return KindAST::String;
+    } else if constexpr (std::is_same_v<T, char>) {
+      if (ast) *ast = static_cast<char*>(&expr);
+      return KindAST::Character;
+    } else if constexpr (std::is_same_v<T, bool>) {
+      if (ast) *ast = static_cast<bool*>(&expr);
+      return KindAST::Boolean;
+    } else {
+      static_assert(always_false<T>::value, "non-exhaustive vistor!");
+    }
+  }, this->data);
 }
 
 json Constant::GetMetaData() const {

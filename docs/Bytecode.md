@@ -42,7 +42,7 @@ There are the following commands for basic arithmetic;
 - `MUL` multiplication
 - `ADD` addition
 - `DIV` division (both args are promoted to floats)
-- `INT_DIV` integer division (both are demoted to ints)
+- `DIV_FLD` integer division (both are demoted to ints)
 - `MOD` modulus
 - `POW` power
 

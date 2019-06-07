@@ -367,42 +367,6 @@ optional_unique_ptr<IdentifierAccess>
   return std::make_unique<IdentifierAccess>(pos, std::move(ids));
 }
 
-// optional_unique_ptr<VarDecl> Parser::ParseStructDecl() {
-//   if (!ConsumeToken((Token::Struct))) return std::nullopt;
-
-//   Token tok = stream.PopCur();
-//   if (tok.type != Token::Identifier) {
-//     err.ReportUnexpectedToken(Token::Identifier, tok);
-//     return std::nullopt;
-//   }
-
-//   auto id = *tok.ToLineStr();
-//   auto tuple_decl = ParseTupleValueDecl();
-//   if (!tuple_decl) return std::nullopt;
-
-//   if (!ConsumeToken((Token::LeftBrace))) return std::nullopt;
-
-//   optional_unique_ptr<TypeStatement> expr;
-//   vector_unique_ptr<TypeStatement> exprs;
-
-//   while (stream.PeekCur().type != Token::RightBrace &&
-//         (expr = ParseTypeStatement()).has_value()) {
-//     exprs.push_back(std::move(*expr));
-//   }
-
-//   LineRange end = stream.PeekCur().pos;
-//   if (exprs.size() > 0) end = FindRangeOfVector(exprs);
-
-//   if (!ConsumeToken((Token::RightBrace))) return std::nullopt;
-
-//   LineRange pos = LineRange((*tuple_decl)->pos, end);
-//   auto tmp = std::make_unique<Expr>(pos, std::move(*tuple_decl),
-//                                     std::move(exprs));
-//   std::vector<VarDecl::Declaration> decl;
-//   decl.push_back(VarDecl::Declaration(id, std::nullopt, std::move(tmp)));
-//   return std::make_unique<VarDecl>(pos, false, std::move(decl));
-// }
-
 optional_unique_ptr<TypeStatement> Parser::ParseTypeStatement() {
   Token tok = stream.PeekCur();
   optional_unique_ptr<TypeStatement> ret;
@@ -824,17 +788,25 @@ optional_unique_ptr<VarDecl> Parser::ParseRhsVarDecl(
     // type-expr list
     auto set_type = +[](int index, std::unique_ptr<TypeExpr> type_expr, 
                         std::vector<VarDecl::Declaration> &decls,
-                        ErrStream &err) {
+                        ErrStream &err, int &count) {
       if (index < decls.size()) {
         decls.at(index).type = std::move(type_expr);
+        count++;
       } else {
         err.ReportCustomErr("Too many types for variables", type_expr->pos,
                             ErrStream::SemanticErr);
       }
     };
-    if (!ParseList(&Parser::ParseTypeExpr, set_type, decls, err)) {
+    int num = 0;
+    if (!ParseList(&Parser::ParseTypeExpr, set_type, decls, err, num)) {
       return std::nullopt;
     }
+    if (num != 1 && num != decls.size()) {
+      // we don't have enough types @TODO: put how many were were expecting
+      err.ReportCustomErr("Too few types for variables", stream.PeekCur().pos,
+                          ErrStream::SemanticErr);
+    }
+
     cur = stream.PopCur();
   }
 
@@ -851,16 +823,23 @@ optional_unique_ptr<VarDecl> Parser::ParseRhsVarDecl(
     // expr list
     auto set_expr = +[](int index, std::unique_ptr<Expr> expr,
                         std::vector<VarDecl::Declaration> &decls,
-                        ErrStream &err) {
+                        ErrStream &err, int &count) {
       if (index < decls.size()) {
         decls.at(index).expr = std::move(expr);
+        count++;
       } else {
         err.ReportCustomErr("Too many exprs for variables", expr->pos,
                             ErrStream::SemanticErr);
       }
     };
-    if (!ParseList(&Parser::ParseExpr, set_expr, decls, err)) {
+    int count;
+    if (!ParseList(&Parser::ParseExpr, set_expr, decls, err, count)) {
       return std::nullopt;
+    }
+    if (count != 1 && count != decls.size()) {
+      // we don't have enough types @TODO: put how many were were expecting
+      err.ReportCustomErr("Too few exprs for variables", stream.PeekCur().pos,
+                          ErrStream::SemanticErr);
     }
   }
 
@@ -1291,41 +1270,6 @@ optional_unique_ptr<AssignmentExpr> Parser::ParseAssignmentExpr() {
   if (!ParseList(&Parser::ParseExpr, PushBack, lhs)) return std::nullopt;
   return ParseRhsAssignmentExpr(std::move(lhs));
 }
-
-// std::optional<Expr::MapExpr> Parser::ParseMapExpr() {
-//   if (!ConsumeToken(Token::LeftBracket)) return std::nullopt;
-
-//   vector_unique_ptr<Expr> keys;
-//   vector_unique_ptr<Expr> values;
-//   if (!ParseListConjugate(&Parser::ParseExpr, PushBackMap, keys, values))
-//     return std::nullopt;
-
-//   if (!ConsumeToken(Token::RightBracket)) return std::nullopt;
-
-//   return Expr::MapExpr(std::move(keys), std::move(values));
-// }
-
-// std::optional<Expr::CollectionExpr> Parser::ParseArrayExpr() {
-//   if (!ConsumeToken(Token::LeftBracket)) return std::nullopt;
-
-//   vector_unique_ptr<Expr> values;
-//   if (!ParseList(&Parser::ParseExpr, PushBack, values)) return std::nullopt;
-
-//   if (!ConsumeToken(Token::RightBracket)) return std::nullopt;
-
-//   return Expr::CollectionExpr(std::move(values), true);
-// }
-
-// std::optional<Expr::CollectionExpr> Parser::ParseTupleExpr() {
-//   if (!ConsumeToken(Token::LeftParen)) return std::nullopt;
-
-//   vector_unique_ptr<Expr> values;
-//   if (!ParseList(&Parser::ParseExpr, PushBack, values)) return std::nullopt;
-
-//   if (!ConsumeToken(Token::RightParen)) return std::nullopt;
-
-//   return Expr::CollectionExpr(std::move(values), false);
-// }
 
 optional_unique_ptr<Atom> Parser::ParseAtom() {
   Token peek = stream.PeekCur();

@@ -28,6 +28,13 @@ class LineStr : public std::string {
  public:
   LineRange pos;
 
+  /*
+    String is destroyed in creation!!
+    @BAD: This is bad
+    - not passed by ref so doesn't really do anyting
+    - we shouldn't destroy strings rather should rely on that being done
+      on calling side.
+  */
   LineStr(LineRange pos, std::string wrap)
       : std::string(std::move(wrap)), pos(pos) { }
 };
