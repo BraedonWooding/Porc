@@ -1,6 +1,13 @@
 # Just a basic Porc test
 # Bug x = ((n) => {2})
-a, b := [1, 2]
+
+type vec is (x: int, y: int, z: int) {
+  str.vec :: () => {
+    return 1;
+  }
+}
+
+a, b := [1, 2];
 
 main :: () => {
   x :: () => 2;
@@ -15,8 +22,4 @@ main :: () => {
   if (let x := 2) {
     = x;
   }
-}
-
-k :: () => {
-
 }

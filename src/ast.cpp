@@ -5,11 +5,6 @@
 #include "helper.hpp"
 
 namespace porc {
-template<class T> struct always_false: std::false_type {};
-
-template <class T, class... Ts>
-inline constexpr bool is_any =
-    std::bool_constant<(std::is_same_v<T, Ts> || ...)>::value;
 
 LineRange VarDecl::Declaration::GetPos() const {
   if (expr)       return LineRange(id.pos, (*expr)->pos);
@@ -217,7 +212,8 @@ json FileDecl::GetMetaData() const {
   return {
     {"name", "FileDecl"},
     {"pos", this->pos.GetMetaData()},
-    {"children", GetJsonForVec(exprs)}
+    {"statements", GetJsonForVec(exprs)},
+    {"types", GetJsonForVec(types)},
   };
 }
 
@@ -255,8 +251,12 @@ KindAST TypeStatement::UnwrapToLowest(void **ast) {
                             std::unique_ptr<MacroExpr>>) {
       return expr->UnwrapToLowest(ast);
     } else if constexpr (std::is_same_v<T, Declaration>) {
-      if (ast) *ast = static_cast<Declaration*>(&expr);
-      return KindAST::TypeStatementDeclaration;
+      if (expr.access) {
+        if (ast) *ast = static_cast<Declaration*>(&expr);
+        return KindAST::TypeStatementDeclaration;
+      } else {
+        return expr.decl->UnwrapToLowest(ast);
+      }
     } else {
       static_assert(always_false<T>::value, "non-exhaustive vistor!");
     }
@@ -270,12 +270,13 @@ json TypeStatement::GetMetaData() const {
                             std::unique_ptr<MacroExpr>>) {
       return expr->GetMetaData();
     } else if constexpr (std::is_same_v<T, Declaration>) {
-      return {
+      json data = {
         {"name", "TypeStatement"},
         {"pos", pos.GetMetaData()},
-        {"decl", expr.decl->GetMetaData()},
-        {"access", expr.access->GetMetaData()}
+        {"decl", expr.decl->GetMetaData()}
       };
+      if (expr.access) data["access"] = (*expr.access)->GetMetaData();
+      return data;
     } else {
       static_assert(always_false<T>::value, "non-exhaustive vistor!");
     }

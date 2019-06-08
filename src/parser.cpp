@@ -239,6 +239,7 @@ optional_unique_ptr<TypeDecl> Parser::ParseTypeDecl() {
   LineRange end = stream.PeekCur().pos;
 
   if (tok.type == Token::LeftBrace) {
+    stream.PopCur();
     optional_unique_ptr<TypeStatement> expr;
     Token tok;
     while ((tok = stream.PeekCur()).type != Token::RightBrace &&
@@ -246,12 +247,13 @@ optional_unique_ptr<TypeDecl> Parser::ParseTypeDecl() {
       block.push_back(std::move(*expr));
     }
     if (!expr) return std::nullopt;
-    end = FindRangeOfVector(block);
+    end = stream.PeekCur().pos;
     if (!ConsumeToken((Token::RightBrace))) return std::nullopt;
   } else if (!type) {
     // we have neither a type nor a block this is invalid
     err.ReportCustomErr("Was expecting either a type block or a type expr "
                         "got neither.", tok.pos, ErrStream::SyntaxErr);
+    return std::nullopt;
   }
 
   LineRange pos = LineRange(start, end);
@@ -380,7 +382,18 @@ optional_unique_ptr<TypeStatement> Parser::ParseTypeStatement() {
   } else {
     auto idents = ParseIdentifierAccess(Token::Dot);
     if (!idents) return std::nullopt;
-    auto ret = ComposeExpr<TypeStatement>(ParseVarDecl(), std::move(*idents));
+
+    // we need to have the last identifier for the var decl
+    auto top_str = (*idents)->idents.back();
+    (*idents)->idents.pop_back();
+    auto pos = top_str.pos;
+    stream.Push(Token(Token::Identifier, pos,
+                      static_cast<std::string>(std::move(top_str))));
+
+    // if there is no ident access since we only had 1 token
+    if ((*idents)->idents.size() == 0) idents = std::nullopt;
+
+    ret = ComposeExpr<TypeStatement>(ParseVarDecl(), std::move(idents));
     if (!ret) return std::nullopt;
 
     Token last = stream.LastPopped();
@@ -709,10 +722,12 @@ optional_unique_ptr<Expr> Parser::ParseExpr() {
     } break;
     case Token::LeftBracket: {
       // array
+      stream.PopCur();
       vector_unique_ptr<Expr> vals;
       if (!ParseList(&Parser::ParseExpr, PushBack, vals)) return std::nullopt;
       LineRange pos = FindRangeOfVector(vals);
       expr = std::make_unique<Expr>(pos, std::move(vals), true);
+      if (!ConsumeToken(Token::RightBracket)) return std::nullopt;
     } break;
     case Token::LeftBrace: {
       auto exprs = ParseBlock();
@@ -816,6 +831,7 @@ optional_unique_ptr<VarDecl> Parser::ParseRhsVarDecl(
         cur.type == Token::ColonAssign)) {
       err.ReportCustomErr("Wasn't expecting both ':' or '=' and ':=' or '::'",
                           cur.pos, ErrStream::SyntaxErr);
+      return std::nullopt;
     }
 
     atleast_one = true;
@@ -832,7 +848,7 @@ optional_unique_ptr<VarDecl> Parser::ParseRhsVarDecl(
                             ErrStream::SemanticErr);
       }
     };
-    int count;
+    int count = 0;
     if (!ParseList(&Parser::ParseExpr, set_expr, decls, err, count)) {
       return std::nullopt;
     }
@@ -853,6 +869,7 @@ optional_unique_ptr<VarDecl> Parser::ParseRhsVarDecl(
   }
 
   LineRange end = decls[decls.size() - 1].GetPos();
+
   return std::make_unique<VarDecl>(LineRange(start, end), mut,
                                    std::move(decls));
 }
@@ -861,7 +878,7 @@ optional_unique_ptr<VarDecl> Parser::ParseRhsVarDecl(
 optional_unique_ptr<VarDecl> Parser::ParseVarDecl() {
   // Parse identifier list
   std::vector<VarDecl::Declaration> decls;
-  Token cur = stream.PopCur();
+  Token cur = stream.PeekCur();
   LineRange start = cur.pos;
 
   while (true) {
@@ -882,12 +899,13 @@ optional_unique_ptr<VarDecl> Parser::ParseVarDecl() {
     stream.PopCur();
   }
 
-  if ((cur = stream.PopCur()).type != Token::Colon &&
+  if ((cur = stream.PeekCur()).type != Token::Colon &&
       cur.type != Token::DoubleColon &&
       cur.type != Token::ColonAssign) {
     err.ReportInvalidTokenCast(cur, "::, :=, :");
     return std::nullopt;
   }
+
   return ParseRhsVarDecl(std::move(decls));
 }
 
@@ -1205,7 +1223,11 @@ optional_unique_ptr<TypeExpr> Parser::ParseTypeExpr() {
     } else {
       // just an identifier
       LineRange pos = (*id)->pos;
-      ret = std::make_unique<TypeExpr>(pos, std::move(*id));
+      if ((*id)->idents.size() == 1) {
+        ret = std::make_unique<TypeExpr>(pos, std::move((*id)->idents[0]));
+      } else {
+        ret = std::make_unique<TypeExpr>(pos, std::move(*id));
+      }
     }
   }
 

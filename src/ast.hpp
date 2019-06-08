@@ -30,6 +30,12 @@
 
 namespace porc {
 
+template<class T> struct always_false: std::false_type {};
+
+template <class T, class... Ts>
+inline constexpr bool is_any =
+    std::bool_constant<(std::is_same_v<T, Ts> || ...)>::value;
+
 enum class KindAST {
   Identifier,
   Double,
@@ -271,7 +277,7 @@ class FileDecl : public BaseAST {
 
   FileDecl(LineRange pos, vector_unique_ptr<FuncStatement> exprs,
            vector_unique_ptr<TypeDecl> types)
-      : exprs(std::move(exprs)), BaseAST(pos) {}
+      : exprs(std::move(exprs)), BaseAST(pos), types(std::move(types)) {}
 
   json GetMetaData() const;
   KindAST UnwrapToLowest(void **ast);
@@ -321,10 +327,10 @@ class TypeStatement : public BaseAST {
  public:
   struct Declaration {
     std::unique_ptr<VarDecl> decl;
-    std::unique_ptr<IdentifierAccess> access;
+    optional_unique_ptr<IdentifierAccess> access;
 
     Declaration(std::unique_ptr<VarDecl> decl,
-                std::unique_ptr<IdentifierAccess> access)
+                optional_unique_ptr<IdentifierAccess> access)
         : decl(std::move(decl)), access(std::move(access)) {}
   };
 
@@ -335,7 +341,7 @@ class TypeStatement : public BaseAST {
       : BaseAST(pos), expr(std::move(expr)) {}
 
   TypeStatement(LineRange pos, std::unique_ptr<VarDecl> expr,
-              std::unique_ptr<IdentifierAccess> id)
+                optional_unique_ptr<IdentifierAccess> id)
       : BaseAST(pos), expr(Declaration(std::move(expr), std::move(id))) {}
 
   TypeStatement(LineRange pos, std::unique_ptr<MacroExpr> expr)

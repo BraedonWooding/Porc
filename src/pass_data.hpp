@@ -75,10 +75,10 @@ class Scope {
 
   // used to store the current ssa ids.
   std::unordered_map<LineStr, uint> current_ids;
+  std::unordered_map<LineStr, std::unique_ptr<TypeDecl>*> type_decls;
 
   std::unordered_map<StringSSA, Expr::FuncDecl*> func_decls;
   std::unordered_map<StringSSA, std::unique_ptr<Expr>*> variable_decls;
-  std::unordered_map<StringSSA, std::unique_ptr<TypeDecl>*> type_decls;
 
   Scope(Kind kind, std::optional<Scope*> parent)
       : id(current_id++), parent(parent), kind(kind) { }
@@ -91,17 +91,33 @@ uint Scope::current_id = 1;
   Collected prior to any passes.
 */
 class PassData {
+ private:
+  // stack like scope vector.
+  std::vector<Scope*> scopes;
+  ErrStream err;
+
+  Scope *current = nullptr;
+
  public:
   template<typename T>
   void GatherPassData(std::unique_ptr<T> &top);
 
- private:
-  // stack like scope vector.
-  std::vector<Scope*> scopes;
-
-  Scope *current = nullptr;
+  PassData(ErrStream &err) : err(err) {}
 };
 
+// template<> void PassData::GatherPassData<>(
+//     std::unique_ptr<> &expr);
+
+template<> void PassData::GatherPassData<MacroExpr>(
+    std::unique_ptr<MacroExpr> &expr);
+template<> void PassData::GatherPassData<Expr>(
+    std::unique_ptr<Expr> &expr);
+template<> void PassData::GatherPassData<VarDecl>(
+    std::unique_ptr<VarDecl> &expr);
+template<> void PassData::GatherPassData<TypeStatement>(
+    std::unique_ptr<TypeStatement> &expr);
+template<> void PassData::GatherPassData<TypeDecl>(
+    std::unique_ptr<TypeDecl> &expr);
 template<> void PassData::GatherPassData<FuncStatement>(
     std::unique_ptr<FuncStatement> &expr);
 template<> void PassData::GatherPassData<AssignmentExpr>(

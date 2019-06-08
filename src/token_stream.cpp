@@ -199,6 +199,8 @@ Token TokenStream::ParseSimpleToken() {
   const TokenSet *previous_set = NULL;
   int i = 0;
 
+  bool first_is_letter = std::isalpha(read_buf[i]);
+
   // Recursively call on each child token set till we reach a dead end
   // either we can go back one level and step into the 'value' section of the
   // tree or we can't and thus no token can be found. i.e. `+>` will parse the
@@ -214,28 +216,32 @@ Token TokenStream::ParseSimpleToken() {
     //        line break or any kinda of ws in the middle of it i.e = > is
     //        always going to be `=` and `>` and never `=>`.
     //        This statement allows us to just increment col as expected.
+    // @TODO has broken a lot in the past, since its a bit annoying to use
+    //       maybe either look for another solution or fix it up properly
+    //       with some clearer code.
     int undefined = static_cast<int>(Token::Undefined);
     if (current_set->child_tokens == NULL ||
-       (current_set->child_tokens[read_buf[i]].child_tokens == NULL && 
+      (current_set->child_tokens[read_buf[i]].child_tokens == NULL && 
         current_set->child_tokens[read_buf[i]].tokens == NULL)) {
       // We hit a dead end but can we find a value node either in our current
       // node or go back one token
       if (current_set->tokens != NULL &&
           current_set->tokens[read_buf[i]] != undefined &&
-          (!std::isalnum(read_buf[i + 1]) || !std::isalnum(read_buf[i]))) {
+          (!std::isalnum(read_buf[i + 1]) || !first_is_letter)) {
         col += i + 1;
         cur_index += i + 1;
         cur = Token(static_cast<Token::Kind>(current_set->tokens[read_buf[i]]),
                     EndLineRange(-1));
       } else if (previous_set != NULL && previous_set->tokens != NULL &&
                  previous_set->tokens[read_buf[i - 1]] != undefined &&
-                 !std::isalnum(read_buf[i])) {
+                 (!std::isalnum(read_buf[i]) || !first_is_letter)) {
         // i.e. parse `<!` as `<` and `!`
         col += i;
         cur = Token(static_cast<Token::Kind>(previous_set->tokens[read_buf[i - 1]]),
                     EndLineRange(-1));
         cur_index += i;
       }
+
       // Else there is nothing to match so we just don't do anything
       // for example `z` is not a starting character for any tokens
       // so it would hit this section.

@@ -64,8 +64,8 @@ type vec is (x, y, z) {
     # we can define a constructor using the type name
     str :: (this) => {
         return "${this.x}, ${this.y}, ${this.z}";
-    };
-};
+    }
+}
 
 # you can add more methods to already existent types like this
 type str {
@@ -108,7 +108,14 @@ There is a shortcut to definining a method in another type and that is;
 type vec (x, y, z) {
     # typically to make it more explicit in these cases we like denoting the
     # `this` type.
-    str.vec :: (this: str) {
+    str.vec :: (this: str) => {
+        # ... rest of code
+    }
+}
+
+# which is identical to
+type str {
+    vec :: (this) => {
         # ... rest of code
     }
 }

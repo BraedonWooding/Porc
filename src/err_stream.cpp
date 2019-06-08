@@ -5,41 +5,49 @@
 
 namespace porc {
 
-void ErrStream::PrintFileLine(LineRange pos, std::string carat_extra) {
-    std::ifstream file(pos.file_name);
-    std::string line;
+void ErrStream::IncrementErr(ErrType type) {
+  switch (type) {
+    case ErrStream::TokenErr:     tokenizer_errors++;   break;
+    case ErrStream::SyntaxErr:    syntax_errors++;      break;
+    case ErrStream::SemanticErr:  semantic_errors++;    break;
+  }
+}
 
-    unsigned int line_number = 0;
-    auto line_str = std::to_string(pos.line_end);
-    out << std::string(line_str.size() + 1, ' ') << '|' << std::endl;
-    while (std::getline(file, line) && line_number < pos.line_end)
+void ErrStream::PrintFileLine(LineRange pos, std::string carat_extra) {
+  std::ifstream file(pos.file_name);
+  std::string line;
+
+  unsigned int line_number = 0;
+  auto line_str = std::to_string(pos.line_end);
+  out << std::string(line_str.size() + 1, ' ') << '|' << std::endl;
+  while (std::getline(file, line) && line_number < pos.line_end)
+  {
+    line_number++;
+    // @HACK: (Slight) just to give nicer err messages
+    //        we are going to give err messages minus one line
+    //        this isn't a perfect fix and we should rather kind of look
+    //        and concatenating blank lines so we don't just give more blank
+    //        lines
+    // @NOTE: using ::isspace so its clear its not the std one
+    if (line_number >= pos.line_start - 1 && line_number <= pos.line_end &&
+        !std::all_of(line.cbegin(), line.cend(), ::isspace))
     {
-      line_number++;
-      // @HACK: (Slight) just to give nicer err messages
-      //        we are going to give err messages minus one line
-      //        this isn't a perfect fix and we should rather kind of look
-      //        and concatenating blank lines so we don't just give more blank
-      //        lines
-      // @NOTE: using ::isspace so its clear its not the std one
-      if (line_number >= pos.line_start - 1 && line_number <= pos.line_end &&
-          !std::all_of(line.cbegin(), line.cend(), ::isspace))
-      {
-        line_str = std::to_string(line_number);
-        out << line_str << " |" << "    " << line << std::endl;
-        if (line_number == pos.line_start) {
-          out << std::string(line_str.size() + 1, ' ') << '|'
-              << std::string(4 + pos.col_start - 1, ' ')
-              << rang::fg::green
-              << std::string(pos.col_end - pos.col_start + 1, '^')
-              << rang::fg::blue << " " << carat_extra << rang::style::reset
-              << std::endl;
-        }
+      line_str = std::to_string(line_number);
+      out << line_str << " |" << "    " << line << std::endl;
+      if (line_number == pos.line_start) {
+        out << std::string(line_str.size() + 1, ' ') << '|'
+            << std::string(4 + pos.col_start - 1, ' ')
+            << rang::fg::green
+            << std::string(pos.col_end - pos.col_start + 1, '^')
+            << rang::fg::blue << " " << carat_extra << rang::style::reset
+            << std::endl;
       }
     }
-    out << std::string(line_str.size() + 1, ' ') << '|' << std::endl;
-    if (line_number != pos.line_end) {
-      out << "Internal Compiler Error Invalid Position: " << pos << std::endl;
-    }
+  }
+  out << std::string(line_str.size() + 1, ' ') << '|' << std::endl;
+  if (line_number != pos.line_end) {
+    out << "Internal Compiler Error Invalid Position: " << pos << std::endl;
+  }
 }
 
 void ErrStream::ReportUndefinedToken(std::string token_data, LineRange pos) {
@@ -48,7 +56,7 @@ void ErrStream::ReportUndefinedToken(std::string token_data, LineRange pos) {
                           << token_data << rang::style::reset << std::endl;
   // @TODO: implement a lookup to see possible tokens
   //        i.e. if they write `+~` we could say did you mean `+`, `+=`
-  tokenizer_errors++;
+  IncrementErr(TokenErr);
 }
 
 void ErrStream::ReportExpectedToken(Token::Kind expected, LineRange cur) {
@@ -57,16 +65,11 @@ void ErrStream::ReportExpectedToken(Token::Kind expected, LineRange cur) {
                           << Token::GetKindErrorMsg(expected)
                           << "'" << rang::style::reset << std::endl;
   PrintFileLine(cur);
-  syntax_errors++;
+  IncrementErr(SyntaxErr);
 }
 
 void ErrStream::ReportCustomErr(std::string msg, std::optional<LineRange> pos,
                                 ErrType type, std::string carat_msg) {
-  switch (type) {
-    case ErrStream::TokenErr:     tokenizer_errors++;   break;
-    case ErrStream::SyntaxErr:    syntax_errors++;      break;
-    case ErrStream::SemanticErr:  semantic_errors++;    break;
-  }
   if (pos) {
     out << rang::fg::red << "Error " << pos->file_name << "(" << *pos
         << "): " << msg
@@ -76,6 +79,7 @@ void ErrStream::ReportCustomErr(std::string msg, std::optional<LineRange> pos,
   else {
     out << rang::fg::red << "Error: " << msg << rang::style::reset << std::endl;
   }
+  IncrementErr(type);
 }
 
 void ErrStream::ReportMissingToken(Token::Kind expected, LineRange pos) {
@@ -85,7 +89,7 @@ void ErrStream::ReportMissingToken(Token::Kind expected, LineRange pos) {
                                   << "'"
                                   << rang::style::reset << std::endl;
   PrintFileLine(pos, Token::GetKindErrorMsg(expected));
-  syntax_errors++;
+  IncrementErr(SyntaxErr);
 }
 
 void ErrStream::ReportUnexpectedToken(Token::Kind expected, Token invalid) {
@@ -97,7 +101,7 @@ void ErrStream::ReportUnexpectedToken(Token::Kind expected, Token invalid) {
                                   << "'"
                                   << rang::style::reset << std::endl;
   PrintFileLine(invalid.pos, Token::GetKindErrorMsg(expected));
-  syntax_errors++;
+  IncrementErr(SyntaxErr);
 }
 
 void ErrStream::ReportInvalidToken(Token invalid) {
@@ -107,7 +111,7 @@ void ErrStream::ReportInvalidToken(Token invalid) {
                                   << invalid.ToErrorMsg() << "'"
                                   << rang::style::reset << std::endl;
   PrintFileLine(invalid.pos);
-  syntax_errors++;
+  IncrementErr(SyntaxErr);
 }
 
 void ErrStream::ReportInvalidTokenCast(Token invalid, std::string msg) {
@@ -116,7 +120,20 @@ void ErrStream::ReportInvalidTokenCast(Token invalid, std::string msg) {
                                   << invalid.ToErrorMsg() << "'"
                                   << rang::style::reset << std::endl;
   PrintFileLine(invalid.pos, msg);
-  syntax_errors++;
+  IncrementErr(SyntaxErr);
+}
+
+void ErrStream::ReportDualDefinition(std::string msg, LineRange first,
+    LineRange second, ErrType type, std::string carat_msg_first,
+    std::string carat_msg_second) {
+  out << rang::fg::red << "Error " << second.file_name << "(" << second << "):"
+                       << "Conflicting definition with definition; "
+                       << first.file_name << "(" << first << ")"
+                       << "\n" << msg << rang::style::reset << std::endl;
+  out << "\nThe second definition:" << std::endl;
+  PrintFileLine(second, carat_msg_second);
+  PrintFileLine(second, carat_msg_second);
+  IncrementErr(type);
 }
 
 }

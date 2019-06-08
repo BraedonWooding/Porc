@@ -44,7 +44,8 @@ int main(int argc, char *argv[]) {
       using namespace porc;
 
       TokenStream stream(std::make_unique<CFileReader>(file.c_str()));
-      Parser parser = Parser(std::move(stream));
+      ErrStream err(std::cerr);
+      Parser parser = Parser(std::move(stream), err);
       auto top_level = parser.ParseFileDecl();
       if (!top_level) {
         std::cerr << rang::fg::red << "Error couldn't parse file: "

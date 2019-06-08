@@ -79,6 +79,16 @@ public:
     operator, and it fails.
   */
   void ReportInvalidTokenCast(Token invalid, std::string msg);
+
+  /*
+    For when you have a definition that is repeated and conflicts.
+  */
+  void ReportDualDefinition(std::string msg, LineRange first, LineRange second,
+                            ErrType type, std::string carat_msg_first = "",
+                            std::string carat_msg_second = "");
+
+ private:
+  void IncrementErr(ErrType type);
 };
 
 }
