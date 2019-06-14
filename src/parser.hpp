@@ -12,7 +12,6 @@ namespace porc {
 class Parser {
 private:
   TokenStream stream;
-  ErrStream &err;
 
   /*
     Consumes a token if it matches the given type returning true.
@@ -300,8 +299,8 @@ private:
   optional_unique_ptr<MacroExpr> ParseMacroExpr();
 
 public:
-  Parser(TokenStream stream, ErrStream &err)
-      : stream(std::move(stream)), err(err) {
+  Parser(TokenStream stream)
+      : stream(std::move(stream)) {
     // Parser presumes that we won't get comments from the stream.
     stream.ignore_comments = true;
   }

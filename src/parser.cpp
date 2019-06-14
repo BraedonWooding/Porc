@@ -25,10 +25,10 @@ bool Parser::ConsumeToken(Token::Kind wanted) {
   Token tok = stream.PeekCur();
   // check if next token is what we want
   if (tok.type == Token::EndOfFile) {
-    err.ReportMissingToken(wanted, tok.pos);
+    err::ReportMissingToken(wanted, tok.pos);
     return false;
   } else if (tok.type != wanted) {
-    err.ReportUnexpectedToken(wanted, tok);
+    err::ReportUnexpectedToken(wanted, tok);
     return false;
   } else {
     stream.PopCur(); // actually consume token
@@ -73,7 +73,7 @@ template<typename To>
 std::optional<To> Parser::TokenCast(Token tok) {
   std::optional<To> cast = To::FromToken(tok);
   if (!cast) {
-    err.ReportInvalidTokenCast(tok, To::AllMsg());
+    err::ReportInvalidTokenCast(tok, To::AllMsg());
   }
   return cast;
 }
@@ -153,8 +153,8 @@ optional_unique_ptr<FuncStatement> Parser::ParseFuncStatement(bool file_scope,
   bool is_block_decl = false;
   FuncStatement::PrefixKind ret = ParseFuncStatementPrefix();
   if (file_scope && ret != FuncStatement::NoPrefix) {
-    err.ReportCustomErr("Can't yield, return, continue, evaluate, or break"
-                        " from file scope", tok.pos, ErrStream::SemanticErr);
+    err::ReportCustomErr("Can't yield, return, continue, evaluate, or break"
+                        " from file scope", tok.pos, err::SemanticErr);
     return std::nullopt;
   }
 
@@ -177,8 +177,8 @@ optional_unique_ptr<FuncStatement> Parser::ParseFuncStatement(bool file_scope,
   } else {
     // has to be an expr
     if (lhs_str.size() > 1) {
-      err.ReportCustomErr("Can't apply comma operator to expressions",
-                          tok.pos, ErrStream::SyntaxErr);
+      err::ReportCustomErr("Can't apply comma operator to expressions",
+                          tok.pos, err::SyntaxErr);
       return std::nullopt;
     } else if (lhs_str.size() == 1) {
       stream.Push(Token(Token::Identifier, lhs_str[0].pos,
@@ -198,15 +198,15 @@ optional_unique_ptr<FuncStatement> Parser::ParseFuncStatement(bool file_scope,
   if (requires_terminator) {
     // Slightly better error msg
     if (stream.PeekCur().type != Token::SemiColon) {
-      err.ReportMissingToken(Token::SemiColon, last.pos);
+      err::ReportMissingToken(Token::SemiColon, last.pos);
       return std::nullopt;
     }
     stream.PopCur();
   }
 
   if (!is_expr && ret != FuncStatement::NoPrefix) {
-    err.ReportCustomErr("Can't yield, return, continue, evaluate, or break"
-                        " a non expr", tok.pos, ErrStream::SemanticErr);
+    err::ReportCustomErr("Can't yield, return, continue, evaluate, or break"
+                        " a non expr", tok.pos, err::SemanticErr);
     return std::nullopt;
   }
   return expr;
@@ -218,7 +218,7 @@ optional_unique_ptr<TypeDecl> Parser::ParseTypeDecl() {
 
   Token tok = stream.PopCur();
   if (tok.type != Token::Identifier) {
-    err.ReportUnexpectedToken(Token::Identifier, tok);
+    err::ReportUnexpectedToken(Token::Identifier, tok);
     return std::nullopt;
   }
   auto id = *tok.ToLineStr();
@@ -251,8 +251,8 @@ optional_unique_ptr<TypeDecl> Parser::ParseTypeDecl() {
     if (!ConsumeToken((Token::RightBrace))) return std::nullopt;
   } else if (!type) {
     // we have neither a type nor a block this is invalid
-    err.ReportCustomErr("Was expecting either a type block or a type expr "
-                        "got neither.", tok.pos, ErrStream::SyntaxErr);
+    err::ReportCustomErr("Was expecting either a type block or a type expr "
+                        "got neither.", tok.pos, err::SyntaxErr);
     return std::nullopt;
   }
 
@@ -272,7 +272,7 @@ optional_unique_ptr<TypeDecl> Parser::ParseTypeDecl() {
 
 //   Token tok = stream.PopCur();
 //   if (tok.type != Token::Identifier) {
-//     err.ReportUnexpectedToken(Token::Identifier, tok);
+//     err::ReportUnexpectedToken(Token::Identifier, tok);
 //     return std::nullopt;
 //   }
 
@@ -354,7 +354,7 @@ optional_unique_ptr<IdentifierAccess>
   while (true) {
     tok = stream.PeekCur();
     if (tok.type != Token::Identifier) {
-      err.ReportUnexpectedToken(Token::Identifier, tok);
+      err::ReportUnexpectedToken(Token::Identifier, tok);
       return std::nullopt;
     }
     stream.PopCur();
@@ -403,7 +403,7 @@ optional_unique_ptr<TypeStatement> Parser::ParseTypeStatement() {
     if (requires_terminator || stream.PeekCur().type == Token::SemiColon) {
       // Slightly better error msg
       if (stream.PeekCur().type != Token::SemiColon) {
-        err.ReportMissingToken(Token::SemiColon, last.pos);
+        err::ReportMissingToken(Token::SemiColon, last.pos);
         return std::nullopt;
       }
       stream.PopCur();
@@ -438,8 +438,8 @@ optional_unique_ptr<Expr> Parser::ParseFuncExpr(
                                   std::move(type), std::move(*block));
   } else {
     // @IMPROVEMENT: we can give you slightly more tuned msgs
-    err.ReportCustomErr("Was expecting a function", tok.pos,
-                        ErrStream::SyntaxErr, "=> and/or ->");
+    err::ReportCustomErr("Was expecting a function", tok.pos,
+                        err::SyntaxErr, "=> and/or ->");
     return std::nullopt;
   }
 }
@@ -471,7 +471,7 @@ std::optional<TupleValueDecl::ArgDecl> Parser::ParseTupleValueDeclSegment() {
     return TupleValueDecl::ArgDecl(std::move(id), std::move(type_expr),
                                    std::move(val));
   } else {
-    err.ReportUnexpectedToken(Token::Identifier, tok);
+    err::ReportUnexpectedToken(Token::Identifier, tok);
     return std::nullopt;
   }
 }
@@ -497,8 +497,8 @@ optional_unique_ptr<TupleValueDecl> Parser::ParseRestTupleValueDeclExpr(
     extra_comma = true;
   }
 
-  if (extra_comma) err.ReportCustomErr("Extra ','", prev_tok.pos,
-                                       ErrStream::SyntaxErr);
+  if (extra_comma) err::ReportCustomErr("Extra ','", prev_tok.pos,
+                                       err::SyntaxErr);
 
   LineRange pos = LineRange(start, stream.PeekCur().pos);
 
@@ -541,8 +541,8 @@ optional_unique_ptr<Expr> Parser::ParseExprOrTupleValueDecl() {
 
       if (is_tuple_decl) {
         if (comma && stream.PeekCur().type == Token::RightParen) {
-          err.ReportCustomErr("Extra ','", prev_tok.pos,
-                              ErrStream::SyntaxErr);
+          err::ReportCustomErr("Extra ','", prev_tok.pos,
+                              err::SyntaxErr);
         }
 
         auto tuple_decl = ParseRestTupleValueDeclExpr(std::move(declarations));
@@ -579,11 +579,11 @@ optional_unique_ptr<Expr> Parser::ParseExprOrTupleValueDecl() {
   if (tok.type == Token::FatArrow) {
     // @QUESTION: wattt? is this doing
     if (expressions.size() != 0) {
-      err.ReportInvalidToken(tok);
+      err::ReportInvalidToken(tok);
       return std::nullopt;
     }
-    if (comma) err.ReportCustomErr("Extra ','", prev_tok.pos,
-                                   ErrStream::SyntaxErr);
+    if (comma) err::ReportCustomErr("Extra ','", prev_tok.pos,
+                                   err::SyntaxErr);
     LineRange pos = LineRange(start, tok.pos);
     return ParseFuncExpr(std::make_unique<TupleValueDecl>(pos,
       std::move(declarations)));
@@ -602,7 +602,7 @@ optional_unique_ptr<Expr> Parser::ParseExprOrTupleValueDecl() {
     return ParenthesiseExpr(std::move(expressions[0]));
   } else {
     if (expressions.size() != 1 && comma) {
-      err.ReportCustomErr("Extra ','", prev_tok.pos, ErrStream::SyntaxErr);
+      err::ReportCustomErr("Extra ','", prev_tok.pos, err::SyntaxErr);
     }
     // tuple
     LineRange pos = FindRangeOfVector(expressions);
@@ -650,8 +650,8 @@ optional_unique_ptr<Expr> Parser::ParseVarDeclOrAssignmentExpr() {
     //        when @MULTIPLE_ERRORS comes about we probably
     //        want to do something a tad less destructive.
     // has to be an expr which is invalid here
-    err.ReportCustomErr("No assignment occurring after `let`", tok.pos,
-                        ErrStream::SyntaxErr);
+    err::ReportCustomErr("No assignment occurring after `let`", tok.pos,
+                        err::SyntaxErr);
     return std::nullopt;
   }
   return std::move(expr);
@@ -700,13 +700,13 @@ optional_unique_ptr<Expr> Parser::ParseExpr() {
             last = stream.PopCur();
             comma = true;
           } else if (stream.PeekCur().type != Token::RightParen) {
-            err.ReportUnexpectedToken(Token::Comma, stream.PeekCur());
+            err::ReportUnexpectedToken(Token::Comma, stream.PeekCur());
             return std::nullopt;
           }
         }
 
         if (comma && exprs.size() != 1) {
-          err.ReportUnexpectedToken(Token::RightParen, last);
+          err::ReportUnexpectedToken(Token::RightParen, last);
           return std::nullopt;
         }
         LineRange pos = stream.PeekCur().pos;
@@ -748,7 +748,7 @@ optional_unique_ptr<Expr> Parser::ParseExpr() {
       // @FIXME: I don't really want logical exprs here but I'm lazy
       //         and fixing this is going to be a pain.
       //         The nicest fix I can think of right now is just to
-      //         check if it folds to additive_expr else we can err.
+      //         check if it folds to additive_expr else we can err
       if (stream.PeekCur().type == Token::Range) {
         // range based statement
         stream.PopCur();
@@ -791,8 +791,8 @@ optional_unique_ptr<VarDecl> Parser::ParseRhsVarDecl(
   Token cur = stream.PopCur();
   bool atleast_one;
   if (decls.size() == 0) {
-    err.ReportCustomErr("Invalid VarDecl missing lhs", cur.pos,
-                        ErrStream::SyntaxErr);
+    err::ReportCustomErr("Invalid VarDecl missing lhs", cur.pos,
+                        err::SyntaxErr);
     return std::nullopt;
   }
   LineRange start = decls[0].id.pos;
@@ -802,24 +802,23 @@ optional_unique_ptr<VarDecl> Parser::ParseRhsVarDecl(
     atleast_one = true;
     // type-expr list
     auto set_type = +[](int index, std::unique_ptr<TypeExpr> type_expr, 
-                        std::vector<VarDecl::Declaration> &decls,
-                        ErrStream &err, int &count) {
+                        std::vector<VarDecl::Declaration> &decls, int &count) {
       if (index < decls.size()) {
         decls.at(index).type = std::move(type_expr);
         count++;
       } else {
-        err.ReportCustomErr("Too many types for variables", type_expr->pos,
-                            ErrStream::SemanticErr);
+        err::ReportCustomErr("Too many types for variables", type_expr->pos,
+                            err::SemanticErr);
       }
     };
     int num = 0;
-    if (!ParseList(&Parser::ParseTypeExpr, set_type, decls, err, num)) {
+    if (!ParseList(&Parser::ParseTypeExpr, set_type, decls, num)) {
       return std::nullopt;
     }
     if (num != 1 && num != decls.size()) {
       // we don't have enough types @TODO: put how many were were expecting
-      err.ReportCustomErr("Too few types for variables", stream.PeekCur().pos,
-                          ErrStream::SemanticErr);
+      err::ReportCustomErr("Too few types for variables", stream.PeekCur().pos,
+                          err::SemanticErr);
     }
 
     cur = stream.PopCur();
@@ -829,8 +828,8 @@ optional_unique_ptr<VarDecl> Parser::ParseRhsVarDecl(
       cur.type == Token::DoubleColon || cur.type == Token::Colon) {
     if (atleast_one && (cur.type == Token::DoubleColon ||
         cur.type == Token::ColonAssign)) {
-      err.ReportCustomErr("Wasn't expecting both ':' or '=' and ':=' or '::'",
-                          cur.pos, ErrStream::SyntaxErr);
+      err::ReportCustomErr("Wasn't expecting both ':' or '=' and ':=' or '::'",
+                          cur.pos, err::SyntaxErr);
       return std::nullopt;
     }
 
@@ -838,32 +837,31 @@ optional_unique_ptr<VarDecl> Parser::ParseRhsVarDecl(
     mut = cur.type != Token::DoubleColon && cur.type != Token::Colon;
     // expr list
     auto set_expr = +[](int index, std::unique_ptr<Expr> expr,
-                        std::vector<VarDecl::Declaration> &decls,
-                        ErrStream &err, int &count) {
+                        std::vector<VarDecl::Declaration> &decls, int &count) {
       if (index < decls.size()) {
         decls.at(index).expr = std::move(expr);
         count++;
       } else {
-        err.ReportCustomErr("Too many exprs for variables", expr->pos,
-                            ErrStream::SemanticErr);
+        err::ReportCustomErr("Too many exprs for variables", expr->pos,
+                            err::SemanticErr);
       }
     };
     int count = 0;
-    if (!ParseList(&Parser::ParseExpr, set_expr, decls, err, count)) {
+    if (!ParseList(&Parser::ParseExpr, set_expr, decls, count)) {
       return std::nullopt;
     }
     if (count != 1 && count != decls.size()) {
       // we don't have enough types @TODO: put how many were were expecting
-      err.ReportCustomErr("Too few exprs for variables", stream.PeekCur().pos,
-                          ErrStream::SemanticErr);
+      err::ReportCustomErr("Too few exprs for variables", stream.PeekCur().pos,
+                          err::SemanticErr);
     }
   }
 
   if (!atleast_one) {
     // invalid var_decl
-    err.ReportInvalidToken(cur);
-    err.ReportCustomErr("Was expecting either ':' or '=' or both.", cur.pos, 
-                        ErrStream::SyntaxErr);
+    err::ReportInvalidToken(cur);
+    err::ReportCustomErr("Was expecting either ':' or '=' or both.", cur.pos, 
+                        err::SyntaxErr);
     stream.Push(cur);
     return std::nullopt;
   }
@@ -887,7 +885,7 @@ optional_unique_ptr<VarDecl> Parser::ParseVarDecl() {
       int line_end = cur.pos.line_end;
       cur.pos = start;
       cur.pos.line_end = line_end;
-      err.ReportInvalidTokenCast(cur, "::, :=, :");
+      err::ReportInvalidTokenCast(cur, "::, :=, :");
       return std::nullopt;
     }
     stream.PopCur();
@@ -902,7 +900,7 @@ optional_unique_ptr<VarDecl> Parser::ParseVarDecl() {
   if ((cur = stream.PeekCur()).type != Token::Colon &&
       cur.type != Token::DoubleColon &&
       cur.type != Token::ColonAssign) {
-    err.ReportInvalidTokenCast(cur, "::, :=, :");
+    err::ReportInvalidTokenCast(cur, "::, :=, :");
     return std::nullopt;
   }
 
@@ -1090,7 +1088,7 @@ optional_unique_ptr<Constant> Parser::TryParseConstant() {
 
 optional_unique_ptr<Constant> Parser::ParseConstant() {
   if (auto constant = TryParseConstant()) return std::move(*constant);
-  err.ReportCustomErr("Invalid constant", stream.PopCur().pos, ErrStream::SemanticErr);
+  err::ReportCustomErr("Invalid constant", stream.PopCur().pos, err::SemanticErr);
   return std::nullopt;
 }
 
@@ -1115,7 +1113,7 @@ optional_unique_ptr<MacroExpr> Parser::ParseMacroExpr() {
     if (tok.type == Token::Comma) {
       stream.PopCur();
     } else if (tok.type != Token::RightParen) {
-      err.ReportUnexpectedToken(Token::RightParen, tok);
+      err::ReportUnexpectedToken(Token::RightParen, tok);
       return std::nullopt;
     } else {
       pos_end = tok.pos;
@@ -1162,8 +1160,8 @@ optional_unique_ptr<TupleTypeDecl> Parser::ParseTupleType() {
     extra_comma = true;
   }
 
-  if (extra_comma) err.ReportCustomErr("Extra ','", prev_tok.pos,
-                                       ErrStream::SyntaxErr);
+  if (extra_comma) err::ReportCustomErr("Extra ','", prev_tok.pos,
+                                       err::SyntaxErr);
   LineRange pos = LineRange(start, stream.PeekCur().pos);
   if (!ConsumeToken(Token::RightParen)) return std::nullopt;
   return std::make_unique<TupleTypeDecl>(pos, std::move(decls));
@@ -1193,7 +1191,7 @@ optional_unique_ptr<TypeExpr> Parser::ParseTypeExpr() {
     stream.PopCur();
     tok = stream.PopCur();
     if (tok.type != Token::Identifier) {
-      err.ReportUnexpectedToken(Token::Identifier, tok);
+      err::ReportUnexpectedToken(Token::Identifier, tok);
       return std::nullopt;
     }
     auto id = *tok.ToLineStr();
@@ -1255,8 +1253,8 @@ optional_unique_ptr<AssignmentExpr> Parser::ParseRhsAssignmentExpr(
     vector_unique_ptr<Expr> lhs) {
   Token cur = stream.PeekCur();
   if (lhs.size() == 0) {
-    err.ReportCustomErr("Invalid AssignmentExpr missing lhs", cur.pos,
-                        ErrStream::SyntaxErr);
+    err::ReportCustomErr("Invalid AssignmentExpr missing lhs", cur.pos,
+                        err::SyntaxErr);
     return std::nullopt;
   }
 
@@ -1320,7 +1318,7 @@ optional_unique_ptr<Atom> Parser::ParseAtom() {
     LineRange pos = (*constant)->pos;
     atom = std::make_unique<Atom>(pos, std::move(*constant));
   } else {
-    err.ReportCustomErr("Invalid Atom Expr", peek.pos, ErrStream::SyntaxErr);
+    err::ReportCustomErr("Invalid Atom Expr", peek.pos, err::SyntaxErr);
     return std::nullopt;
   }
 

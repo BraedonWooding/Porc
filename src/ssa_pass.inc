@@ -43,8 +43,8 @@ template<> void PassManager::SSAPass<TypeDecl>(
     if (decl->type && expr->type) {
       const auto msg = "You can't redefine a types definition, if you wish to "
                     "extend it you can just state the name alone with no type";
-      err.ReportDualDefinition(msg, (*decl->type)->pos, (*expr->type)->pos,
-                               ErrStream::SemanticErr,"", "maybe remove this?");
+      err::ReportDualDefinition(msg, (*decl->type)->pos, (*expr->type)->pos,
+                               err::SemanticErr,"", "maybe remove this?");
     } else if (!decl->type && expr->type) {
       // we can just move over the type
       decl->type = std::move(expr->type);

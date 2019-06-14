@@ -97,8 +97,6 @@ class PassManager {
   // @NOTE: we can't just use stack allocated scopes here
   //        else they'll get invalidated on a resize operation.
   std::vector<Scope*> scopes;
-  ErrStream err;
-
   Scope *current = nullptr;
 
   template<typename T, typename V>
@@ -125,7 +123,7 @@ class PassManager {
   }
 
  public:
-  PassManager(ErrStream &err) : err(err) {}
+  PassManager() {}
 
   template<typename T>
   void PerformPass(std::unique_ptr<T> &node);

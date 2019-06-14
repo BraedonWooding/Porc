@@ -37,11 +37,11 @@ int main(int argc, char *argv[]) {
     // CompilationUnit unit(filenames);
     using namespace porc;
 
-    ErrStream err(std::cerr);
+    err::PipeOutput(std::cerr);
     for (auto file: filenames) {
 
       TokenStream stream(std::make_unique<CFileReader>(file.c_str()));
-      Parser parser = Parser(std::move(stream), err);
+      Parser parser = Parser(std::move(stream));
       auto top_level = parser.ParseFileDecl();
       if (!top_level) {
         std::cerr << rang::fg::red << "Error couldn't parse file: "
@@ -68,8 +68,8 @@ int main(int argc, char *argv[]) {
       using namespace porc;
 
       TokenStream stream(std::make_unique<CFileReader>(file.c_str()));
-      ErrStream err(std::cerr);
-      Parser parser = Parser(std::move(stream), err);
+      err::PipeOutput(std::cerr);
+      Parser parser = Parser(std::move(stream));
       auto top_level = parser.ParseFileDecl();
       if (!top_level) {
         std::cerr << rang::fg::red << "Error couldn't parse file: "

@@ -5,26 +5,29 @@
 
 namespace porc {
 
-std::mutex g_write_mutex;
+namespace err {
 
-void ErrStream::IncrementErr(ErrType type) {
+std::mutex g_write_mutex;
+std::ostream &out = std::cerr;
+int tokenizer_errors = 0;
+int syntax_errors = 0;
+int semantic_errors = 0;
+
+int TokenizerErrors() { return tokenizer_errors; }
+
+int SyntaxErrors() { return syntax_errors; }
+
+int SemanticErrors() { return semantic_errors; }
+
+void IncrementErr(ErrType type) {
   switch (type) {
-    case ErrStream::TokenErr:     tokenizer_errors++;   break;
-    case ErrStream::SyntaxErr:    syntax_errors++;      break;
-    case ErrStream::SemanticErr:  semantic_errors++;    break;
+    case TokenErr:     tokenizer_errors++;   break;
+    case SyntaxErr:    syntax_errors++;      break;
+    case SemanticErr:  semantic_errors++;    break;
   }
 }
 
-void ErrStream::PrintLineData(LineRange pos, std::string carat_extra) {
-  // so we don't double lock ourselves
-  // @BAD: this is just kinda bad, either we don't want to expose this
-  //       or we should place an atomic around the err stream object itself
-  std::scoped_lock g(g_write_mutex);
-
-  PrintFileLine(pos, carat_extra);
-}
-
-void ErrStream::PrintFileLine(LineRange pos, std::string carat_extra) {
+void PrintFileLine(LineRange pos, std::string carat_extra = "") {
   std::ifstream file(pos.file_name);
   std::string line;
 
@@ -61,7 +64,16 @@ void ErrStream::PrintFileLine(LineRange pos, std::string carat_extra) {
   }
 }
 
-void ErrStream::ReportUndefinedToken(std::string token_data, LineRange pos) {
+void PrintLineData(LineRange pos, std::string carat_extra) {
+  // so we don't double lock ourselves
+  // @BAD: this is just kinda bad, either we don't want to expose this
+  //       or we should place an atomic around the err stream object itself
+  std::scoped_lock g(g_write_mutex);
+
+  PrintFileLine(pos, carat_extra);
+}
+
+void ReportUndefinedToken(std::string token_data, LineRange pos) {
   std::scoped_lock g(g_write_mutex);
 
   out << rang::fg::red << "Error " << pos.file_name << "(" << pos
@@ -72,7 +84,7 @@ void ErrStream::ReportUndefinedToken(std::string token_data, LineRange pos) {
   IncrementErr(TokenErr);
 }
 
-void ErrStream::ReportExpectedToken(Token::Kind expected, LineRange cur) {
+void ReportExpectedToken(Token::Kind expected, LineRange cur) {
   std::scoped_lock g(g_write_mutex);
 
   out << rang::fg::red << "Error " << cur.file_name << "(" << cur
@@ -83,7 +95,7 @@ void ErrStream::ReportExpectedToken(Token::Kind expected, LineRange cur) {
   IncrementErr(SyntaxErr);
 }
 
-void ErrStream::ReportCustomErr(std::string msg, std::optional<LineRange> pos,
+void ReportCustomErr(std::string msg, std::optional<LineRange> pos,
                                 ErrType type, std::string carat_msg) {
   std::scoped_lock g(g_write_mutex);
 
@@ -99,7 +111,7 @@ void ErrStream::ReportCustomErr(std::string msg, std::optional<LineRange> pos,
   IncrementErr(type);
 }
 
-void ErrStream::ReportMissingToken(Token::Kind expected, LineRange pos) {
+void ReportMissingToken(Token::Kind expected, LineRange pos) {
   std::scoped_lock g(g_write_mutex);
 
   out << rang::fg::red << "Error " << pos.file_name << "("
@@ -111,7 +123,7 @@ void ErrStream::ReportMissingToken(Token::Kind expected, LineRange pos) {
   IncrementErr(SyntaxErr);
 }
 
-void ErrStream::ReportUnexpectedToken(Token::Kind expected, Token invalid) {
+void ReportUnexpectedToken(Token::Kind expected, Token invalid) {
   std::scoped_lock g(g_write_mutex);
 
   out << rang::fg::red << "Error " << invalid.pos.file_name << "("
@@ -125,7 +137,7 @@ void ErrStream::ReportUnexpectedToken(Token::Kind expected, Token invalid) {
   IncrementErr(SyntaxErr);
 }
 
-void ErrStream::ReportInvalidToken(Token invalid) {
+void ReportInvalidToken(Token invalid) {
   std::scoped_lock g(g_write_mutex);
 
   // @TODO: implement some nicer information this is very bare
@@ -137,7 +149,7 @@ void ErrStream::ReportInvalidToken(Token invalid) {
   IncrementErr(SyntaxErr);
 }
 
-void ErrStream::ReportInvalidTokenCast(Token invalid, std::string msg) {
+void ReportInvalidTokenCast(Token invalid, std::string msg) {
   std::scoped_lock g(g_write_mutex);
 
   out << rang::fg::red << "Error " << invalid.pos.file_name << "("
@@ -148,7 +160,7 @@ void ErrStream::ReportInvalidTokenCast(Token invalid, std::string msg) {
   IncrementErr(SyntaxErr);
 }
 
-void ErrStream::ReportDualDefinition(std::string msg, LineRange first,
+void ReportDualDefinition(std::string msg, LineRange first,
     LineRange second, ErrType type, std::string carat_msg_first,
     std::string carat_msg_second) {
   std::scoped_lock g(g_write_mutex);
@@ -163,4 +175,5 @@ void ErrStream::ReportDualDefinition(std::string msg, LineRange first,
   IncrementErr(type);
 }
 
+}
 }
