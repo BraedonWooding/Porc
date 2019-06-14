@@ -75,6 +75,7 @@ class Scope {
 
   // used to store the current ssa ids.
   std::unordered_map<LineStr, uint> current_ids;
+  std::unordered_map<LineStr, std::unique_ptr<VarDecl>*> initial_decl;
   std::unordered_map<LineStr, std::unique_ptr<TypeDecl>*> type_decls;
 
   std::unordered_map<StringSSA, Expr::FuncDecl*> func_decls;
@@ -90,41 +91,68 @@ uint Scope::current_id = 1;
   A collection of useful pass data for passes.
   Collected prior to any passes.
 */
-class PassData {
+class PassManager {
  private:
   // stack like scope vector.
+  // @NOTE: we can't just use stack allocated scopes here
+  //        else they'll get invalidated on a resize operation.
   std::vector<Scope*> scopes;
   ErrStream err;
 
   Scope *current = nullptr;
 
- public:
-  template<typename T>
-  void GatherPassData(std::unique_ptr<T> &top);
+  template<typename T, typename V>
+  void AddTo(T map, LineStr id, V *obj);
+  void AddVar(VarDecl::Declaration &decl);
 
-  PassData(ErrStream &err) : err(err) {}
+  template<typename T>
+  bool SSAPass(std::unique_ptr<T> &node); // 100; TRUE
+
+  template<typename T>
+  bool HandleNode(std::unique_ptr<T> &node) {
+    /*
+      @NOTE: adding new passes:
+      1) Mark the pass both in the declaration above and in the usage the
+         following; priority (positive number, higher is higher priority)
+                    mutablility (does it edit the AST)
+      2) Confirm that the priority is decreasing and that no 2 mutable passes
+         share the same priority.
+    */
+    if (!SSAPass<T>(node)) return false; // 100; TRUE
+    
+
+    return true;
+  }
+
+ public:
+  PassManager(ErrStream &err) : err(err) {}
+
+  template<typename T>
+  void PerformPass(std::unique_ptr<T> &node);
 };
 
-// template<> void PassData::GatherPassData<>(
+// template<> void PassManager::PerformPass<>(
 //     std::unique_ptr<> &expr);
 
-template<> void PassData::GatherPassData<MacroExpr>(
+template<> void PassManager::PerformPass<MacroExpr>(
     std::unique_ptr<MacroExpr> &expr);
-template<> void PassData::GatherPassData<Expr>(
+template<> void PassManager::PerformPass<Expr>(
     std::unique_ptr<Expr> &expr);
-template<> void PassData::GatherPassData<VarDecl>(
+template<> void PassManager::PerformPass<VarDecl>(
     std::unique_ptr<VarDecl> &expr);
-template<> void PassData::GatherPassData<TypeStatement>(
+template<> void PassManager::PerformPass<TypeStatement>(
     std::unique_ptr<TypeStatement> &expr);
-template<> void PassData::GatherPassData<TypeDecl>(
+template<> void PassManager::PerformPass<TypeDecl>(
     std::unique_ptr<TypeDecl> &expr);
-template<> void PassData::GatherPassData<FuncStatement>(
+template<> void PassManager::PerformPass<FuncStatement>(
     std::unique_ptr<FuncStatement> &expr);
-template<> void PassData::GatherPassData<AssignmentExpr>(
+template<> void PassManager::PerformPass<AssignmentExpr>(
     std::unique_ptr<AssignmentExpr> &expr);
-template<> void PassData::GatherPassData<FileDecl>(
+template<> void PassManager::PerformPass<FileDecl>(
     std::unique_ptr<FileDecl> &expr);
 
 }
+
+#include "ssa_pass.inc"
 
 #endif

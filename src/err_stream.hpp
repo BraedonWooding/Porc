@@ -8,12 +8,15 @@
 
 namespace porc {
 
+// @TODO: ErrStream shouldn't be a class this is BAD OOOP!!!!
+
 class ErrStream {
 private:
   std::ostream &out;
   int tokenizer_errors = 0;
   int syntax_errors = 0;
   int semantic_errors = 0;
+
   // and so on
 
 public:
@@ -30,11 +33,6 @@ public:
   int SyntaxErrors() const { return syntax_errors; }
 
   int SemanticErrors() const { return semantic_errors; }
-
-  /*
-    Prints line information + some carat information if given.
-  */
-  void PrintFileLine(LineRange pos, std::string carat_extra = "");
 
   /*
     Logs the error for when you have an undefined token;
@@ -87,8 +85,14 @@ public:
                             ErrType type, std::string carat_msg_first = "",
                             std::string carat_msg_second = "");
 
+  /*
+    Prints line information + some carat information if given.
+  */
+  void PrintLineData(LineRange pos, std::string carat_extra = "");
+
  private:
   void IncrementErr(ErrType type);
+  void PrintFileLine(LineRange pos, std::string carat_extra = "");
 };
 
 }

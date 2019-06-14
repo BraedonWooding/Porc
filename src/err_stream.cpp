@@ -5,12 +5,23 @@
 
 namespace porc {
 
+std::mutex g_write_mutex;
+
 void ErrStream::IncrementErr(ErrType type) {
   switch (type) {
     case ErrStream::TokenErr:     tokenizer_errors++;   break;
     case ErrStream::SyntaxErr:    syntax_errors++;      break;
     case ErrStream::SemanticErr:  semantic_errors++;    break;
   }
+}
+
+void ErrStream::PrintLineData(LineRange pos, std::string carat_extra) {
+  // so we don't double lock ourselves
+  // @BAD: this is just kinda bad, either we don't want to expose this
+  //       or we should place an atomic around the err stream object itself
+  std::scoped_lock g(g_write_mutex);
+
+  PrintFileLine(pos, carat_extra);
 }
 
 void ErrStream::PrintFileLine(LineRange pos, std::string carat_extra) {
@@ -51,6 +62,8 @@ void ErrStream::PrintFileLine(LineRange pos, std::string carat_extra) {
 }
 
 void ErrStream::ReportUndefinedToken(std::string token_data, LineRange pos) {
+  std::scoped_lock g(g_write_mutex);
+
   out << rang::fg::red << "Error " << pos.file_name << "(" << pos
                           << "): Can't form a token from; "
                           << token_data << rang::style::reset << std::endl;
@@ -60,6 +73,8 @@ void ErrStream::ReportUndefinedToken(std::string token_data, LineRange pos) {
 }
 
 void ErrStream::ReportExpectedToken(Token::Kind expected, LineRange cur) {
+  std::scoped_lock g(g_write_mutex);
+
   out << rang::fg::red << "Error " << cur.file_name << "(" << cur
                           << "): was expecting '"
                           << Token::GetKindErrorMsg(expected)
@@ -70,6 +85,8 @@ void ErrStream::ReportExpectedToken(Token::Kind expected, LineRange cur) {
 
 void ErrStream::ReportCustomErr(std::string msg, std::optional<LineRange> pos,
                                 ErrType type, std::string carat_msg) {
+  std::scoped_lock g(g_write_mutex);
+
   if (pos) {
     out << rang::fg::red << "Error " << pos->file_name << "(" << *pos
         << "): " << msg
@@ -83,6 +100,8 @@ void ErrStream::ReportCustomErr(std::string msg, std::optional<LineRange> pos,
 }
 
 void ErrStream::ReportMissingToken(Token::Kind expected, LineRange pos) {
+  std::scoped_lock g(g_write_mutex);
+
   out << rang::fg::red << "Error " << pos.file_name << "("
                                   << pos << "): Missing '" 
                                     << Token::GetKindErrorMsg(expected)
@@ -93,6 +112,8 @@ void ErrStream::ReportMissingToken(Token::Kind expected, LineRange pos) {
 }
 
 void ErrStream::ReportUnexpectedToken(Token::Kind expected, Token invalid) {
+  std::scoped_lock g(g_write_mutex);
+
   out << rang::fg::red << "Error " << invalid.pos.file_name << "("
                                   << invalid.pos << "): was expecting '"
                                     << Token::GetKindErrorMsg(expected)
@@ -105,6 +126,8 @@ void ErrStream::ReportUnexpectedToken(Token::Kind expected, Token invalid) {
 }
 
 void ErrStream::ReportInvalidToken(Token invalid) {
+  std::scoped_lock g(g_write_mutex);
+
   // @TODO: implement some nicer information this is very bare
   out << rang::fg::red << "Error " << invalid.pos.file_name << "("
                                   << invalid.pos << "): Invalid token '"
@@ -115,6 +138,8 @@ void ErrStream::ReportInvalidToken(Token invalid) {
 }
 
 void ErrStream::ReportInvalidTokenCast(Token invalid, std::string msg) {
+  std::scoped_lock g(g_write_mutex);
+
   out << rang::fg::red << "Error " << invalid.pos.file_name << "("
                                   << invalid.pos << "): Invalid token '"
                                   << invalid.ToErrorMsg() << "'"
@@ -126,6 +151,8 @@ void ErrStream::ReportInvalidTokenCast(Token invalid, std::string msg) {
 void ErrStream::ReportDualDefinition(std::string msg, LineRange first,
     LineRange second, ErrType type, std::string carat_msg_first,
     std::string carat_msg_second) {
+  std::scoped_lock g(g_write_mutex);
+
   out << rang::fg::red << "Error " << second.file_name << "(" << second << "):"
                        << "Conflicting definition with definition; "
                        << first.file_name << "(" << first << ")"

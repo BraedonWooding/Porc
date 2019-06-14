@@ -59,6 +59,7 @@ Are you interested?  Maybe check out the [Language Guide](docs/LanguageGuide.md)
   - Only changes are;
     - Use C++17 instead of C++11
     - Templates are fine if used for functions avoid templated classes.
+      - I'll write up a post about this some other time but for now just take it as it is.
 - Compiling on High Sierra; `cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=$(which clang++) -DCMAKE_C_COMPILER=$(which clang) ..`
 - You need the following libraries (just added to a folder called lib will work);
   - [catch](https://github.com/catchorg/Catch2)

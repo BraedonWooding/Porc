@@ -17,6 +17,8 @@
 
 - Add switch, pattern matching, context
 - Optimise AST
+- Convert type into perhaps an easily comparable form
+  - We need something ordinal so we can easily compare
 
 ## CodeGen
 

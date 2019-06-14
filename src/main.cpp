@@ -30,6 +30,30 @@ int main(int argc, char *argv[]) {
 
   auto run = app.add_subcommand("run", "Run the given porc script")
     ->ignore_case()->fallthrough();
+  run->callback([&]() {
+    if (verbose) std::cout << "Running subcommand `run`";
+    if (verbose) std::cout << "Parsing files";
+    // @PARALLELISE
+    // CompilationUnit unit(filenames);
+    using namespace porc;
+
+    ErrStream err(std::cerr);
+    for (auto file: filenames) {
+
+      TokenStream stream(std::make_unique<CFileReader>(file.c_str()));
+      Parser parser = Parser(std::move(stream), err);
+      auto top_level = parser.ParseFileDecl();
+      if (!top_level) {
+        std::cerr << rang::fg::red << "Error couldn't parse file: "
+                  << file << " due to errors shown above"
+                  << rang::style::reset << std::endl;
+      } else {
+        // unit.Compile(std::move(*top_level));
+      }
+    }
+
+  });
+
   auto build = app.add_subcommand("parse", "Parses the files")
     ->ignore_case()->fallthrough();
   auto dev = app.add_subcommand("dev", "A series of development options")
@@ -98,6 +122,7 @@ int main(int argc, char *argv[]) {
     if (verbose) std::cout << "Verbose mode activated" << "\n";
   });
 
+  // so I don't destroy the terminals colours
   std::atexit([](){std::cout << rang::style::reset;});
   try {
     app.parse(argc, argv);
@@ -118,7 +143,8 @@ void print_version() {
 }
 
 void signal_handler(int s) {
-  std::cout << std::endl << rang::style::reset << rang::fg::red << rang::style::bold;
-  std::cout << "Control-C detected, exiting..." << rang::style::reset << std::endl;
-  std::exit(1); // will call the correct exit func, no unwinding of the stack though
+  std::cout << rang::style::reset << rang::fg::red
+            << rang::style::bold << "\n\nControl-C detected, exiting..."
+            << rang::style::reset << std::endl;
+  std::exit(1);
 }

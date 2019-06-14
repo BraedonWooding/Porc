@@ -1,41 +1,36 @@
-#include "pass_data.hpp"
+#ifndef PASS_DATA_HPP
+#define PASS_DATA_HPP
 
+#include <iostream>
+#include <unordered_map>
+#include <vector>
+#include <type_traits>
 
+#include "defs.hpp"
+#include "parser.hpp"
+#include "ast.hpp"
+#include "pass_manager"
 
 namespace porc {
-
-template<> void PassData::GatherPassData<MacroExpr>(
-    std::unique_ptr<MacroExpr> &expr) {
-  // @TODO
+template<T> void PassManager::SSAPass<T>(std::unique_ptr<T> &expr) {
+  // @SAFETY_NET: Hopefully this should catch me doing stupid things
+  if constexpr (!std::is_base_of<BaseAST, T>::value) {
+    static_assert(always_false<T>::value,
+                  "Can't perform a pass on a non AST node");
+  }
+  return;
 }
 
-template<> void PassData::GatherPassData<Expr>(
-    std::unique_ptr<Expr> &expr) {
-    
-}
-
-template<> void PassData::GatherPassData<VarDecl>(
+template<> void PassManager::SSAPass<VarDecl>(
     std::unique_ptr<VarDecl> &expr) {
+  Assert(current != nullptr, "must have a valid current scope");
 
+  for (auto &decl : expr->decls) {
+    AddVar(decl);
+  }
 }
 
-template<> void PassData::GatherPassData<TypeStatement>(
-    std::unique_ptr<TypeStatement> &expr) {
-  std::visit([this](auto &&expr) {
-    using T = std::decay_t<decltype(expr)>;
-    if constexpr (is_any<T, std::unique_ptr<TypeDecl>,
-                            std::unique_ptr<MacroExpr>>) {
-      using U = std::decay_t<decltype(*expr)>;
-      GatherPassData<U>(expr);
-    } else if constexpr (std::is_same_v<T, TypeStatement::Declaration>) {
-      return;
-    } else {
-      static_assert(always_false<T>::value, "non-exhaustive vistor!");
-    }
-  }, expr->expr);
-}
-
-template<> void PassData::GatherPassData<TypeDecl>(
+template<> void PassManager::SSAPass<TypeDecl>(
     std::unique_ptr<TypeDecl> &expr) {
   Assert(current != nullptr, "must have a valid current scope");
 
@@ -57,23 +52,9 @@ template<> void PassData::GatherPassData<TypeDecl>(
     }
     // else we don't care about doing anything
   }
-
-  for (auto &statement : expr->block) {
-    GatherPassData<TypeStatement>(statement);
-  }
 }
 
-template<>
-void PassData::GatherPassData<FuncStatement>(
-    std::unique_ptr<FuncStatement> &expr) {
-  std::visit([this](auto &&val) {
-    using T = std::decay_t<decltype(*val)>;
-    GatherPassData<T>(val);
-  }, expr->expr);
-}
-
-template<>
-void PassData::GatherPassData<AssignmentExpr>(
+template<> void PassManager::SSAPass<AssignmentExpr>(
     std::unique_ptr<AssignmentExpr> &expr) {
   Assert(current != nullptr, "must have a valid current scope");
 
@@ -110,18 +91,6 @@ void PassData::GatherPassData<AssignmentExpr>(
   }
 }
 
-template<>
-void PassData::GatherPassData<FileDecl>(std::unique_ptr<FileDecl> &top) {
-  current = new Scope(Scope::TopLevel, std::nullopt);
-  scopes.push_back(current);
-
-  for (auto &expr : top->exprs) {
-    GatherPassData(expr);
-  }
-
-  for (auto &type : top->types) {
-    GatherPassData(type);
-  }
 }
 
-}
+#endif

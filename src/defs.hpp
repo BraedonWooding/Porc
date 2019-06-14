@@ -16,6 +16,11 @@ using i32 = int32_t;
 using i64 = int64_t;
 
 using byte = std::byte;
+using sbyte = signed char;
+
+// @NOTE: These shouldn't be set
+#define SBYTE_MIN (-128)
+#define SBYTE_MAX (127)
 
 /*
   This just cuts down on the type definitions and gives us valuable horizontal
