@@ -8,10 +8,12 @@ namespace porc {
 namespace err {
 
 std::mutex g_write_mutex;
-std::ostream &out = std::cerr;
+std::ostream *out = &std::cerr; // @WTF: I don't really like having to do this ewwww
 int tokenizer_errors = 0;
 int syntax_errors = 0;
 int semantic_errors = 0;
+
+void PipeOutput(std::ostream &new_out) { out = &new_out; }
 
 int TokenizerErrors() { return tokenizer_errors; }
 
@@ -33,7 +35,7 @@ void PrintFileLine(LineRange pos, std::string carat_extra = "") {
 
   unsigned int line_number = 0;
   auto line_str = std::to_string(pos.line_end);
-  out << std::string(line_str.size() + 1, ' ') << '|' << std::endl;
+  (*out) << std::string(line_str.size() + 1, ' ') << '|' << std::endl;
   while (std::getline(file, line) && line_number < pos.line_end)
   {
     line_number++;
@@ -47,9 +49,9 @@ void PrintFileLine(LineRange pos, std::string carat_extra = "") {
         !std::all_of(line.cbegin(), line.cend(), ::isspace))
     {
       line_str = std::to_string(line_number);
-      out << line_str << " |" << "    " << line << std::endl;
+      (*out) << line_str << " |" << "    " << line << std::endl;
       if (line_number == pos.line_start) {
-        out << std::string(line_str.size() + 1, ' ') << '|'
+        (*out) << std::string(line_str.size() + 1, ' ') << '|'
             << std::string(4 + pos.col_start - 1, ' ')
             << rang::fg::green
             << std::string(pos.col_end - pos.col_start + 1, '^')
@@ -58,9 +60,9 @@ void PrintFileLine(LineRange pos, std::string carat_extra = "") {
       }
     }
   }
-  out << std::string(line_str.size() + 1, ' ') << '|' << std::endl;
+  (*out) << std::string(line_str.size() + 1, ' ') << '|' << std::endl;
   if (line_number != pos.line_end) {
-    out << "Internal Compiler Error Invalid Position: " << pos << std::endl;
+    (*out) << "Internal Compiler Error Invalid Position: " << pos << std::endl;
   }
 }
 
@@ -76,7 +78,7 @@ void PrintLineData(LineRange pos, std::string carat_extra) {
 void ReportUndefinedToken(std::string token_data, LineRange pos) {
   std::scoped_lock g(g_write_mutex);
 
-  out << rang::fg::red << "Error " << pos.file_name << "(" << pos
+  (*out) << rang::fg::red << "Error " << pos.file_name << "(" << pos
                           << "): Can't form a token from; "
                           << token_data << rang::style::reset << std::endl;
   // @TODO: implement a lookup to see possible tokens
@@ -87,7 +89,7 @@ void ReportUndefinedToken(std::string token_data, LineRange pos) {
 void ReportExpectedToken(Token::Kind expected, LineRange cur) {
   std::scoped_lock g(g_write_mutex);
 
-  out << rang::fg::red << "Error " << cur.file_name << "(" << cur
+  (*out) << rang::fg::red << "Error " << cur.file_name << "(" << cur
                           << "): was expecting '"
                           << Token::GetKindErrorMsg(expected)
                           << "'" << rang::style::reset << std::endl;
@@ -100,13 +102,13 @@ void ReportCustomErr(std::string msg, std::optional<LineRange> pos,
   std::scoped_lock g(g_write_mutex);
 
   if (pos) {
-    out << rang::fg::red << "Error " << pos->file_name << "(" << *pos
+    (*out) << rang::fg::red << "Error " << pos->file_name << "(" << *pos
         << "): " << msg
         << rang::style::reset << std::endl;
     PrintFileLine(*pos, carat_msg);
   }
   else {
-    out << rang::fg::red << "Error: " << msg << rang::style::reset << std::endl;
+    (*out) << rang::fg::red << "Error: " << msg << rang::style::reset << std::endl;
   }
   IncrementErr(type);
 }
@@ -114,7 +116,7 @@ void ReportCustomErr(std::string msg, std::optional<LineRange> pos,
 void ReportMissingToken(Token::Kind expected, LineRange pos) {
   std::scoped_lock g(g_write_mutex);
 
-  out << rang::fg::red << "Error " << pos.file_name << "("
+  (*out) << rang::fg::red << "Error " << pos.file_name << "("
                                   << pos << "): Missing '" 
                                     << Token::GetKindErrorMsg(expected)
                                   << "'"
@@ -126,7 +128,7 @@ void ReportMissingToken(Token::Kind expected, LineRange pos) {
 void ReportUnexpectedToken(Token::Kind expected, Token invalid) {
   std::scoped_lock g(g_write_mutex);
 
-  out << rang::fg::red << "Error " << invalid.pos.file_name << "("
+  (*out) << rang::fg::red << "Error " << invalid.pos.file_name << "("
                                   << invalid.pos << "): was expecting '"
                                     << Token::GetKindErrorMsg(expected)
                                   << "' but instead got '"
@@ -141,7 +143,7 @@ void ReportInvalidToken(Token invalid) {
   std::scoped_lock g(g_write_mutex);
 
   // @TODO: implement some nicer information this is very bare
-  out << rang::fg::red << "Error " << invalid.pos.file_name << "("
+  (*out) << rang::fg::red << "Error " << invalid.pos.file_name << "("
                                   << invalid.pos << "): Invalid token '"
                                   << invalid.ToErrorMsg() << "'"
                                   << rang::style::reset << std::endl;
@@ -152,7 +154,7 @@ void ReportInvalidToken(Token invalid) {
 void ReportInvalidTokenCast(Token invalid, std::string msg) {
   std::scoped_lock g(g_write_mutex);
 
-  out << rang::fg::red << "Error " << invalid.pos.file_name << "("
+  (*out) << rang::fg::red << "Error " << invalid.pos.file_name << "("
                                   << invalid.pos << "): Invalid token '"
                                   << invalid.ToErrorMsg() << "'"
                                   << rang::style::reset << std::endl;
@@ -165,11 +167,11 @@ void ReportDualDefinition(std::string msg, LineRange first,
     std::string carat_msg_second) {
   std::scoped_lock g(g_write_mutex);
 
-  out << rang::fg::red << "Error " << second.file_name << "(" << second << "):"
+  (*out) << rang::fg::red << "Error " << second.file_name << "(" << second << "):"
                        << "Conflicting definition with definition; "
                        << first.file_name << "(" << first << ")"
                        << "\n" << msg << rang::style::reset << std::endl;
-  out << "\nThe second definition:" << std::endl;
+  (*out) << "\nThe second definition:" << std::endl;
   PrintFileLine(second, carat_msg_second);
   PrintFileLine(second, carat_msg_second);
   IncrementErr(type);

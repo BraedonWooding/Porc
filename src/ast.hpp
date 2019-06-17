@@ -74,7 +74,6 @@ enum class KindAST {
   ForBlock,
   IfBlock,
   IfBlockStatement,
-  ElseBlock,
   TypeExpr,
   TypeExprGeneric,
   TypeExprVariant,
@@ -121,7 +120,6 @@ class VarDecl;
 class Expr;
 class WhileBlock;
 class ForBlock;
-class ElseBlock;
 class IfBlock;
 class TypeExpr;
 class Constant;
@@ -382,8 +380,19 @@ class FuncStatement : public BaseAST {
   KindAST UnwrapToLowest(void **ast);
 };
 
-// @TODO: Decide if we should unwrap these to their decls in the case
-//        that there is just one
+// NOTE: This has a weird ish parsing logic if you don't do `id ':' type_expr`
+//       then it automatically is just a type expr which means it doesn't
+//       follow the standard of a function declaration
+// i.e. (a, b) defines it like (id1: a, id2: b) rather than (a: $A, b: $B)
+//      this may confuse people and we may want to change this
+//      however it currently is only used in type exprs in which case it
+//      makes more sense since if you are specifying a type you should fully
+//      specify it however you don't have to fully specify generics
+// i.e. (Map[$A, $B]) is fine and so is (Map) soooooo is this very odd?
+//      I don't know how I would want it changed since I like the ability
+//      to have 'C' like types i.e. (int, flt)->str since it makes it simpler
+//      to type them.  Maybe we just focus on giving better errors
+// @FIX @GLARING_ISSUE @ISSUE @EBNF
 class TupleTypeDecl : public BaseAST {
  public:
   struct ArgDecl {

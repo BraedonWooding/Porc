@@ -1128,11 +1128,16 @@ optional_unique_ptr<MacroExpr> Parser::ParseMacroExpr() {
 
 std::optional<TupleTypeDecl::ArgDecl> Parser::ParseTupleTypeSegment() {
   std::optional<LineStr> id = std::nullopt;
-  Token tok = stream.PeekCur();
-  if (tok.type == Token::Identifier) {
+  Token tok = stream.PopCur();
+
+  // a tuple type is either something like; (int, map[int, flt])
+  // or something like; (a: flt, b: str, c: list[int]) no generics happen
+  // automatically.
+  if (tok.type == Token::Identifier && stream.PeekCur().type == Token::Colon) {
     id = tok.ToLineStr();
-    stream.PopCur();
     if (!ConsumeToken(Token::Colon)) return std::nullopt;
+  } else {
+    stream.Push(tok);
   }
 
   auto type = ParseTypeExpr();

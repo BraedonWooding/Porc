@@ -27,6 +27,7 @@ namespace porc {
 class LineStr : public std::string {
  public:
   LineRange pos;
+  uint id; // the associated subscript
 
   /*
     String is destroyed in creation!!
@@ -35,8 +36,8 @@ class LineStr : public std::string {
     - we shouldn't destroy strings rather should rely on that being done
       on calling side.
   */
-  LineStr(LineRange pos, std::string wrap)
-      : std::string(std::move(wrap)), pos(pos) { }
+  LineStr(LineRange pos, std::string wrap, uint id = 0)
+      : std::string(std::move(wrap)), pos(pos), id(id) { }
 };
 
 class Token {

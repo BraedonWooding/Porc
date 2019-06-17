@@ -1,5 +1,11 @@
-#ifndef PASS_DATA_HPP
-#define PASS_DATA_HPP
+#ifndef SSA_PASS_INC
+#define SSA_PASS_INC
+
+// @NOTE: These things shouldn't need to be included
+//        since this is a .inc however to make it work nice with IDEs
+//        and just general tooling we'll use them here but we should
+//        wrap it in a #define that we disable when actually compiling :)
+// @TODO: ^^ above.
 
 #include <iostream>
 #include <unordered_map>
@@ -9,16 +15,15 @@
 #include "defs.hpp"
 #include "parser.hpp"
 #include "ast.hpp"
-#include "pass_manager"
+#include "pass_manager.hpp"
 
 namespace porc {
-template<T> void PassManager::SSAPass<T>(std::unique_ptr<T> &expr) {
+template<typename T> void PassManager::SSAPass(std::unique_ptr<T> &expr) {
   // @SAFETY_NET: Hopefully this should catch me doing stupid things
   if constexpr (!std::is_base_of<BaseAST, T>::value) {
     static_assert(always_false<T>::value,
                   "Can't perform a pass on a non AST node");
   }
-  return;
 }
 
 template<> void PassManager::SSAPass<VarDecl>(
@@ -72,15 +77,15 @@ template<> void PassManager::SSAPass<AssignmentExpr>(
     void *data;
     KindAST type = expr_lhs->UnwrapToLowest(&data);
     if (type == KindAST::Identifier) {
-      LineStr *id = static_cast<LineStr*>(data);
-      StringSSA ssa(*id, GetWithDefault(current->current_ids, *id, 0u));
+      LineStr id = *static_cast<LineStr*>(data);
+      id.id = GetWithDefault(current->current_ids, id, 0u);
 
       // if its a func decl then put it in the func place else put it in the var
       // it can't be a type
       if (auto func = std::get_if<Expr::FuncDecl>(&(*expr_rhs)->expr)) {
-        current->func_decls[ssa] = func;
+        current->func_decls[id] = func;
       } else {
-        current->variable_decls[ssa] = expr_rhs;
+        current->variable_decls[id] = expr_rhs;
       }
     }
     // we can't perform SSA on an expr really...?

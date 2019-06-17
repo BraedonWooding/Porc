@@ -9,21 +9,6 @@
 #include "parser.hpp"
 #include "ast.hpp"
 
-namespace porc {
-
-/*
-  A string is SSA form.
-  Static single assignment
-*/
-class StringSSA : public LineStr {
- public:
-  uint id; // the associated subscript
-
-  StringSSA(LineStr str, uint id) : id(id), LineStr(str.pos, str) { }
-};
-
-}
-
 namespace std {
 
 template <>
@@ -31,16 +16,11 @@ struct hash<porc::LineStr>
 {
   size_t operator()(const porc::LineStr &str) const
   {
-    return hash<string>()(static_cast<string>(str));
-  }
-};
-
-template <>
-struct hash<porc::StringSSA>
-{
-  size_t operator()(const porc::StringSSA &str) const
-  {
-    return hash_combine(str.id, static_cast<string>(str));
+    if (str.id != 0) {
+      return hash_combine(str.id, static_cast<string>(str));
+    } else {
+      return hash<string>()(static_cast<string>(str));
+    }
   }
 };
 
@@ -78,8 +58,45 @@ class Scope {
   std::unordered_map<LineStr, std::unique_ptr<VarDecl>*> initial_decl;
   std::unordered_map<LineStr, std::unique_ptr<TypeDecl>*> type_decls;
 
-  std::unordered_map<StringSSA, Expr::FuncDecl*> func_decls;
-  std::unordered_map<StringSSA, std::unique_ptr<Expr>*> variable_decls;
+  std::unordered_map<LineStr, Expr::FuncDecl*> func_decls;
+  std::unordered_map<LineStr, std::unique_ptr<Expr>*> variable_decls;
+
+  template<typename T, typename M>
+  std::optional<T> FindInMap(const LineStr &id, const M &map) const {
+    auto it = map.find(id);
+    if (it == map.end()) {
+      return std::nullopt;
+    } else {
+      return it->second;
+    }
+  }
+
+  template<typename T>
+  std::optional<T> FindLastRec(const LineStr &id) const {
+    std::optional<T> val;
+
+    if constexpr (is_any<T, decltype(current_ids)::value_type>) {
+      val = FindInMap<T>(id, current_ids);
+    } else if constexpr (is_any<T, decltype(initial_decl)::value_type>) {
+      val = FindInMap<T>(id, initial_decl);
+    } else if constexpr (is_any<T, decltype(type_decls)::value_type>) {
+      val = FindInMap<T>(id, type_decls);
+    } else if constexpr (is_any<T, decltype(func_decls)::value_type>) {
+      val = FindInMap<T>(id, func_decls);
+    } else if constexpr (is_any<T, decltype(variable_decls)::value_type>) {
+      val = FindInMap<T>(id, variable_decls);
+    } else {
+      static_assert(always_false<T>::value, "No matching map for type");
+    }
+
+    if (val) {
+      return val;
+    } else if (parent && *parent) {
+        return (*parent)->FindLastRec<T>(id);
+    } else {
+        return std::nullopt;
+    }
+  }
 
   Scope(Kind kind, std::optional<Scope*> parent)
       : id(current_id++), parent(parent), kind(kind) { }
@@ -98,13 +115,17 @@ class PassManager {
   //        else they'll get invalidated on a resize operation.
   std::vector<Scope*> scopes;
   Scope *current = nullptr;
+  bool error_occurred = false;
+
+  template<typename T>
+  void PerformBlockPass(vector_unique_ptr<T> &block);
 
   template<typename T, typename V>
   void AddTo(T map, LineStr id, V *obj);
   void AddVar(VarDecl::Declaration &decl);
 
   template<typename T>
-  bool SSAPass(std::unique_ptr<T> &node); // 100; TRUE
+  void SSAPass(std::unique_ptr<T> &node); // 100; TRUE
 
   template<typename T>
   bool HandleNode(std::unique_ptr<T> &node) {
@@ -116,7 +137,7 @@ class PassManager {
       2) Confirm that the priority is decreasing and that no 2 mutable passes
          share the same priority.
     */
-    if (!SSAPass<T>(node)) return false; // 100; TRUE
+    if (SSAPass<T>(node), error_occurred) return false; // 100; TRUE
     
 
     return true;
@@ -129,25 +150,56 @@ class PassManager {
   void PerformPass(std::unique_ptr<T> &node);
 };
 
-// template<> void PassManager::PerformPass<>(
-//     std::unique_ptr<> &expr);
-
-template<> void PassManager::PerformPass<MacroExpr>(
-    std::unique_ptr<MacroExpr> &expr);
-template<> void PassManager::PerformPass<Expr>(
-    std::unique_ptr<Expr> &expr);
-template<> void PassManager::PerformPass<VarDecl>(
-    std::unique_ptr<VarDecl> &expr);
-template<> void PassManager::PerformPass<TypeStatement>(
-    std::unique_ptr<TypeStatement> &expr);
-template<> void PassManager::PerformPass<TypeDecl>(
-    std::unique_ptr<TypeDecl> &expr);
-template<> void PassManager::PerformPass<FuncStatement>(
-    std::unique_ptr<FuncStatement> &expr);
-template<> void PassManager::PerformPass<AssignmentExpr>(
-    std::unique_ptr<AssignmentExpr> &expr);
+template<> void PassManager::PerformPass<IdentifierAccess>(
+    std::unique_ptr<IdentifierAccess> &expr);
 template<> void PassManager::PerformPass<FileDecl>(
     std::unique_ptr<FileDecl> &expr);
+template<> void PassManager::PerformPass<TypeStatement>(
+    std::unique_ptr<TypeStatement> &expr);
+template<> void PassManager::PerformPass<AssignmentExpr>(
+    std::unique_ptr<AssignmentExpr> &expr);
+template<> void PassManager::PerformPass<FuncStatement>(
+    std::unique_ptr<FuncStatement> &expr);
+template<> void PassManager::PerformPass<FuncCall>(
+    std::unique_ptr<FuncCall> &expr);
+template<> void PassManager::PerformPass<Atom>(
+    std::unique_ptr<Atom> &expr);
+template<> void PassManager::PerformPass<UnaryExpr>(
+    std::unique_ptr<UnaryExpr> &expr);
+template<> void PassManager::PerformPass<PowerExpr>(
+    std::unique_ptr<PowerExpr> &expr);
+template<> void PassManager::PerformPass<TypeDecl>(
+    std::unique_ptr<TypeDecl> &expr);
+template<> void PassManager::PerformPass<MultiplicativeExpr>(
+    std::unique_ptr<MultiplicativeExpr> &expr);
+template<> void PassManager::PerformPass<AdditiveExpr>(
+    std::unique_ptr<AdditiveExpr> &expr);
+template<> void PassManager::PerformPass<ComparisonExpr>(
+    std::unique_ptr<ComparisonExpr> &expr);
+template<> void PassManager::PerformPass<LogicalAndExpr>(
+    std::unique_ptr<LogicalAndExpr> &expr);
+template<> void PassManager::PerformPass<LogicalOrExpr>(
+    std::unique_ptr<LogicalOrExpr> &expr);
+template<> void PassManager::PerformPass<VarDecl>(
+    std::unique_ptr<VarDecl> &expr);
+template<> void PassManager::PerformPass<Expr>(
+    std::unique_ptr<Expr> &expr);
+template<> void PassManager::PerformPass<WhileBlock>(
+    std::unique_ptr<WhileBlock> &expr);
+template<> void PassManager::PerformPass<ForBlock>(
+    std::unique_ptr<ForBlock> &expr);
+template<> void PassManager::PerformPass<IfBlock>(
+    std::unique_ptr<IfBlock> &expr);
+template<> void PassManager::PerformPass<TypeExpr>(
+    std::unique_ptr<TypeExpr> &expr);
+template<> void PassManager::PerformPass<Constant>(
+    std::unique_ptr<Constant> &expr);
+template<> void PassManager::PerformPass<MacroExpr>(
+    std::unique_ptr<MacroExpr> &expr);
+template<> void PassManager::PerformPass<TupleValueDecl>(
+  std::unique_ptr<TupleValueDecl> &expr);
+template<> void PassManager::PerformPass<TupleTypeDecl>(
+  std::unique_ptr<TupleTypeDecl> &expr);
 
 }
 
