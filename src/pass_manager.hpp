@@ -75,15 +75,15 @@ class Scope {
   std::optional<T> FindLastRec(const LineStr &id) const {
     std::optional<T> val;
 
-    if constexpr (is_any<T, decltype(current_ids)::value_type>) {
+    if constexpr (is_any<T, decltype(current_ids)::mapped_type>) {
       val = FindInMap<T>(id, current_ids);
-    } else if constexpr (is_any<T, decltype(initial_decl)::value_type>) {
+    } else if constexpr (is_any<T, decltype(initial_decl)::mapped_type>) {
       val = FindInMap<T>(id, initial_decl);
-    } else if constexpr (is_any<T, decltype(type_decls)::value_type>) {
+    } else if constexpr (is_any<T, decltype(type_decls)::mapped_type>) {
       val = FindInMap<T>(id, type_decls);
-    } else if constexpr (is_any<T, decltype(func_decls)::value_type>) {
+    } else if constexpr (is_any<T, decltype(func_decls)::mapped_type>) {
       val = FindInMap<T>(id, func_decls);
-    } else if constexpr (is_any<T, decltype(variable_decls)::value_type>) {
+    } else if constexpr (is_any<T, decltype(variable_decls)::mapped_type>) {
       val = FindInMap<T>(id, variable_decls);
     } else {
       static_assert(always_false<T>::value, "No matching map for type");
@@ -125,6 +125,9 @@ class PassManager {
   void AddVar(VarDecl::Declaration &decl);
 
   template<typename T>
+  void MacroPass(std::unique_ptr<T> &node); // \infty; True
+
+  template<typename T>
   void SSAPass(std::unique_ptr<T> &node); // 100; TRUE
 
   template<typename T>
@@ -137,6 +140,8 @@ class PassManager {
       2) Confirm that the priority is decreasing and that no 2 mutable passes
          share the same priority.
     */
+    if (MacroPass<T>(node), error_occurred) return false; // \infty; True
+
     if (SSAPass<T>(node), error_occurred) return false; // 100; TRUE
     
 
@@ -204,5 +209,6 @@ template<> void PassManager::PerformPass<TupleTypeDecl>(
 }
 
 #include "ssa_pass.inc"
+#include "macro_pass.inc"
 
 #endif

@@ -39,23 +39,20 @@ template<> void PassManager::SSAPass<TypeDecl>(
     std::unique_ptr<TypeDecl> &expr) {
   Assert(current != nullptr, "must have a valid current scope");
 
-  auto it = current->type_decls.find(expr->id);
-  if (it == current->type_decls.end()) {
-    current->type_decls[expr->id] = &expr;
-  } else {
-    Assert(it->second != nullptr, "can't have null type decls inside map");
-    auto &decl = *it->second;
-    if (decl->type && expr->type) {
+  auto it = current->FindLastRec<std::unique_ptr<TypeDecl>*>(expr->id);
+  if (it) {
+    if ((**it)->type && expr->type) {
       const auto msg = "You can't redefine a types definition, if you wish to "
                     "extend it you can just state the name alone with no type";
-      err::ReportDualDefinition(msg, (*decl->type)->pos, (*expr->type)->pos,
+      err::ReportDualDefinition(msg, (*(**it)->type)->pos, (*expr->type)->pos,
                                err::SemanticErr,"", "maybe remove this?");
-    } else if (!decl->type && expr->type) {
-      // we can just move over the type
-      decl->type = std::move(expr->type);
+    } else if (!(**it)->type && expr->type) {
+      (**it)->type = std::move(expr->type);
       expr->type = std::nullopt;
     }
-    // else we don't care about doing anything
+    // else since its already defined we don't redefine
+  } else {
+    current->type_decls[expr->id] = &expr;
   }
 }
 
@@ -63,8 +60,6 @@ template<> void PassManager::SSAPass<AssignmentExpr>(
     std::unique_ptr<AssignmentExpr> &expr) {
   Assert(current != nullptr, "must have a valid current scope");
 
-  // NOTE: we want to allow SSA
-  //       so we want to mark any assignments specially
   for (int i = 0; i < expr->lhs.size(); i++) {
     auto &expr_lhs = expr->lhs[i];
     std::unique_ptr<Expr> *expr_rhs;
@@ -77,22 +72,28 @@ template<> void PassManager::SSAPass<AssignmentExpr>(
     void *data;
     KindAST type = expr_lhs->UnwrapToLowest(&data);
     if (type == KindAST::Identifier) {
-      LineStr id = *static_cast<LineStr*>(data);
-      id.id = GetWithDefault(current->current_ids, id, 0u);
+      LineStr ident = *static_cast<LineStr*>(data);
+      ident.id = 0;
+      auto id = current->FindLastRec<uint>(ident);
+      if (!id) {
+        // no id found so we don't really care but create one current scope
+        // @NOTE: We could trigger a flag at this point to indicate a possibly
+        //        not declared object (it could exist in some library or smth?)
+        current->current_ids[ident] = 0;
+        ident.id = 0;
+      } else {
+        current->current_ids[ident]++;
+        ident.id = *id;
+      }
 
       // if its a func decl then put it in the func place else put it in the var
       // it can't be a type
       if (auto func = std::get_if<Expr::FuncDecl>(&(*expr_rhs)->expr)) {
-        current->func_decls[id] = func;
+        current->func_decls[ident] = func;
       } else {
-        current->variable_decls[id] = expr_rhs;
+        current->variable_decls[ident] = expr_rhs;
       }
     }
-    // we can't perform SSA on an expr really...?
-    // so I guess we just don't????
-    // the other argument is that we also support non string 'lhs'
-    // the argument however is that those aren't variables so we
-    // shouldn't factor them out...?
   }
 }
 
