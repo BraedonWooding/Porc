@@ -2,6 +2,8 @@
 
 namespace porc {
 
+uint Scope::current_id = 1;
+
 /*
   @NOTE: We could help verify our PerformPass methods by confirming that there
          is ONLY one call to HandleNode; but there has to be atleast ONE

@@ -1,6 +1,20 @@
 #ifndef PORC_OPCODES_H
 #define PORC_OPCODES_H
 
+#ifdef __cplusplus
+
+extern "C" {
+
+#else
+
+typedef enum Opcode Opcode;
+typedef struct PorcFunc PorcFunc;
+typedef struct Instruction Instruction;
+
+#endif
+
+#include "porc_common.h"
+
 /*
   Opcodes are 8 bits
   All addresses ($0x) are 4 byte localized ptrs.
@@ -57,7 +71,7 @@
   - VOID refers to no args
 */
 
-enum Opcode {
+enum __PORC_PACKED__ Opcode {
   NOP = 0,
   /* Arithmetic */
   // performs it such that c = a + b
@@ -79,6 +93,9 @@ enum Opcode {
   REG_MOD,        // $0x $0x $0x
   REG_POW,        // $0x $0x $0x
 
+  // FAST integer arithmetic
+  // 0 branch conditions, no checks (on release)
+  // won't follow pointers.
   INT_ADD,        // $0x $0x $0x
   INT_SUB,        // $0x $0x $0x
   INT_MUL,        // $0x $0x $0x
@@ -87,6 +104,9 @@ enum Opcode {
   INT_MOD,        // $0x $0x $0x
   INT_POW,        // $0x $0x $0x
 
+  // FAST float arithmetic
+  // 0 branch conditions, no checks (on release)
+  // won't follow pointers.
   FLT_ADD,        // $0x $0x $0x
   FLT_SUB,        // $0x $0x $0x
   FLT_MUL,        // $0x $0x $0x
@@ -115,7 +135,16 @@ enum Opcode {
   PUSH_FRAME, // $0x
   // pops the top frame of the stack
   POP_FRAME,  // VOID
-  
+
+  // declare function with given number of args
+  DECL_FUNC, // LIT[uint]
+
+  // call a variable
+  // presumes args are supplied properly
+  CALL, // $0x
+  // lookup variable and place address into 2nd address
+  // lookups from context given
+  LOOKUP, // LIT[str] $0x $0x
 
   /* Allocation */
   // can't allocate 0 bytes with any of these
@@ -148,6 +177,144 @@ enum Opcode {
   INDEX_WRITE,  // $0x $0x $0x
 };
 
+enum __PORC_PACKED__ PorcType {
+  UNDEFINED   = 0b00000000,
+  VOID        = 0b00000001,
+
+  // u16 rune point
+  UNICODE_STR = 0b00000010,
+  // 
+  ASCII_STR   = 0b00000011,
+
+  INT8        = 0b00001000,
+  INT16       = 0b00001001,
+  INT32       = 0b00001010,
+  INT64       = 0b00001011,
+
+  UINT8       = 0b00001100,
+  UINT16      = 0b00001101,
+  UINT32      = 0b00001110,
+  UINT64      = 0b00001111,
+
+  BIG_INT     = 0b00010000,
+  FLT16       = 0b00010001,
+  FLT32       = 0b00010010,
+  FLT64       = 0b00010011,
+  BIG_FLT     = 0b00010100,
+
+  // Misc Types
+  FUNC        = 0b00010101,
+  PTR         = 0b00010110,
+
+  UNUSED = 0b00010111,
+
+  // Like a dictionary / map but for ASCII_STR -> PTR
+  // can be used as a non-library dictionary/map
+  // is actually implemented as binary tree map (probably)
+  USER_MAP    = 0b00011000,
+
+  SIZE_8      = 0b00011001,
+  SIZE_16     = 0b00011010,
+  SIZE_32     = 0b00011011,
+  SIZE_64     = 0b00011100,
+
+  /* Flags */
+  GC_TRACKED  = 0b10000000,
+  // tuples and user data contain a SIZE_X for the size counter
+  // arrays instead contain a SIZE_X for the length as well as a
+  // byte for a type tag, the type can be set to a SIZE_X
+  // to specify the size of each member (not including the corresponding type)
+  // to allow for non-homogeneous arrays
+  IS_ARRAY    = 0b00100000,
+  IS_TUPLE    = 0b01000000,
+  // basically just raw data (except for size counter)
+  // completely ignored by program, should use USER_maps to access the data
+  USER_DATA   = 0b01100000,
+
+  /* Redefinitions for ease */
+  ASCII_CHAR  = UINT8,
+  CHAR        = UINT16,
+};
+
+struct PorcFunc {
+  int n_args;
+  size_t address;
+};
+
+struct TaggedData {
+  union Data {
+    int64_t   int_lit;
+    double    flt_lit;
+    char     *str_lit;
+    bool      bool_lit;
+    wchar_t   char_lit;
+    Data     *array_lit;
+    Data     *tuple_lit;
+    size_t    ptr;
+    u_int8_t  register_addr;
+    PorcFunc *function;
+  } data;
+
+  enum Type {
+    UNDEFINED,
+    INT_LIT,
+    FLT_LIT,
+    STR_LIT,
+    BOOL_LIT,
+    CHAR_LIT,
+    ARRAY_LIT,
+    TUPLE_LIT,
+    PTR,
+    REGISTER,
+    FUNCTION,
+  };
+};
+
+union PorcSize {
+  uint8_t  size_8;
+  uint16_t size_16;
+  uint32_t size_32;
+  uint64_t size_64;
+};
+
+struct PorcTupleHeader {
+  PorcType tuple_type;
+  PorcSize count;
+};
+
+struct PorcUserDataHeader {
+  // should be USER_DATA with a SIZE_X
+  PorcType type;
+  PorcSize size;
+};
+
+struct PorcArrayHeader {
+  PorcType array_type;
+  PorcType element_type; // or size
+  PorcSize length;
+} homogeneous_array;
+
+/*
+  An array that is typed.
+ */
+union PorcCollectionHeader {
+  // same type
+
+  // different types
+  struct NonhomogeneousArrayHeader {
+    PorcType array_type;
+    PorcType element_size;
+    PorcSize length;
+  } nonhomogeneous_array;
+};
+
+// Instructions are stored jaggedly
+// This means that they may not align properly keep this in mind
+struct Instruction {
+  Opcode opcode;
+  TaggedData data;
+};
+
 /*
 MEMBER_ACCESS_REF $0x 'c' $0x
 b.c = b[i];
@@ -157,5 +324,9 @@ REG_WRITE_LIT $R0 0
 INDEX $b $R0 $R1
 b[0]
 */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

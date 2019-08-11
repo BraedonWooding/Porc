@@ -78,6 +78,7 @@ Are you interested?  Maybe check out the [Language Guide](docs/LanguageGuide.md)
 - [ ] Bytecode Instruction Set
   - Basics are setup
 - [ ] Basic Bytecode Codegen
+  - No type checking/types (that is almost purely optional and just trusts you kinda like in python)
 - [ ] Interpreter
 - [ ] standard library implementation
 - [ ] Possibly JIT

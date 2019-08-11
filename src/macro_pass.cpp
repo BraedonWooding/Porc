@@ -18,14 +18,6 @@
 #include "pass_manager.hpp"
 
 namespace porc {
-template<typename T> void PassManager::MacroPass(std::unique_ptr<T> &expr) {
-  // @SAFETY_NET: Hopefully this should catch me doing stupid things
-  if constexpr (!std::is_base_of<BaseAST, T>::value) {
-    static_assert(always_false<T>::value,
-                  "Can't perform a pass on a non AST node");
-  }
-}
-
 template<> void PassManager::MacroPass<TypeStatement>(
     std::unique_ptr<TypeStatement> &expr) {
   if (auto macro = std::get_if<std::unique_ptr<MacroExpr>>(&expr->expr)) {

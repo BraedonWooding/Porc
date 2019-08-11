@@ -8,6 +8,7 @@
 #include "defs.hpp"
 #include "parser.hpp"
 #include "ast.hpp"
+#include "byte_code_writer.hpp"
 
 namespace std {
 
@@ -102,8 +103,6 @@ class Scope {
       : id(current_id++), parent(parent), kind(kind) { }
 };
 
-uint Scope::current_id = 1;
-
 /*
   A collection of useful pass data for passes.
   Collected prior to any passes.
@@ -116,6 +115,7 @@ class PassManager {
   std::vector<Scope*> scopes;
   Scope *current = nullptr;
   bool error_occurred = false;
+  Chunk 
 
   template<typename T>
   void PerformBlockPass(vector_unique_ptr<T> &block);
@@ -124,11 +124,45 @@ class PassManager {
   void AddTo(T map, LineStr id, V *obj);
   void AddVar(VarDecl::Declaration &decl);
 
+  // \infty; True
   template<typename T>
-  void MacroPass(std::unique_ptr<T> &node); // \infty; True
+  void MacroPass(std::unique_ptr<T> &node) {
+    // @SAFETY_NET: Hopefully this should catch me doing stupid things
+    if constexpr (!std::is_base_of<BaseAST, T>::value) {
+      static_assert(always_false<T>::value,
+                    "Can't perform a pass on a non AST node");
+    }
+  }
 
+  // 100; TRUE
   template<typename T>
-  void SSAPass(std::unique_ptr<T> &node); // 100; TRUE
+  void SSAPass(std::unique_ptr<T> &node) {
+    // @SAFETY_NET: Hopefully this should catch me doing stupid things
+    if constexpr (!std::is_base_of<BaseAST, T>::value) {
+      static_assert(always_false<T>::value,
+                    "Can't perform a pass on a non AST node");
+    }
+  }
+
+  // 50; TRUE
+  template<typename T>
+  void TypePass(std::unique_ptr<T> &node) {
+    // @SAFETY_NET: Hopefully this should catch me doing stupid things
+    if constexpr (!std::is_base_of<BaseAST, T>::value) {
+      static_assert(always_false<T>::value,
+                    "Can't perform a pass on a non AST node");
+    }
+  }
+
+  // 50; TRUE
+  template<typename T>
+  void ByteCodePass(std::unique_ptr<T> &node) {
+    // @SAFETY_NET: Hopefully this should catch me doing stupid things
+    if constexpr (!std::is_base_of<BaseAST, T>::value) {
+      static_assert(always_false<T>::value,
+                    "Can't perform a pass on a non AST node");
+    }
+  }
 
   template<typename T>
   bool HandleNode(std::unique_ptr<T> &node) {
@@ -143,7 +177,10 @@ class PassManager {
     if (MacroPass<T>(node), error_occurred) return false; // \infty; True
 
     if (SSAPass<T>(node), error_occurred) return false; // 100; TRUE
-    
+
+    if (TypePass<T>(node), error_occurred) return false; // 50; TRUE
+
+    if (ByteCodePass<T>(node), error_occurred) return false; // 25; FALSE
 
     return true;
   }
@@ -207,8 +244,5 @@ template<> void PassManager::PerformPass<TupleTypeDecl>(
   std::unique_ptr<TupleTypeDecl> &expr);
 
 }
-
-#include "ssa_pass.inc"
-#include "macro_pass.inc"
 
 #endif
