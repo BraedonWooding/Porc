@@ -19,7 +19,7 @@ std::string Token::ToString() const {
   }
   if (type == Token::Flt) return std::to_string(std::get<double>(data));
   if (type == Token::Int) return std::to_string(std::get<i64>(data));
-  if (tokenToStrMap[type] != NULL) return std::string(tokenToStrMap[type]);
+  if (tokenToStr(type) != NULL) return std::string(tokenToStr(type));
 
   std::cerr << "Case not handled for type id: " << type << std::endl;
   Unreachable("Case not handled");
@@ -33,14 +33,13 @@ std::string Token::ToErrorMsg() const {
 }
 
 const char *Token::GetKindErrorMsg(Token::Kind kind) {
-  int type = static_cast<int>(kind);
-  if (tokenToStrMap[type] != NULL) return tokenToStrMap[type];
-  if (tokenToNameMap[type] != NULL) return tokenToNameMap[type];
+  if (tokenToStr(kind) != NULL) return tokenToStr(kind);
+  if (tokenToName(kind) != NULL) return tokenToName(kind);
   Unreachable("Case not handled");
 }
 
 const char *Token::ToName() const {
-  return tokenToNameMap[static_cast<int>(type)];
+  return tokenToName(type);
   Unreachable("Case not handled");
 }
 
@@ -114,4 +113,5 @@ bool Token::IsEqualityOp() const {
       return false;
   }
 }
+
 }

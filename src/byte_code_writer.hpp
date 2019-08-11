@@ -15,9 +15,10 @@ namespace chunk {
 
 // scoping it so we don't leak it into our scope
 namespace opcodes {
+
 #include <opcodes.h>
 
-template<typename T> constexpr Instruction::Type GetType<T>() {
+template<typename T> constexpr TaggedData::Type GetType() {
   if constexpr (is_any<T, int64_t>::value) {
     return INT_LIT;
   } else if constexpr (is_any<T, double>::value) {
@@ -40,8 +41,8 @@ template<typename T> constexpr Instruction::Type GetType<T>() {
   }
 }
 
-template<typename T> constexpr Instruction::Data GetData<T>(T data) {
-  Instruction::Data data;
+template<typename T> constexpr TaggedData::Data GetData(T data) {
+	TaggedData::Data data;
   if constexpr (is_any<T, int64_t>::value) {
     data.int_lit = data;
   } else if constexpr (is_any<T, double>::value) {
@@ -65,25 +66,28 @@ template<typename T> constexpr Instruction::Data GetData<T>(T data) {
 }
 
 template<typename T1, typename T2, typename T3>
-constexpr Instruction NewInstruction<T>(Opcode code, T1 p1, T2 p2, T3 p3) {
-  return Instruction() { code,
-    { GetType<T1>(), GetType<T2>(), GetType<T3>() }, 
+constexpr Instruction NewInstruction(Opcode code, T1 p1, T2 p2, T3 p3) {
+  return Instruction() {
+    code,
+    { GetType<T1>(), GetType<T2>(), GetType<T3>() },
     { GetData<T1>(p1), GetData<T2>(p2), GetData<T3>(p3) }
   };
 }
 
 template<typename T1, typename T2>
-constexpr Instruction NewInstruction<T>(Opcode code, T1 p1, T2 p2) {
-  return Instruction() { code,
-    { GetType<T1>(), GetType<T2>() }, 
+constexpr Instruction NewInstruction(Opcode code, T1 p1, T2 p2) {
+  return Instruction() {
+    code,
+    { GetType<T1>(), GetType<T2>() },
     { GetData<T1>(p1), GetData<T2>(p2) }
   };
 }
 
 template<typename T1>
-constexpr Instruction NewInstruction<T>(Opcode code, T1 p1) {
-  return Instruction() { code,
-    { GetType<T1>() }, 
+constexpr Instruction NewInstruction(Opcode code, T1 p1) {
+  return Instruction() {
+    code,
+    { GetType<T1>() },
     { GetData<T1>(p1) }
   };
 }
@@ -96,18 +100,14 @@ namespace porc {
   Responsible for writing out bytecode to a buffer.
  */
 class ByteCodeWriter {
- private:
-  
+private:
 
- public:
-  ByteCodeWriter()
+
+public:
 
   void WriteOpcode(opcodes::Instruction instruction);
 
- private:
-
-  template<T>
-  void WriteRaw(T data);
+private:
 };
 
 }

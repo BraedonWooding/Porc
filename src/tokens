@@ -5,6 +5,7 @@
 // It will generate the appropriate data classes given the tags
 
 Undefined
+Continuer
 // variable or function name or macro or something
 Identifier
 Str

@@ -13,10 +13,8 @@
 namespace std {
 
 template <>
-struct hash<porc::LineStr>
-{
-  size_t operator()(const porc::LineStr &str) const
-  {
+struct hash<porc::LineStr> {
+  size_t operator()(const porc::LineStr &str) const {
     if (str.id != 0) {
       return hash_combine(str.id, static_cast<string>(str));
     } else {
@@ -33,10 +31,10 @@ namespace porc {
   A given scope.
 */
 class Scope {
- private:
+private:
   static uint current_id;
 
- public:
+public:
   enum Kind {
     Function,
     Type,
@@ -93,14 +91,14 @@ class Scope {
     if (val) {
       return val;
     } else if (parent && *parent) {
-        return (*parent)->FindLastRec<T>(id);
+      return (*parent)->FindLastRec<T>(id);
     } else {
-        return std::nullopt;
+      return std::nullopt;
     }
   }
 
   Scope(Kind kind, std::optional<Scope*> parent)
-      : id(current_id++), parent(parent), kind(kind) { }
+    : id(current_id++), parent(parent), kind(kind) {}
 };
 
 /*
@@ -108,14 +106,13 @@ class Scope {
   Collected prior to any passes.
 */
 class PassManager {
- private:
+private:
   // stack like scope vector.
   // @NOTE: we can't just use stack allocated scopes here
   //        else they'll get invalidated on a resize operation.
   std::vector<Scope*> scopes;
   Scope *current = nullptr;
   bool error_occurred = false;
-  Chunk 
 
   template<typename T>
   void PerformBlockPass(vector_unique_ptr<T> &block);
@@ -126,7 +123,7 @@ class PassManager {
 
   // \infty; True
   template<typename T>
-  void MacroPass(std::unique_ptr<T> &node) {
+  inline void MacroPass(std::unique_ptr<T> &node) {
     // @SAFETY_NET: Hopefully this should catch me doing stupid things
     if constexpr (!std::is_base_of<BaseAST, T>::value) {
       static_assert(always_false<T>::value,
@@ -136,7 +133,7 @@ class PassManager {
 
   // 100; TRUE
   template<typename T>
-  void SSAPass(std::unique_ptr<T> &node) {
+  inline void SSAPass(std::unique_ptr<T> &node) {
     // @SAFETY_NET: Hopefully this should catch me doing stupid things
     if constexpr (!std::is_base_of<BaseAST, T>::value) {
       static_assert(always_false<T>::value,
@@ -146,7 +143,7 @@ class PassManager {
 
   // 50; TRUE
   template<typename T>
-  void TypePass(std::unique_ptr<T> &node) {
+  inline void TypePass(std::unique_ptr<T> &node) {
     // @SAFETY_NET: Hopefully this should catch me doing stupid things
     if constexpr (!std::is_base_of<BaseAST, T>::value) {
       static_assert(always_false<T>::value,
@@ -156,7 +153,7 @@ class PassManager {
 
   // 50; TRUE
   template<typename T>
-  void ByteCodePass(std::unique_ptr<T> &node) {
+  inline void ByteCodePass(std::unique_ptr<T> &node) {
     // @SAFETY_NET: Hopefully this should catch me doing stupid things
     if constexpr (!std::is_base_of<BaseAST, T>::value) {
       static_assert(always_false<T>::value,
@@ -185,7 +182,7 @@ class PassManager {
     return true;
   }
 
- public:
+public:
   PassManager() {}
 
   template<typename T>

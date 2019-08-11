@@ -1,5 +1,6 @@
 /* Auto Generated File */
 Undefined,
+Continuer,
 Identifier,
 Str,
 Flt,

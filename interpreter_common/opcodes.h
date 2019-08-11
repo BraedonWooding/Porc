@@ -178,62 +178,62 @@ enum __PORC_PACKED__ Opcode {
 };
 
 enum __PORC_PACKED__ PorcType {
-  UNDEFINED   = 0b00000000,
-  VOID        = 0b00000001,
+  UNDEFINED = 0b00000000,
+  VOID = 0b00000001,
 
   // u16 rune point
   UNICODE_STR = 0b00000010,
   // 
-  ASCII_STR   = 0b00000011,
+  ASCII_STR = 0b00000011,
 
-  INT8        = 0b00001000,
-  INT16       = 0b00001001,
-  INT32       = 0b00001010,
-  INT64       = 0b00001011,
+  INT8 = 0b00001000,
+  INT16 = 0b00001001,
+  INT32 = 0b00001010,
+  INT64 = 0b00001011,
 
-  UINT8       = 0b00001100,
-  UINT16      = 0b00001101,
-  UINT32      = 0b00001110,
-  UINT64      = 0b00001111,
+  UINT8 = 0b00001100,
+  UINT16 = 0b00001101,
+  UINT32 = 0b00001110,
+  UINT64 = 0b00001111,
 
-  BIG_INT     = 0b00010000,
-  FLT16       = 0b00010001,
-  FLT32       = 0b00010010,
-  FLT64       = 0b00010011,
-  BIG_FLT     = 0b00010100,
+  BIG_INT = 0b00010000,
+  FLT16 = 0b00010001,
+  FLT32 = 0b00010010,
+  FLT64 = 0b00010011,
+  BIG_FLT = 0b00010100,
 
   // Misc Types
-  FUNC        = 0b00010101,
-  PTR         = 0b00010110,
+  FUNC = 0b00010101,
+  PTR = 0b00010110,
 
   UNUSED = 0b00010111,
 
   // Like a dictionary / map but for ASCII_STR -> PTR
   // can be used as a non-library dictionary/map
   // is actually implemented as binary tree map (probably)
-  USER_MAP    = 0b00011000,
+  USER_MAP = 0b00011000,
 
-  SIZE_8      = 0b00011001,
-  SIZE_16     = 0b00011010,
-  SIZE_32     = 0b00011011,
-  SIZE_64     = 0b00011100,
+  SIZE_8 = 0b00011001,
+  SIZE_16 = 0b00011010,
+  SIZE_32 = 0b00011011,
+  SIZE_64 = 0b00011100,
 
   /* Flags */
-  GC_TRACKED  = 0b10000000,
+  GC_TRACKED = 0b10000000,
   // tuples and user data contain a SIZE_X for the size counter
   // arrays instead contain a SIZE_X for the length as well as a
   // byte for a type tag, the type can be set to a SIZE_X
   // to specify the size of each member (not including the corresponding type)
   // to allow for non-homogeneous arrays
-  IS_ARRAY    = 0b00100000,
-  IS_TUPLE    = 0b01000000,
+  IS_ARRAY = 0b00100000,
+  IS_TUPLE = 0b01000000,
   // basically just raw data (except for size counter)
   // completely ignored by program, should use USER_maps to access the data
-  USER_DATA   = 0b01100000,
+  USER_DATA = 0b01100000,
 
   /* Redefinitions for ease */
-  ASCII_CHAR  = UINT8,
-  CHAR        = UINT16,
+  ASCII_CHAR = UINT8,
+  CHAR = UINT16,
 };
 
 struct PorcFunc {
@@ -251,7 +251,7 @@ struct TaggedData {
     Data     *array_lit;
     Data     *tuple_lit;
     size_t    ptr;
-    u_int8_t  register_addr;
+    uint8_t  register_addr;
     PorcFunc *function;
   } data;
 
@@ -292,7 +292,7 @@ struct PorcArrayHeader {
   PorcType array_type;
   PorcType element_type; // or size
   PorcSize length;
-} homogeneous_array;
+};
 
 /*
   An array that is typed.

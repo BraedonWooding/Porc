@@ -18,7 +18,7 @@
 #include "pass_manager.hpp"
 
 namespace porc {
-template<> void PassManager::SSAPass<VarDecl>(
+template<> inline void PassManager::SSAPass<VarDecl>(
     std::unique_ptr<VarDecl> &expr) {
   Assert(current != nullptr, "must have a valid current scope");
 
@@ -27,7 +27,7 @@ template<> void PassManager::SSAPass<VarDecl>(
   }
 }
 
-template<> void PassManager::SSAPass<TypeDecl>(
+template<> inline void PassManager::SSAPass<TypeDecl>(
     std::unique_ptr<TypeDecl> &expr) {
   Assert(current != nullptr, "must have a valid current scope");
 
@@ -48,7 +48,7 @@ template<> void PassManager::SSAPass<TypeDecl>(
   }
 }
 
-template<> void PassManager::SSAPass<AssignmentExpr>(
+template<> inline void PassManager::SSAPass<AssignmentExpr>(
     std::unique_ptr<AssignmentExpr> &expr) {
   Assert(current != nullptr, "must have a valid current scope");
 

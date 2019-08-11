@@ -18,7 +18,7 @@
 #include "pass_manager.hpp"
 
 namespace porc {
-template<> void PassManager::MacroPass<TypeStatement>(
+template<> inline void PassManager::MacroPass<TypeStatement>(
     std::unique_ptr<TypeStatement> &expr) {
   if (auto macro = std::get_if<std::unique_ptr<MacroExpr>>(&expr->expr)) {
     // we have to mutate the macro
@@ -27,7 +27,7 @@ template<> void PassManager::MacroPass<TypeStatement>(
   }
 }
 
-template<> void PassManager::MacroPass<Atom>(
+template<> inline void PassManager::MacroPass<Atom>(
     std::unique_ptr<Atom> &expr) {
   if (auto macro = std::get_if<std::unique_ptr<MacroExpr>>(&expr->expr)) {
     // we have to mutate the macro

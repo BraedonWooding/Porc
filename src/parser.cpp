@@ -37,12 +37,12 @@ bool Parser::ConsumeToken(Token::Kind wanted) {
 }
 
 template<typename T>
-LineRange GetLineRangeForVec(vector_unique_ptr<T> &vec, int index) {
+LineRange GetLineRangeForVec(vector_unique_ptr<T> &vec, size_t index) {
   return vec.at(index)->pos;
 }
 
 template<typename T>
-LineRange GetLineRangeForVec(std::vector<T> &vec, int index) {
+LineRange GetLineRangeForVec(std::vector<T> &vec, size_t index) {
   return vec.at(index).pos;
 }
 
@@ -789,7 +789,7 @@ optional_unique_ptr<TupleValueDecl> Parser::ParseTupleValueDecl() {
 optional_unique_ptr<VarDecl> Parser::ParseRhsVarDecl(
     std::vector<VarDecl::Declaration> decls) {
   Token cur = stream.PopCur();
-  bool atleast_one;
+  bool atleast_one = false;
   if (decls.size() == 0) {
     err::ReportCustomErr("Invalid VarDecl missing lhs", cur.pos,
                         err::SyntaxErr);

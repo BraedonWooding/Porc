@@ -1,3 +1,13 @@
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef VC_EXTRALEAN
+#define VC_EXTRALEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -14,13 +24,17 @@ void signal_handler(int s);
 void print_version();
 
 int main(int argc, char *argv[]) {
+#ifdef _WIN32
+	signal(SIGINT, &signal_handler);
+#else
   struct sigaction sigIntHandler;
-  sigIntHandler.sa_handler = signal_handler;
+  sigIntHandler.sa_handler = &signal_handler;
   sigemptyset(&sigIntHandler.sa_mask);
   sigIntHandler.sa_flags = 0;
   sigaction(SIGINT, &sigIntHandler, nullptr);
+#endif
 
-  CLI::App app{"Porc, the compiler/interpreter for Porc"};
+  CLI::App app { "Porc, the compiler/interpreter for Porc" };
   std::vector<std::string> filenames;
   app.add_option("input files,-i", filenames, "Input Files")
     ->required(true)->check(CLI::ExistingFile);
@@ -38,15 +52,15 @@ int main(int argc, char *argv[]) {
     using namespace porc;
 
     err::PipeOutput(std::cerr);
-    for (auto file: filenames) {
+    for (auto file : filenames) {
 
       TokenStream stream(std::make_unique<CFileReader>(file.c_str()));
       Parser parser = Parser(std::move(stream));
       auto top_level = parser.ParseFileDecl();
       if (!top_level) {
         std::cerr << rang::fg::red << "Error couldn't parse file: "
-                  << file << " due to errors shown above"
-                  << rang::style::reset << std::endl;
+          << file << " due to errors shown above"
+          << rang::style::reset << std::endl;
       } else {
         // unit.Compile(std::move(*top_level));
       }
@@ -62,9 +76,9 @@ int main(int argc, char *argv[]) {
     ->ignore_case()->fallthrough();
   bool ast_output;
   ast->add_flag("-o,--output", ast_output, "Converts all the files then puts them into .json files rather than printing");
-  ast->callback([&](){
+  ast->callback([&]() {
     if (verbose) std::cout << "Running subcommand `dev/ast`";
-    for (auto file: filenames) {
+    for (auto file : filenames) {
       using namespace porc;
 
       TokenStream stream(std::make_unique<CFileReader>(file.c_str()));
@@ -73,14 +87,14 @@ int main(int argc, char *argv[]) {
       auto top_level = parser.ParseFileDecl();
       if (!top_level) {
         std::cerr << rang::fg::red << "Error couldn't parse file: "
-                  << file << " due to errors shown above"
-                  << rang::style::reset << std::endl;
+          << file << " due to errors shown above"
+          << rang::style::reset << std::endl;
       } else if (ast_output) {
         std::fstream out;
         out.open(file + ".json", std::ios::out);
         if (!out) {
           std::cerr << rang::fg::red << "Error couldn't open file: "
-                    << file << ".json" << rang::style::reset << std::endl;
+            << file << ".json" << rang::style::reset << std::endl;
         } else {
           out << (*top_level)->GetMetaData().dump(4) << std::endl;
           out.close();
@@ -95,10 +109,10 @@ int main(int argc, char *argv[]) {
   bool ignore_comments = false;
   tokens->add_flag("--remove-comments", ignore_comments,
                    "Remove comment tokens");
-  tokens->callback([&](){
+  tokens->callback([&]() {
     if (verbose) std::cout << "Running subcommand `dev/tokens`";
 
-    for (auto file: filenames) {
+    for (auto file : filenames) {
       using namespace porc;
 
       std::cout << "\t== " << file << " ==" << std::endl;
@@ -108,22 +122,22 @@ int main(int argc, char *argv[]) {
            tok = stream.PopCur()) {
         if (tok.type == Token::Undefined) {
           std::cerr << rang::fg::red << "ERROR: Undefined token"
-                    << rang::style::reset << std::endl;
+            << rang::style::reset << std::endl;
           break;
         }
         std::cout << "(" << tok.ToName() << "): "
-                  << tok.ToString() << "\t:" << tok.pos << std::endl;
+          << tok.ToString() << "\t:" << tok.pos << std::endl;
       }
       std::cout << "\t== Finished ==" << std::endl;
     }
   });
 
-  app.callback([&]{
+  app.callback([&] {
     if (verbose) std::cout << "Verbose mode activated" << "\n";
   });
 
   // so I don't destroy the terminals colours
-  std::atexit([](){std::cout << rang::style::reset;});
+  std::atexit([]() {std::cout << rang::style::reset; });
   try {
     app.parse(argc, argv);
   } catch (const CLI::ParseError &e) {
@@ -139,12 +153,12 @@ int main(int argc, char *argv[]) {
 
 void print_version() {
   std::cout << rang::style::reset << rang::fg::blue << "Porc (CC) Version "
-            << porc::kVersion << rang::style::reset << "\n";
+    << porc::kVersion << rang::style::reset << "\n";
 }
 
 void signal_handler(int s) {
   std::cout << rang::style::reset << rang::fg::red
-            << rang::style::bold << "\n\nControl-C detected, exiting..."
-            << rang::style::reset << std::endl;
+    << rang::style::bold << "\n\nControl-C detected, exiting..."
+    << rang::style::reset << std::endl;
   std::exit(1);
 }

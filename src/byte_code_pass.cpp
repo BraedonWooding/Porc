@@ -27,8 +27,8 @@
 
 namespace porc {
 
-template<> void PassManager::ByteCodePass<Constant>(std::unique_ptr<Constant> &expr) {
-  
+template<> inline void PassManager::ByteCodePass<Constant>(std::unique_ptr<Constant> &expr) {
+
 }
 
 }

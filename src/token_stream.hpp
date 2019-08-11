@@ -53,10 +53,10 @@ class TokenStream {
   char read_buf[TokenizerBufSize + 1];
 
   /* Current index into read_buf */
-  uint cur_index = 0;
+  size_t cur_index = 0;
 
   /* How much was read on last read, is == 0 for EOF */
-  uint read_size = 0;
+  size_t read_size = 0;
 
   /* The current vertical height */
   int line = 1;
@@ -122,8 +122,6 @@ class TokenStream {
  public:
 
   bool ignore_comments = true;
-
-  Token GetLast();
 
   /*
     Returns the current token.  Can only be called once per Next.

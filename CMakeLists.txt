@@ -1,7 +1,19 @@
-cmake_minimum_required (VERSION 3.1)
+cmake_minimum_required (VERSION 3.14)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 project (Porc)
-include_directories(lib)
+include_directories(SYSTEM lib)
 include_directories(interpreter_common)
-add_executable(porc src/main.cpp src/token_stream.cpp src/parser.cpp src/ast.cpp src/reader.cpp src/printer_helpers.cpp src/token.cpp src/err_stream.cpp src/pass_manager.cpp src/byte_code_writer.cpp src/ssa_pass.cpp src/macro_pass.cpp src/type_pass.cpp src/byte_code_pass.cpp)
+file(GLOB SOURCES
+	src/*.cpp
+	src/*.hpp
+	src/*.inc
+)
+
+file(GLOB LIB_SOURCES
+	interpreter_common/*.h
+	interpreter_common/*.c
+)
+
+add_library(interpreter_common ${LIB_SOURCES})
+add_executable(porc ${SOURCES})

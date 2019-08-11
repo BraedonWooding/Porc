@@ -69,6 +69,7 @@ cpplint.py
 
 # configuration files
 .vscode/
+.vs/
 
 # go away nintendo
 # (actually a mac thing nothing to do with nintendo)
