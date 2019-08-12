@@ -1,0 +1,124 @@
+{
+    "name": "FileDecl",
+    "pos": {
+        "file": "..\\..\\tests\\test_function.porc",
+        "line": [
+            1,
+            1
+        ],
+        "col": [
+            1,
+            24
+        ]
+    },
+    "statements": [
+        {
+            "name": "FuncStatement",
+            "pos": {
+                "file": "..\\..\\tests\\test_function.porc",
+                "line": [
+                    1,
+                    1
+                ],
+                "col": [
+                    1,
+                    14
+                ]
+            },
+            "prefix": "",
+            "children": {
+                "name": "FuncCall",
+                "pos": {
+                    "file": "..\\..\\tests\\test_function.porc",
+                    "line": [
+                        1,
+                        1
+                    ],
+                    "col": [
+                        1,
+                        14
+                    ]
+                },
+                "func": {
+                    "name": "Identifier",
+                    "pos": {
+                        "file": "..\\..\\tests\\test_function.porc",
+                        "line": [
+                            1,
+                            1
+                        ],
+                        "col": [
+                            1,
+                            7
+                        ]
+                    },
+                    "children": "println"
+                },
+                "args": [
+                    {
+                        "name": "FuncCall",
+                        "pos": {
+                            "file": "..\\..\\tests\\test_function.porc",
+                            "line": [
+                                1,
+                                1
+                            ],
+                            "col": [
+                                8,
+                                14
+                            ]
+                        },
+                        "func": {
+                            "name": "Identifier",
+                            "pos": {
+                                "file": "..\\..\\tests\\test_function.porc",
+                                "line": [
+                                    1,
+                                    1
+                                ],
+                                "col": [
+                                    8,
+                                    10
+                                ]
+                            },
+                            "children": "add"
+                        },
+                        "args": [
+                            {
+                                "name": "Constant",
+                                "pos": {
+                                    "file": "..\\..\\tests\\test_function.porc",
+                                    "line": [
+                                        1,
+                                        1
+                                    ],
+                                    "col": [
+                                        11,
+                                        11
+                                    ]
+                                },
+                                "value": 3
+                            },
+                            {
+                                "name": "Constant",
+                                "pos": {
+                                    "file": "..\\..\\tests\\test_function.porc",
+                                    "line": [
+                                        1,
+                                        1
+                                    ],
+                                    "col": [
+                                        13,
+                                        13
+                                    ]
+                                },
+                                "value": 5
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    ],
+    "types": []
+}

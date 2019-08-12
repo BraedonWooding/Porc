@@ -127,11 +127,6 @@ std::string TokenStream::ParseLineComment() {
     buf.push_back(read_buf[cur_index++]);
     col++;
   }
-  if (read_buf[cur_index] == '\n') {
-    col = 1;
-    line++;
-    cur_index++;
-  }
 
   return buf;
 }
@@ -164,7 +159,6 @@ std::optional<std::string> TokenStream::ParseBlockComment() {
           line++;
         }
       }
-      cur_index++;
     } else if (read_buf[cur_index] == '/') {
       if (read_buf[cur_index] == '*') {
         depth++;
@@ -176,15 +170,14 @@ std::optional<std::string> TokenStream::ParseBlockComment() {
           line++;
         }
       }
-      cur_index++;
     } else {
       buf.push_back(read_buf[cur_index]);
-      cur_index++;
       if (read_buf[cur_index] == '\n') {
         col = 1;
         line++;
       }
     }
+    cur_index++;
   }
   return buf;
 }
@@ -221,10 +214,11 @@ Token TokenStream::ParseSimpleToken() {
     if (prev != Token::Undefined) {
       cur.type = prev;
       cur_index += i - 1;
+      col += i - 1;
     }
   }
 
-  cur.pos = EndLineRange();
+  cur.pos = EndLineRange(-1);
 
   Assert(IsEOF() || cur_index <= read_size, "Postcondition Failed",
          "read_size: ", read_size, ", cur_index: ", cur_index);
@@ -445,8 +439,8 @@ Token TokenStream::ParseStr() {
   }
 
   // +2 since +1 for each `"`
-  col += i + 2;
-  cur_index += i + 2;
+  col += i + 2u;
+  cur_index += i + 2u;
   cur = Token(Token::Str, EndLineRange(-1), str);
   return cur;
 }

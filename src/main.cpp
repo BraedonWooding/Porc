@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
   app.add_option("input files,-i", filenames, "Input Files")
     ->required(true)->check(CLI::ExistingFile);
   app.require_subcommand(1);
-  bool verbose;
+  bool verbose = false;
   app.add_flag("-v,--verbose", verbose, "Verbose output");
 
   auto run = app.add_subcommand("run", "Run the given porc script")
@@ -77,12 +77,13 @@ int main(int argc, char *argv[]) {
   bool ast_output;
   ast->add_flag("-o,--output", ast_output, "Converts all the files then puts them into .json files rather than printing");
   ast->callback([&]() {
-    if (verbose) std::cout << "Running subcommand `dev/ast`";
+    if (verbose) std::cout << "Running subcommand `dev/ast`\n";
     for (auto file : filenames) {
       using namespace porc;
 
       TokenStream stream(std::make_unique<CFileReader>(file.c_str()));
       err::PipeOutput(std::cerr);
+      stream.ignore_comments = true;
       Parser parser = Parser(std::move(stream));
       auto top_level = parser.ParseFileDecl();
       if (!top_level) {
@@ -110,7 +111,7 @@ int main(int argc, char *argv[]) {
   tokens->add_flag("--remove-comments", ignore_comments,
                    "Remove comment tokens");
   tokens->callback([&]() {
-    if (verbose) std::cout << "Running subcommand `dev/tokens`";
+    if (verbose) std::cout << "Running subcommand `dev/tokens`\n";
 
     for (auto file : filenames) {
       using namespace porc;

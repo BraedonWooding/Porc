@@ -4,12 +4,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-void initChunk(Chunk *chunk) {
+#include <stdlib.h>
+
+void init_chunk(Chunk *chunk) {
   chunk->capacity = chunk->count = 0;
   chunk->code = NULL;
 }
 
-void initChunkGuess(Chunk *chunk, size_t size) {
+void init_chunk_guess(Chunk *chunk, size_t size) {
   size_t new_size = get_next_capacity_chunk(size);
   chunk->capacity = new_size;
   chunk->count = 0;
@@ -19,19 +21,19 @@ void initChunkGuess(Chunk *chunk, size_t size) {
 
 void grow_chunk(Chunk *chunk, size_t new_size) {
   new_size = get_next_capacity_chunk(new_size);
+  chunk->count = chunk->count < new_size ? chunk->count : new_size;
   chunk->capacity = new_size;
-  chunk->count = 0;
   void *tmp = P_REALLOC(chunk->code, new_size);
-  if (tmp == NULL && chunk->code != NULL) P_FREE(chunk->code);
+  if (tmp == NULL && chunk->code != NULL) abort();
   chunk->code = tmp;
 
 	tmp = P_REALLOC(chunk->lines, new_size * sizeof(LineData)); 
-	if (tmp == NULL && chunk->lines != NULL) P_FREE(chunk->lines);
+	if (tmp == NULL && chunk->lines != NULL) abort();
   chunk->lines = tmp;
 }
 
 void write_chunk(Chunk *chunk, byte byte, LineData line) {
-  if (chunk->capacity < chunk->count + 1) {
+  if (chunk->capacity <= chunk->count + 1) {
     grow_chunk(chunk, chunk->capacity + 1);
   }
 
@@ -52,5 +54,3 @@ void empty_chunk(Chunk *chunk) {
   P_FREE(chunk->code);
   chunk->capacity = chunk->count = 0;
 }
-
-

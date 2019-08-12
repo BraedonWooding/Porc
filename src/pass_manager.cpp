@@ -17,9 +17,10 @@ void PassManager::AddTo(T map, LineStr id, V *obj) {
   if (it == map.end()) {
     map[id] = obj;
     current->current_ids[id] = 1;
+    id.id = 0;
   } else {
     LineStr cpy = id;
-    cpy.id = current->current_ids[id];
+    cpy.id = current->current_ids[id]++;
     map[cpy] = obj;
   }
 }

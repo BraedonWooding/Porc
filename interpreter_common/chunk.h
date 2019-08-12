@@ -26,7 +26,7 @@ void write_chunk_seq(Chunk *chunk, size_t len, byte *bytes, LineData line);
 void empty_chunk(Chunk *chunk);
 
 #define WRITE_CHUNK_RAW(chunk, data, line) \
-  write_chunk_seq(chunk, sizeof(data), data, line)
+  write_chunk_seq(chunk, sizeof(data), (byte*)&data, line)
 
 #ifdef __cplusplus
 }

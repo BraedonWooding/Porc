@@ -1,0 +1,994 @@
+{
+    "name": "FileDecl",
+    "pos": {
+        "file": "..\\..\\harder_test.porc",
+        "line": [
+            1,
+            23
+        ],
+        "col": [
+            1,
+            23
+        ]
+    },
+    "statements": [
+        {
+            "name": "FuncStatement",
+            "pos": {
+                "file": "..\\..\\harder_test.porc",
+                "line": [
+                    1,
+                    1
+                ],
+                "col": [
+                    1,
+                    14
+                ]
+            },
+            "prefix": "",
+            "children": {
+                "name": "AssignmentExpr",
+                "pos": {
+                    "file": "..\\..\\harder_test.porc",
+                    "line": [
+                        1,
+                        1
+                    ],
+                    "col": [
+                        1,
+                        14
+                    ]
+                },
+                "lhs": [
+                    {
+                        "name": "Identifier",
+                        "pos": {
+                            "file": "..\\..\\harder_test.porc",
+                            "line": [
+                                1,
+                                1
+                            ],
+                            "col": [
+                                1,
+                                3
+                            ]
+                        },
+                        "children": "add"
+                    }
+                ],
+                "op": "=",
+                "rhs": [
+                    {
+                        "name": "FuncDecl",
+                        "pos": {
+                            "file": "..\\..\\harder_test.porc",
+                            "line": [
+                                1,
+                                1
+                            ],
+                            "col": [
+                                6,
+                                14
+                            ]
+                        },
+                        "args": {
+                            "name": "TupleValueDecl",
+                            "pos": {
+                                "file": "..\\..\\harder_test.porc",
+                                "line": [
+                                    1,
+                                    1
+                                ],
+                                "col": [
+                                    6,
+                                    10
+                                ]
+                            },
+                            "children": [
+                                {
+                                    "id": "a"
+                                },
+                                {
+                                    "id": "b"
+                                }
+                            ]
+                        },
+                        "block": [
+                            {
+                                "name": "FuncStatement",
+                                "pos": {
+                                    "file": "..\\..\\harder_test.porc",
+                                    "line": [
+                                        1,
+                                        1
+                                    ],
+                                    "col": [
+                                        11,
+                                        14
+                                    ]
+                                },
+                                "prefix": "=",
+                                "children": {
+                                    "name": "AdditiveExpr",
+                                    "pos": {
+                                        "file": "..\\..\\harder_test.porc",
+                                        "line": [
+                                            1,
+                                            1
+                                        ],
+                                        "col": [
+                                            11,
+                                            14
+                                        ]
+                                    },
+                                    "lhs": {
+                                        "name": "Identifier",
+                                        "pos": {
+                                            "file": "..\\..\\harder_test.porc",
+                                            "line": [
+                                                1,
+                                                1
+                                            ],
+                                            "col": [
+                                                11,
+                                                11
+                                            ]
+                                        },
+                                        "children": "a"
+                                    },
+                                    "ops": [
+                                        {
+                                            "op": "+",
+                                            "rhs": {
+                                                "name": "Identifier",
+                                                "pos": {
+                                                    "file": "..\\..\\harder_test.porc",
+                                                    "line": [
+                                                        1,
+                                                        1
+                                                    ],
+                                                    "col": [
+                                                        14,
+                                                        14
+                                                    ]
+                                                },
+                                                "children": "b"
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "name": "FuncStatement",
+            "pos": {
+                "file": "..\\..\\harder_test.porc",
+                "line": [
+                    3,
+                    3
+                ],
+                "col": [
+                    1,
+                    14
+                ]
+            },
+            "prefix": "",
+            "children": {
+                "name": "FuncCall",
+                "pos": {
+                    "file": "..\\..\\harder_test.porc",
+                    "line": [
+                        3,
+                        3
+                    ],
+                    "col": [
+                        1,
+                        14
+                    ]
+                },
+                "func": {
+                    "name": "Identifier",
+                    "pos": {
+                        "file": "..\\..\\harder_test.porc",
+                        "line": [
+                            3,
+                            3
+                        ],
+                        "col": [
+                            1,
+                            7
+                        ]
+                    },
+                    "children": "println"
+                },
+                "args": [
+                    {
+                        "name": "FuncCall",
+                        "pos": {
+                            "file": "..\\..\\harder_test.porc",
+                            "line": [
+                                3,
+                                3
+                            ],
+                            "col": [
+                                8,
+                                14
+                            ]
+                        },
+                        "func": {
+                            "name": "Identifier",
+                            "pos": {
+                                "file": "..\\..\\harder_test.porc",
+                                "line": [
+                                    3,
+                                    3
+                                ],
+                                "col": [
+                                    8,
+                                    10
+                                ]
+                            },
+                            "children": "add"
+                        },
+                        "args": [
+                            {
+                                "name": "Constant",
+                                "pos": {
+                                    "file": "..\\..\\harder_test.porc",
+                                    "line": [
+                                        3,
+                                        3
+                                    ],
+                                    "col": [
+                                        11,
+                                        11
+                                    ]
+                                },
+                                "value": 3
+                            },
+                            {
+                                "name": "Constant",
+                                "pos": {
+                                    "file": "..\\..\\harder_test.porc",
+                                    "line": [
+                                        3,
+                                        3
+                                    ],
+                                    "col": [
+                                        13,
+                                        13
+                                    ]
+                                },
+                                "value": 5
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "name": "FuncStatement",
+            "pos": {
+                "file": "..\\..\\harder_test.porc",
+                "line": [
+                    4,
+                    4
+                ],
+                "col": [
+                    1,
+                    16
+                ]
+            },
+            "prefix": "",
+            "children": {
+                "name": "FuncCall",
+                "pos": {
+                    "file": "..\\..\\harder_test.porc",
+                    "line": [
+                        4,
+                        4
+                    ],
+                    "col": [
+                        1,
+                        16
+                    ]
+                },
+                "func": {
+                    "name": "Identifier",
+                    "pos": {
+                        "file": "..\\..\\harder_test.porc",
+                        "line": [
+                            4,
+                            4
+                        ],
+                        "col": [
+                            1,
+                            7
+                        ]
+                    },
+                    "children": "println"
+                },
+                "args": [
+                    {
+                        "name": "FuncCall",
+                        "pos": {
+                            "file": "..\\..\\harder_test.porc",
+                            "line": [
+                                4,
+                                4
+                            ],
+                            "col": [
+                                8,
+                                16
+                            ]
+                        },
+                        "func": {
+                            "name": "Identifier",
+                            "pos": {
+                                "file": "..\\..\\harder_test.porc",
+                                "line": [
+                                    4,
+                                    4
+                                ],
+                                "col": [
+                                    8,
+                                    10
+                                ]
+                            },
+                            "children": "add"
+                        },
+                        "args": [
+                            {
+                                "name": "Constant",
+                                "pos": {
+                                    "file": "..\\..\\harder_test.porc",
+                                    "line": [
+                                        4,
+                                        4
+                                    ],
+                                    "col": [
+                                        11,
+                                        13
+                                    ]
+                                },
+                                "value": 3.0
+                            },
+                            {
+                                "name": "Constant",
+                                "pos": {
+                                    "file": "..\\..\\harder_test.porc",
+                                    "line": [
+                                        4,
+                                        4
+                                    ],
+                                    "col": [
+                                        15,
+                                        15
+                                    ]
+                                },
+                                "value": 2
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "name": "FuncStatement",
+            "pos": {
+                "file": "..\\..\\harder_test.porc",
+                "line": [
+                    5,
+                    5
+                ],
+                "col": [
+                    1,
+                    16
+                ]
+            },
+            "prefix": "",
+            "children": {
+                "name": "FuncCall",
+                "pos": {
+                    "file": "..\\..\\harder_test.porc",
+                    "line": [
+                        5,
+                        5
+                    ],
+                    "col": [
+                        1,
+                        16
+                    ]
+                },
+                "func": {
+                    "name": "Identifier",
+                    "pos": {
+                        "file": "..\\..\\harder_test.porc",
+                        "line": [
+                            5,
+                            5
+                        ],
+                        "col": [
+                            1,
+                            7
+                        ]
+                    },
+                    "children": "println"
+                },
+                "args": [
+                    {
+                        "name": "FuncCall",
+                        "pos": {
+                            "file": "..\\..\\harder_test.porc",
+                            "line": [
+                                5,
+                                5
+                            ],
+                            "col": [
+                                8,
+                                16
+                            ]
+                        },
+                        "func": {
+                            "name": "Identifier",
+                            "pos": {
+                                "file": "..\\..\\harder_test.porc",
+                                "line": [
+                                    5,
+                                    5
+                                ],
+                                "col": [
+                                    8,
+                                    10
+                                ]
+                            },
+                            "children": "add"
+                        },
+                        "args": [
+                            {
+                                "name": "Constant",
+                                "pos": {
+                                    "file": "..\\..\\harder_test.porc",
+                                    "line": [
+                                        5,
+                                        5
+                                    ],
+                                    "col": [
+                                        11,
+                                        11
+                                    ]
+                                },
+                                "value": 2
+                            },
+                            {
+                                "name": "Constant",
+                                "pos": {
+                                    "file": "..\\..\\harder_test.porc",
+                                    "line": [
+                                        5,
+                                        5
+                                    ],
+                                    "col": [
+                                        13,
+                                        15
+                                    ]
+                                },
+                                "value": 3.0
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "name": "FuncStatement",
+            "pos": {
+                "file": "..\\..\\harder_test.porc",
+                "line": [
+                    6,
+                    6
+                ],
+                "col": [
+                    1,
+                    18
+                ]
+            },
+            "prefix": "",
+            "children": {
+                "name": "FuncCall",
+                "pos": {
+                    "file": "..\\..\\harder_test.porc",
+                    "line": [
+                        6,
+                        6
+                    ],
+                    "col": [
+                        1,
+                        18
+                    ]
+                },
+                "func": {
+                    "name": "Identifier",
+                    "pos": {
+                        "file": "..\\..\\harder_test.porc",
+                        "line": [
+                            6,
+                            6
+                        ],
+                        "col": [
+                            1,
+                            7
+                        ]
+                    },
+                    "children": "println"
+                },
+                "args": [
+                    {
+                        "name": "FuncCall",
+                        "pos": {
+                            "file": "..\\..\\harder_test.porc",
+                            "line": [
+                                6,
+                                6
+                            ],
+                            "col": [
+                                8,
+                                18
+                            ]
+                        },
+                        "func": {
+                            "name": "Identifier",
+                            "pos": {
+                                "file": "..\\..\\harder_test.porc",
+                                "line": [
+                                    6,
+                                    6
+                                ],
+                                "col": [
+                                    8,
+                                    10
+                                ]
+                            },
+                            "children": "add"
+                        },
+                        "args": [
+                            {
+                                "name": "Constant",
+                                "pos": {
+                                    "file": "..\\..\\harder_test.porc",
+                                    "line": [
+                                        6,
+                                        6
+                                    ],
+                                    "col": [
+                                        11,
+                                        15
+                                    ]
+                                },
+                                "value": "Bob"
+                            },
+                            {
+                                "name": "Constant",
+                                "pos": {
+                                    "file": "..\\..\\harder_test.porc",
+                                    "line": [
+                                        6,
+                                        6
+                                    ],
+                                    "col": [
+                                        17,
+                                        17
+                                    ]
+                                },
+                                "value": 2
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "name": "FuncStatement",
+            "pos": {
+                "file": "..\\..\\harder_test.porc",
+                "line": [
+                    7,
+                    7
+                ],
+                "col": [
+                    1,
+                    22
+                ]
+            },
+            "prefix": "",
+            "children": {
+                "name": "FuncCall",
+                "pos": {
+                    "file": "..\\..\\harder_test.porc",
+                    "line": [
+                        7,
+                        7
+                    ],
+                    "col": [
+                        1,
+                        22
+                    ]
+                },
+                "func": {
+                    "name": "Identifier",
+                    "pos": {
+                        "file": "..\\..\\harder_test.porc",
+                        "line": [
+                            7,
+                            7
+                        ],
+                        "col": [
+                            1,
+                            7
+                        ]
+                    },
+                    "children": "println"
+                },
+                "args": [
+                    {
+                        "name": "FuncCall",
+                        "pos": {
+                            "file": "..\\..\\harder_test.porc",
+                            "line": [
+                                7,
+                                7
+                            ],
+                            "col": [
+                                8,
+                                22
+                            ]
+                        },
+                        "func": {
+                            "name": "Identifier",
+                            "pos": {
+                                "file": "..\\..\\harder_test.porc",
+                                "line": [
+                                    7,
+                                    7
+                                ],
+                                "col": [
+                                    8,
+                                    10
+                                ]
+                            },
+                            "children": "add"
+                        },
+                        "args": [
+                            {
+                                "name": "Constant",
+                                "pos": {
+                                    "file": "..\\..\\harder_test.porc",
+                                    "line": [
+                                        7,
+                                        7
+                                    ],
+                                    "col": [
+                                        11,
+                                        15
+                                    ]
+                                },
+                                "value": "Bob"
+                            },
+                            {
+                                "name": "Constant",
+                                "pos": {
+                                    "file": "..\\..\\harder_test.porc",
+                                    "line": [
+                                        7,
+                                        7
+                                    ],
+                                    "col": [
+                                        17,
+                                        21
+                                    ]
+                                },
+                                "value": "Jim"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "name": "FuncStatement",
+            "pos": {
+                "file": "..\\..\\harder_test.porc",
+                "line": [
+                    16,
+                    16
+                ],
+                "col": [
+                    1,
+                    40
+                ]
+            },
+            "prefix": "",
+            "children": {
+                "name": "MacroExpr",
+                "pos": {
+                    "file": "..\\..\\harder_test.porc",
+                    "line": [
+                        16,
+                        16
+                    ],
+                    "col": [
+                        1,
+                        40
+                    ]
+                },
+                "id": {
+                    "name": "IdentAccess",
+                    "pos": {
+                        "file": "..\\..\\harder_test.porc",
+                        "line": [
+                            16,
+                            16
+                        ],
+                        "col": [
+                            1,
+                            14
+                        ]
+                    },
+                    "idents": [
+                        "import_package"
+                    ]
+                },
+                "args": [
+                    {
+                        "name": "Constant",
+                        "pos": {
+                            "file": "..\\..\\harder_test.porc",
+                            "line": [
+                                16,
+                                16
+                            ],
+                            "col": [
+                                15,
+                                39
+                            ]
+                        },
+                        "value": "BraedonWooding/cmd-porc"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "FuncStatement",
+            "pos": {
+                "file": "..\\..\\harder_test.porc",
+                "line": [
+                    18,
+                    18
+                ],
+                "col": [
+                    1,
+                    49
+                ]
+            },
+            "prefix": "",
+            "children": {
+                "name": "FuncCall",
+                "pos": {
+                    "file": "..\\..\\harder_test.porc",
+                    "line": [
+                        18,
+                        18
+                    ],
+                    "col": [
+                        1,
+                        49
+                    ]
+                },
+                "func": {
+                    "name": "Identifier",
+                    "pos": {
+                        "file": "..\\..\\harder_test.porc",
+                        "line": [
+                            18,
+                            18
+                        ],
+                        "col": [
+                            1,
+                            5
+                        ]
+                    },
+                    "children": "print"
+                },
+                "args": [
+                    {
+                        "name": "FuncCall",
+                        "pos": {
+                            "file": "..\\..\\harder_test.porc",
+                            "line": [
+                                18,
+                                18
+                            ],
+                            "col": [
+                                6,
+                                49
+                            ]
+                        },
+                        "func": {
+                            "name": "Identifier",
+                            "pos": {
+                                "file": "..\\..\\harder_test.porc",
+                                "line": [
+                                    18,
+                                    18
+                                ],
+                                "col": [
+                                    6,
+                                    9
+                                ]
+                            },
+                            "children": "wget"
+                        },
+                        "args": [
+                            {
+                                "name": "Constant",
+                                "pos": {
+                                    "file": "..\\..\\harder_test.porc",
+                                    "line": [
+                                        18,
+                                        18
+                                    ],
+                                    "col": [
+                                        10,
+                                        48
+                                    ]
+                                },
+                                "value": "http://some_address.com/some_file.txt"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "name": "FuncStatement",
+            "pos": {
+                "file": "..\\..\\harder_test.porc",
+                "line": [
+                    20,
+                    20
+                ],
+                "col": [
+                    1,
+                    5
+                ]
+            },
+            "prefix": "",
+            "children": {
+                "name": "FoldExpr",
+                "pos": {
+                    "file": "..\\..\\harder_test.porc",
+                    "line": [
+                        20,
+                        20
+                    ],
+                    "col": [
+                        1,
+                        5
+                    ]
+                },
+                "folds_right": true,
+                "lhs": {
+                    "name": "FuncCall",
+                    "pos": {
+                        "file": "..\\..\\harder_test.porc",
+                        "line": [
+                            20,
+                            20
+                        ],
+                        "col": [
+                            4,
+                            5
+                        ]
+                    },
+                    "func": {
+                        "name": "Identifier",
+                        "pos": {
+                            "file": "..\\..\\harder_test.porc",
+                            "line": [
+                                20,
+                                20
+                            ],
+                            "col": [
+                                4,
+                                4
+                            ]
+                        },
+                        "children": "f"
+                    },
+                    "args": []
+                },
+                "fold_expr": {
+                    "name": "Identifier",
+                    "pos": {
+                        "file": "..\\..\\harder_test.porc",
+                        "line": [
+                            20,
+                            20
+                        ],
+                        "col": [
+                            1,
+                            1
+                        ]
+                    },
+                    "children": "d"
+                }
+            }
+        },
+        {
+            "name": "FuncStatement",
+            "pos": {
+                "file": "..\\..\\harder_test.porc",
+                "line": [
+                    22,
+                    22
+                ],
+                "col": [
+                    1,
+                    23
+                ]
+            },
+            "prefix": "",
+            "children": {
+                "name": "FuncCall",
+                "pos": {
+                    "file": "..\\..\\harder_test.porc",
+                    "line": [
+                        22,
+                        22
+                    ],
+                    "col": [
+                        1,
+                        23
+                    ]
+                },
+                "func": {
+                    "name": "Identifier",
+                    "pos": {
+                        "file": "..\\..\\harder_test.porc",
+                        "line": [
+                            22,
+                            22
+                        ],
+                        "col": [
+                            1,
+                            7
+                        ]
+                    },
+                    "children": "println"
+                },
+                "args": [
+                    {
+                        "name": "Constant",
+                        "pos": {
+                            "file": "..\\..\\harder_test.porc",
+                            "line": [
+                                22,
+                                22
+                            ],
+                            "col": [
+                                8,
+                                22
+                            ]
+                        },
+                        "value": "This is a wat"
+                    }
+                ]
+            }
+        }
+    ],
+    "types": []
+}

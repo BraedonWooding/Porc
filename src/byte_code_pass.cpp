@@ -27,6 +27,13 @@
 
 namespace porc {
 
+template <>
+inline void PassManager::ByteCodePass<FileDecl>(std::unique_ptr<FileDecl> &expr) {
+  interpreter::Chunk chunk;
+  interpreter::init_chunk(&chunk);
+  current_chunk = interpreter::add_chunk(&mod, chunk);
+}
+
 template<> inline void PassManager::ByteCodePass<Constant>(std::unique_ptr<Constant> &expr) {
 
 }

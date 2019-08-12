@@ -10,6 +10,12 @@
 #include "ast.hpp"
 #include "byte_code_writer.hpp"
 
+namespace interpreter {
+extern "C" {
+#include <module.h>
+}
+}
+
 namespace std {
 
 template <>
@@ -113,6 +119,8 @@ private:
   std::vector<Scope*> scopes;
   Scope *current = nullptr;
   bool error_occurred = false;
+  interpreter::Mod mod;
+  std::optional<interpreter::Chunk*> current_chunk;
 
   template<typename T>
   void PerformBlockPass(vector_unique_ptr<T> &block);
@@ -183,7 +191,9 @@ private:
   }
 
 public:
-  PassManager() {}
+  PassManager() {
+		interpreter::init_module(&mod);
+	}
 
   template<typename T>
   void PerformPass(std::unique_ptr<T> &node);

@@ -15,5 +15,11 @@ file(GLOB LIB_SOURCES
 	interpreter_common/*.c
 )
 
-add_library(interpreter_common ${LIB_SOURCES})
-add_executable(porc ${SOURCES})
+add_library(interpreter_common STATIC ${LIB_SOURCES})
+
+SET ( APP_EXE Porc )
+
+add_executable(${APP_EXE} ${SOURCES})
+target_link_libraries(${APP_EXE} interpreter_common)
+
+

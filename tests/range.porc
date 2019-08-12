@@ -2,8 +2,8 @@ x..y:z |> f();
 f() <| x..y:z;
 
 # the bug is that the last expr always requires 2 semicolons for ranges??
-g() <| x + 2 == 4 <| f();;
+#g() <| x + 2 == 4 <| f();;
 
 a() <| (if x 2 else 3);
 
-a : ($T)->void
+#a : ($T)->void

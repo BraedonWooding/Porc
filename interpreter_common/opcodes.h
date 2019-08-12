@@ -71,19 +71,7 @@ typedef struct Instruction Instruction;
   - VOID refers to no args
 */
 
-enum __PORC_PACKED__ Opcode {
-  NOP = 0,
-  /* Arithmetic */
-  // performs it such that c = a + b
-  ADD,        // $0x $0x $0x
-  SUB,        // $0x $0x $0x
-  MUL,        // $0x $0x $0x
-  DIV,        // $0x $0x $0x
-  // ie integer division
-  DIV_FLD,    // $0x $0x $0x
-  MOD,        // $0x $0x $0x
-  POW,        // $0x $0x $0x
-
+/*
   // wont follow ptrs for REG, INT, or FLT
   REG_ADD,        // $0x $0x $0x
   REG_SUB,        // $0x $0x $0x
@@ -115,146 +103,56 @@ enum __PORC_PACKED__ Opcode {
   FLT_MOD,        // $0x $0x $0x
   FLT_POW,        // $0x $0x $0x
 
-  /* Move */
-  REG_WRITE_LIT,  // $0x LIT
-  WRITE_LIT,      // $0x LIT
-  // move between registers
-  REG_MOV,    // $0x $0x
-  // requires destination object to hold enough space
-  MOV,        // $0x $0x
-  // pushes object onto stack
-  PUSH,       // $0x
-  // pushes literal onto stack
-  PUSH_LIT,   // LIT
-  // decrements the stack ptr by the given amount
-  POP,        // LIT[uint](8 bits)
-  // sets the stack ptr, absolute ptr
-  POP_TO,     // $0x
-  // pushes an entire frame onto the stack
-  // NOTE: this pointer is absolute (native ptr size)
-  PUSH_FRAME, // $0x
-  // pops the top frame of the stack
-  POP_FRAME,  // VOID
+*/
 
-  // declare function with given number of args
-  DECL_FUNC, // LIT[uint]
+enum __PORC_PACKED__ Opcode {
+  NOP = 0,
+  /* Arithmetic */
+  // performs it such that c = a + b
+  ADD,        // $R $? $?
+  SUB,        // $R $? $?
+  MUL,        // $R $? $?
+  DIV,        // $R $? $?
+  // ie integer division or division floored
+  DIV_FLD,    // $R $? $?
+  MOD,        // $R $? $?
+  POW,        // $R $? $?
+
+  /* Move */
+	// Moves addr of fp + offset given into register given
+	GET_VAR,		// LIT[uint] $R
+
+	// b = a
+	MOVE,		// $R $?
+
+	// identical to MOVE_CONST $R LIT[void]
+	CLEAR_REGISTER, // $R
 
   // call a variable
   // presumes args are supplied properly
-  CALL, // $0x
-  // lookup variable and place address into 2nd address
-  // lookups from context given
-  LOOKUP, // LIT[str] $0x $0x
+  CALL, // $?
 
-  /* Allocation */
-  // can't allocate 0 bytes with any of these
-  // up to 32 bytes (offset by 1)
-  ALLOC_SMALL,  // LIT[uint](5 bits) $0x
-  // up to 96 (offset by 33)
-  ALLOC_MED,    // LIT[uint](7 bits) $0x
-  // > 128 (offset by 129)
-  ALLOC_LARGE,  // LIT[usize_t](native ptr) $0x
+  // lookup variable from current scope upwards
+	// placing into register given
+  LOOKUP_LIT, // LIT[str] $R
+
+	// lookups using a variable
+	LOOKUP, // $R $R
+
+	// c = a[b]
+  INDEX,   // $R $R $R
+
+	// c = a.b
+  MEMBER_ACCESS,  // $R LIT[str] $R
 
   // allocate bytes (count from the first address)
-  // can allocate 0 bytes (i.e. no allocation occurs)
-  ALLOC, // $0x $0x
-
-  // string concatenation (large register format)
-  STR_CONCAT,
-
-  // access a member of an object and write copy to output ptr
-  // note: won't copy tuples/arrays
-  MEMBER_ACCESS,        // $0x LIT[str] $0x
-  // always takes ref
-  MEMBER_ACCESS_REF,    // $0x LIT[str] $0x
-  // write the second ptr value to the member
-  MEMBER_ACCESS_WRITE,  // $0x LIT[str] $0x
-
-  // index first object by second and write result into third
-  // third has to be a register or stack allocated object
-  INDEX,        // $0x $0x $0x
-  INDEX_REF,    // $0x $0x $0x
-  INDEX_WRITE,  // $0x $0x $0x
-};
-
-enum __PORC_PACKED__ PorcType {
-  UNDEFINED = 0b00000000,
-  VOID = 0b00000001,
-
-  // u16 rune point
-  UNICODE_STR = 0b00000010,
-  // 
-  ASCII_STR = 0b00000011,
-
-  INT8 = 0b00001000,
-  INT16 = 0b00001001,
-  INT32 = 0b00001010,
-  INT64 = 0b00001011,
-
-  UINT8 = 0b00001100,
-  UINT16 = 0b00001101,
-  UINT32 = 0b00001110,
-  UINT64 = 0b00001111,
-
-  BIG_INT = 0b00010000,
-  FLT16 = 0b00010001,
-  FLT32 = 0b00010010,
-  FLT64 = 0b00010011,
-  BIG_FLT = 0b00010100,
-
-  // Misc Types
-  FUNC = 0b00010101,
-  PTR = 0b00010110,
-
-  UNUSED = 0b00010111,
-
-  // Like a dictionary / map but for ASCII_STR -> PTR
-  // can be used as a non-library dictionary/map
-  // is actually implemented as binary tree map (probably)
-  USER_MAP = 0b00011000,
-
-  SIZE_8 = 0b00011001,
-  SIZE_16 = 0b00011010,
-  SIZE_32 = 0b00011011,
-  SIZE_64 = 0b00011100,
-
-  /* Flags */
-  GC_TRACKED = 0b10000000,
-  // tuples and user data contain a SIZE_X for the size counter
-  // arrays instead contain a SIZE_X for the length as well as a
-  // byte for a type tag, the type can be set to a SIZE_X
-  // to specify the size of each member (not including the corresponding type)
-  // to allow for non-homogeneous arrays
-  IS_ARRAY = 0b00100000,
-  IS_TUPLE = 0b01000000,
-  // basically just raw data (except for size counter)
-  // completely ignored by program, should use USER_maps to access the data
-  USER_DATA = 0b01100000,
-
-  /* Redefinitions for ease */
-  ASCII_CHAR = UINT8,
-  CHAR = UINT16,
-};
-
-struct PorcFunc {
-  int n_args;
-  size_t address;
+  // can allocate 0 bytes (i.e. no allocation occurs) and sets register to void
+  ALLOC, // $R $R
+	// allocate a constant number of bytes
+	ALLOC_CONST, // LIT[uint] $R
 };
 
 struct TaggedData {
-  union Data {
-    int64_t   int_lit;
-    double    flt_lit;
-    char     *str_lit;
-    bool      bool_lit;
-    wchar_t   char_lit;
-    Data     *array_lit;
-    Data     *tuple_lit;
-    size_t    ptr;
-    uint8_t  register_addr;
-    PorcFunc *function;
-  } data;
-
   enum Type {
     UNDEFINED,
     INT_LIT,
@@ -262,57 +160,29 @@ struct TaggedData {
     STR_LIT,
     BOOL_LIT,
     CHAR_LIT,
-    ARRAY_LIT,
-    TUPLE_LIT,
     PTR,
     REGISTER,
     FUNCTION,
-  };
-};
+  } type;
 
-union PorcSize {
-  uint8_t  size_8;
-  uint16_t size_16;
-  uint32_t size_32;
-  uint64_t size_64;
-};
-
-struct PorcTupleHeader {
-  PorcType tuple_type;
-  PorcSize count;
-};
-
-struct PorcUserDataHeader {
-  // should be USER_DATA with a SIZE_X
-  PorcType type;
-  PorcSize size;
-};
-
-struct PorcArrayHeader {
-  PorcType array_type;
-  PorcType element_type; // or size
-  PorcSize length;
-};
-
-/*
-  An array that is typed.
- */
-union PorcCollectionHeader {
-  // same type
-
-  // different types
-  struct NonhomogeneousArrayHeader {
-    PorcType array_type;
-    PorcType element_size;
-    PorcSize length;
-  } nonhomogeneous_array;
+  union Data {
+    int64_t   int_lit;
+    double    flt_lit;
+    char      str_lit;
+    bool      bool_lit;
+    wchar_t  *char_lit;
+    size_t    ptr;
+    uint8_t		register_addr;
+    //PorcFunc *function;
+  } data;
 };
 
 // Instructions are stored jaggedly
 // This means that they may not align properly keep this in mind
 struct Instruction {
   Opcode opcode;
-  TaggedData data;
+  size_t data_len;
+  TaggedData data[1];
 };
 
 /*

@@ -1094,7 +1094,7 @@ optional_unique_ptr<Constant> Parser::ParseConstant() {
 
 optional_unique_ptr<MacroExpr> Parser::ParseMacroExpr() {
   if (!ConsumeToken(Token::Macro)) return std::nullopt;
-  Token tok = stream.PopCur();
+  Token tok = stream.PeekCur();
   LineRange pos_start = tok.pos;
   LineRange pos_end = tok.pos;
 
@@ -1297,6 +1297,7 @@ optional_unique_ptr<AssignmentExpr> Parser::ParseAssignmentExpr() {
 }
 
 optional_unique_ptr<Atom> Parser::ParseAtom() {
+	// @TODO: Currently member access is not implemented!!
   Token peek = stream.PeekCur();
   std::unique_ptr<Atom> atom;
 
@@ -1323,7 +1324,8 @@ optional_unique_ptr<Atom> Parser::ParseAtom() {
     LineRange pos = (*constant)->pos;
     atom = std::make_unique<Atom>(pos, std::move(*constant));
   } else {
-    err::ReportCustomErr("Invalid Atom Expr", peek.pos, err::SyntaxErr);
+    std::cout << peek.ToString() << std::endl;
+    err::ReportCustomErr("Unknown Syntax -- Needs better error handling but for now we have no clue what this is meant to be?", peek.pos, err::SyntaxErr);
     return std::nullopt;
   }
 
@@ -1339,10 +1341,12 @@ optional_unique_ptr<Atom> Parser::ParseAtom() {
       // @FIXME: just copied from func call, should fix
       if (!ConsumeToken(Token::LeftParen)) return std::nullopt;
       vector_unique_ptr<Expr> args;
+      args.clear();
       if (stream.PeekCur().type != Token::RightParen) {
         // parse arguments
         if (!ParseList(&Parser::ParseExpr, PushBack, args)) return std::nullopt;
       }
+
       LineRange pos = LineRange(atom->pos, stream.PeekCur().pos);
       if (!ConsumeToken(Token::RightParen)) return std::nullopt;
       auto func = std::make_unique<FuncCall>(pos, std::move(atom),
