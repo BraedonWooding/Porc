@@ -16,9 +16,9 @@
 #include <CLI11.hpp>
 #include <rang.hpp>
 
-#include "defs.hpp"
-#include "parser.hpp"
-#include "token_stream.hpp"
+#include <defs.hpp>
+#include <parser.hpp>
+#include <token_stream.hpp>
 
 void signal_handler(int s);
 void print_version();
@@ -109,12 +109,12 @@ int main(int argc, char *argv[]) {
       }
     }
   });
-  auto reoutput =
+  auto print =
       dev->add_subcommand(
              "print", "Converts to AST then outputs the AST as readable text")
           ->ignore_case()
           ->fallthrough();
-  reoutput->callback([&]() {
+  print->callback([&]() {
     if (verbose) std::cout << "Running subcommand `dev/print`\n";
     for (auto file : filenames) {
       using namespace porc;

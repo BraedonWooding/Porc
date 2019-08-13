@@ -766,7 +766,7 @@ class Atom : public BaseAST {
   json GetMetaData() const;
   KindAST UnwrapToLowest(void **ast);
 
-  friend std::ostream &Atom::operator<<(std::ostream &out, const Atom &p) {
+  friend std::ostream &operator<<(std::ostream &out, const Atom &p) {
     std::visit(
         [&out, &p](auto &&expr) {
           using T = std::decay_t<decltype(expr)>;
