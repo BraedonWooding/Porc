@@ -2,6 +2,7 @@
 #define READER_HPP
 
 #include <iostream>
+#include <string>
 #include "defs.hpp"
 
 /*
@@ -44,6 +45,20 @@ class CFileReader : public Reader {
   ~CFileReader() {
     fclose(fp);
   }
+
+  size_t Read(Reader::ItemType *buf, size_t len);
+};
+
+/*
+  String buffer reader
+*/
+class StringReader : public Reader {
+ private:
+  std::string &buf;
+  int i;
+
+ public:
+  StringReader(std::string &buf) : Reader("String"), buf(buf), i(0) {}
 
   size_t Read(Reader::ItemType *buf, size_t len);
 };

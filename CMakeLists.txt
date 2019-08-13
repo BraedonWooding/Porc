@@ -4,6 +4,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 project (Porc)
 include_directories(SYSTEM lib)
 include_directories(interpreter_common)
+include_directories(compiler)
+add_subdirectory(lib/Catch2)
 ENABLE_TESTING()
 
 file(GLOB SOURCES
@@ -36,4 +38,5 @@ target_link_libraries(${APP_EXE} porc_backend)
 
 add_executable(test_output ${TEST_PARSER_SOURCES})
 target_link_libraries(test_output porc_backend)
+target_link_libraries(test_output Catch2::Catch2)
 add_test(parser test_output)

@@ -11,6 +11,8 @@
 #define P_REALLOC(old, bytes) realloc(old, bytes)
 #define P_FREE(ptr) free(ptr)
 
+#include <stddef.h>
+
 size_t get_next_capacity_chunk(size_t current);
 size_t get_next_capacity_mod(size_t current);
 
