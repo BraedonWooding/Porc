@@ -8,7 +8,7 @@
         ],
         "col": [
             1,
-            24
+            26
         ]
     },
     "statements": [
@@ -22,12 +22,12 @@
                 ],
                 "col": [
                     1,
-                    14
+                    24
                 ]
             },
             "prefix": "",
             "children": {
-                "name": "FuncCall",
+                "name": "ComparisonExpr",
                 "pos": {
                     "file": "..\\..\\tests\\test_function.porc",
                     "line": [
@@ -36,11 +36,11 @@
                     ],
                     "col": [
                         1,
-                        14
+                        24
                     ]
                 },
-                "func": {
-                    "name": "Identifier",
+                "lhs": {
+                    "name": "FoldExpr",
                     "pos": {
                         "file": "..\\..\\tests\\test_function.porc",
                         "line": [
@@ -49,13 +49,11 @@
                         ],
                         "col": [
                             1,
-                            7
+                            12
                         ]
                     },
-                    "children": "println"
-                },
-                "args": [
-                    {
+                    "folds_right": false,
+                    "lhs": {
                         "name": "FuncCall",
                         "pos": {
                             "file": "..\\..\\tests\\test_function.porc",
@@ -64,8 +62,8 @@
                                 1
                             ],
                             "col": [
-                                8,
-                                14
+                                1,
+                                3
                             ]
                         },
                         "func": {
@@ -77,44 +75,127 @@
                                     1
                                 ],
                                 "col": [
-                                    8,
-                                    10
+                                    1,
+                                    1
                                 ]
                             },
-                            "children": "add"
+                            "children": "g"
                         },
-                        "args": [
-                            {
-                                "name": "Constant",
-                                "pos": {
-                                    "file": "..\\..\\tests\\test_function.porc",
-                                    "line": [
-                                        1,
-                                        1
-                                    ],
-                                    "col": [
-                                        11,
-                                        11
-                                    ]
-                                },
-                                "value": 3
+                        "args": []
+                    },
+                    "fold_expr": {
+                        "name": "AdditiveExpr",
+                        "pos": {
+                            "file": "..\\..\\tests\\test_function.porc",
+                            "line": [
+                                1,
+                                1
+                            ],
+                            "col": [
+                                8,
+                                12
+                            ]
+                        },
+                        "lhs": {
+                            "name": "Identifier",
+                            "pos": {
+                                "file": "..\\..\\tests\\test_function.porc",
+                                "line": [
+                                    1,
+                                    1
+                                ],
+                                "col": [
+                                    8,
+                                    8
+                                ]
                             },
+                            "children": "x"
+                        },
+                        "ops": [
                             {
-                                "name": "Constant",
-                                "pos": {
-                                    "file": "..\\..\\tests\\test_function.porc",
-                                    "line": [
-                                        1,
-                                        1
-                                    ],
-                                    "col": [
-                                        13,
-                                        13
-                                    ]
-                                },
-                                "value": 5
+                                "op": "+",
+                                "rhs": {
+                                    "name": "Constant",
+                                    "pos": {
+                                        "file": "..\\..\\tests\\test_function.porc",
+                                        "line": [
+                                            1,
+                                            1
+                                        ],
+                                        "col": [
+                                            12,
+                                            12
+                                        ]
+                                    },
+                                    "value": 2
+                                }
                             }
                         ]
+                    }
+                },
+                "ops": [
+                    {
+                        "op": "==",
+                        "rhs": {
+                            "name": "FoldExpr",
+                            "pos": {
+                                "file": "..\\..\\tests\\test_function.porc",
+                                "line": [
+                                    1,
+                                    1
+                                ],
+                                "col": [
+                                    17,
+                                    24
+                                ]
+                            },
+                            "folds_right": false,
+                            "lhs": {
+                                "name": "Constant",
+                                "pos": {
+                                    "file": "..\\..\\tests\\test_function.porc",
+                                    "line": [
+                                        1,
+                                        1
+                                    ],
+                                    "col": [
+                                        17,
+                                        17
+                                    ]
+                                },
+                                "value": 4
+                            },
+                            "fold_expr": {
+                                "name": "FuncCall",
+                                "pos": {
+                                    "file": "..\\..\\tests\\test_function.porc",
+                                    "line": [
+                                        1,
+                                        1
+                                    ],
+                                    "col": [
+                                        22,
+                                        24
+                                    ]
+                                },
+                                "func": {
+                                    "name": "Identifier",
+                                    "pos": {
+                                        "file": "..\\..\\tests\\test_function.porc",
+                                        "line": [
+                                            1,
+                                            1
+                                        ],
+                                        "col": [
+                                            22,
+                                            22
+                                        ]
+                                    },
+                                    "children": "f"
+                                },
+                                "args": []
+                            }
+                        }
                     }
                 ]
             }
