@@ -1,24 +1,19 @@
 add = (a, b) => a + b;
 
-println(add(3, 5)); // 8
-println(add(3.0, 2)); // 5.0
-println(add(2, 3.0)); // 5.0
-println(add("Bob", 2)); // Compile Time Error: Invalid Types
-println(add("Bob", "Jim")); // "BobJim"
+println(add(3, 5)); # 8
+println(add(3.0, 2)); # 5.0
+println(add(2, 3.0)); # 5.0
+println(add("Bob", 2)); # Compile Time Error: Invalid Types
+println(add("Bob", "Jim")); # "BobJim"
 /*
 
 WOw
 
 */
 
-// our package manager at work
-@import_package("BraedonWooding/cmd-porc", *);
-print(wget("http://some_address.com/some_file.txt") |> sort(.Reverse) |> grep("A"));
-println("This is a \" and a '");
+# our package manager at work
 
-3_4
+@import_package("BraedonWooding/cmd-porc");
 
-5.5
-4.0.e1
-
-.4 .e5 .e9 .e .95 .. e.4e.e5
+print(wget("http://some_address.com/some_file.txt") |> sort(options.Reverse) |> grep("A"));
+println("This is a wat");

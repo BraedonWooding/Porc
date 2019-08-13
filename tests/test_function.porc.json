@@ -1,0 +1,205 @@
+{
+    "name": "FileDecl",
+    "pos": {
+        "file": "..\\..\\tests\\test_function.porc",
+        "line": [
+            1,
+            1
+        ],
+        "col": [
+            1,
+            26
+        ]
+    },
+    "statements": [
+        {
+            "name": "FuncStatement",
+            "pos": {
+                "file": "..\\..\\tests\\test_function.porc",
+                "line": [
+                    1,
+                    1
+                ],
+                "col": [
+                    1,
+                    24
+                ]
+            },
+            "prefix": "",
+            "children": {
+                "name": "ComparisonExpr",
+                "pos": {
+                    "file": "..\\..\\tests\\test_function.porc",
+                    "line": [
+                        1,
+                        1
+                    ],
+                    "col": [
+                        1,
+                        24
+                    ]
+                },
+                "lhs": {
+                    "name": "FoldExpr",
+                    "pos": {
+                        "file": "..\\..\\tests\\test_function.porc",
+                        "line": [
+                            1,
+                            1
+                        ],
+                        "col": [
+                            1,
+                            12
+                        ]
+                    },
+                    "folds_right": false,
+                    "lhs": {
+                        "name": "FuncCall",
+                        "pos": {
+                            "file": "..\\..\\tests\\test_function.porc",
+                            "line": [
+                                1,
+                                1
+                            ],
+                            "col": [
+                                1,
+                                3
+                            ]
+                        },
+                        "func": {
+                            "name": "Identifier",
+                            "pos": {
+                                "file": "..\\..\\tests\\test_function.porc",
+                                "line": [
+                                    1,
+                                    1
+                                ],
+                                "col": [
+                                    1,
+                                    1
+                                ]
+                            },
+                            "children": "g"
+                        },
+                        "args": []
+                    },
+                    "fold_expr": {
+                        "name": "AdditiveExpr",
+                        "pos": {
+                            "file": "..\\..\\tests\\test_function.porc",
+                            "line": [
+                                1,
+                                1
+                            ],
+                            "col": [
+                                8,
+                                12
+                            ]
+                        },
+                        "lhs": {
+                            "name": "Identifier",
+                            "pos": {
+                                "file": "..\\..\\tests\\test_function.porc",
+                                "line": [
+                                    1,
+                                    1
+                                ],
+                                "col": [
+                                    8,
+                                    8
+                                ]
+                            },
+                            "children": "x"
+                        },
+                        "ops": [
+                            {
+                                "op": "+",
+                                "rhs": {
+                                    "name": "Constant",
+                                    "pos": {
+                                        "file": "..\\..\\tests\\test_function.porc",
+                                        "line": [
+                                            1,
+                                            1
+                                        ],
+                                        "col": [
+                                            12,
+                                            12
+                                        ]
+                                    },
+                                    "value": 2
+                                }
+                            }
+                        ]
+                    }
+                },
+                "ops": [
+                    {
+                        "op": "==",
+                        "rhs": {
+                            "name": "FoldExpr",
+                            "pos": {
+                                "file": "..\\..\\tests\\test_function.porc",
+                                "line": [
+                                    1,
+                                    1
+                                ],
+                                "col": [
+                                    17,
+                                    24
+                                ]
+                            },
+                            "folds_right": false,
+                            "lhs": {
+                                "name": "Constant",
+                                "pos": {
+                                    "file": "..\\..\\tests\\test_function.porc",
+                                    "line": [
+                                        1,
+                                        1
+                                    ],
+                                    "col": [
+                                        17,
+                                        17
+                                    ]
+                                },
+                                "value": 4
+                            },
+                            "fold_expr": {
+                                "name": "FuncCall",
+                                "pos": {
+                                    "file": "..\\..\\tests\\test_function.porc",
+                                    "line": [
+                                        1,
+                                        1
+                                    ],
+                                    "col": [
+                                        22,
+                                        24
+                                    ]
+                                },
+                                "func": {
+                                    "name": "Identifier",
+                                    "pos": {
+                                        "file": "..\\..\\tests\\test_function.porc",
+                                        "line": [
+                                            1,
+                                            1
+                                        ],
+                                        "col": [
+                                            22,
+                                            22
+                                        ]
+                                    },
+                                    "children": "f"
+                                },
+                                "args": []
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ],
+    "types": []
+}

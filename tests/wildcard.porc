@@ -1,0 +1,41 @@
+###
+  This program is built to be a wild card matcher.
+
+  i.e.
+  - `?` matches any character
+  - `*` matches 0 or more any characters greedily
+
+  For example;
+  `?hey` will match `ohey`, `khey` `hhey` and so on
+   but won't match `hey` or `khe` or `hhhhey`
+
+  You can have many wild cards i.e.
+  `*cat*bat*mat?` will match `catbatmatk` and ` cat  djadjfbatmat!`
+
+  Characters are really anything that isn't `*` or `?` (presumably mostly ascii)
+  Will work on any character sets if they are passed in as rune iterators
+###
+
+searchMatches :: (searchStr: str.it, toMatch: str.it) => bool {
+  @assert(searchStr.is_rune_it && toMatch.is_rune_it);
+
+  while (searchStr.hasNext() && toMatch.hasNext()) {
+    match (searchStr.next()) {
+      | '*' => {
+        # a '*' at the end of any search string will always match
+        # any toMatch
+        if (!searchStr.hasNext()) return true;
+
+        # work backwards and confirm that at the end the search string has
+        # matched we don't care if toMatch is fully matched
+        rev := searchStr.reversed();
+        searchMatches(rev, toMatch.reversed());
+        if (rev.hasNext()) return false;
+      }
+      | '?' => toMatch.next(); # always matches
+      | else (c) => if (c != toMatch.next()) return false; 
+    }
+  }
+
+  return !searchStr.hasNext() && !toMatch.hasNext();
+}

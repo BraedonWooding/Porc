@@ -27,9 +27,17 @@ namespace porc {
 class LineStr : public std::string {
  public:
   LineRange pos;
+  uint id; // the associated subscript
 
-  LineStr(LineRange pos, std::string wrap)
-      : std::string(std::move(wrap)), pos(pos) { }
+  /*
+    String is destroyed in creation!!
+    @BAD: This is bad
+    - not passed by ref so doesn't really do anyting
+    - we shouldn't destroy strings rather should rely on that being done
+      on calling side.
+  */
+  LineStr(LineRange pos, std::string wrap, uint id = 0)
+      : std::string(std::move(wrap)), pos(pos), id(id) { }
 };
 
 class Token {

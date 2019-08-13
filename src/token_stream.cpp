@@ -1,8 +1,8 @@
 #include "token_stream.hpp"
 
-#include <string>
 #include <locale>
 #include <optional>
+#include <string>
 #include "helper.hpp"
 #include "token_data.hpp"
 
@@ -20,7 +20,8 @@
       we cope with it
       - They are only 'expensive' when we have to keep parts of the
         current buffer and can't ReadAll (still it is quite cheap)
-  - We have to be wary of the boundary reads i.e. ['\']['\'] has to be passed correctly
+  - We have to be wary of the boundary reads i.e. ['\']['\'] has to be passed
+  correctly
     - A few helpful functions; Read/ReadAll
   - We also have to adjust col/line appropriately but that is pretty easy
     and mostly covered by the parse functions.
@@ -29,10 +30,12 @@
     - Better IO pipelining (consistently small reads is better than
       one large read).
     - Supports insanely large files better
-    - Doesn't cause huge segmentation (this really only effects interpreters which we are)
-      - This is because if we allocate a huge memory block before we are even running
-        the program then deallocating before we run it we could possibly cause some
-        segmentation (of course in reality large blocks of segmentation are rarely an issue)
+    - Doesn't cause huge segmentation (this really only effects interpreters
+  which we are)
+      - This is because if we allocate a huge memory block before we are even
+  running the program then deallocating before we run it we could possibly cause
+  some segmentation (of course in reality large blocks of segmentation are
+  rarely an issue)
 
   @NOTE:  make sure you are using fadvise (FADV_NOREUSE | FADV_SEQUENTIAL)
       to get the most performance out of this way of reading the files.
@@ -54,14 +57,6 @@ inline LineRange TokenStream::EndLineRange(int col_offset) const {
   return LineRange(old_line, line, old_col, col + col_offset, GetFileName());
 }
 
-/*
-  @TODO: the if(cur.type == ...) last = cur
-  is a hacky ish fix, for when you leave out the `;` on the last statement
-  it seems that we are overriding the last token incorrectly??
-  Perhaps we are actually doing it correctly but we still want this to behave
-  like this.
-*/
-
 Token TokenStream::PeekCur() {
   if (cur_token_size == 0) Next();
   return cur;
@@ -77,7 +72,7 @@ Token TokenStream::PopCur() {
   return tmp;
 }
 
-Token TokenStream::LastSeen() {
+Token TokenStream::LastPopped() {
   Assert(last.type != Token::Undefined, "No last seen token");
   return last;
 }
@@ -106,11 +101,10 @@ void TokenStream::Next() {
 }
 
 void TokenStream::SkipWs() {
-  Assert(IsEOF() || cur_index < read_size,
-         "Precondition failed",
+  Assert(IsEOF() || cur_index < read_size, "Precondition failed",
          "cur_index: ", cur_index, ", read_size: ", read_size);
 
-  while(!IsEOF() && std::isspace(read_buf[cur_index])) {
+  while (!IsEOF() && std::isspace(read_buf[cur_index])) {
     if (read_buf[cur_index] == '\n') {
       line++;
       col = 1;
@@ -121,8 +115,7 @@ void TokenStream::SkipWs() {
     if (cur_index == read_size) Read();
   }
 
-  Assert(cur_index < read_size || IsEOF(),
-         "Postcondition failed",
+  Assert(cur_index < read_size || IsEOF(), "Postcondition failed",
          "cur_index: ", cur_index, read_size, ", read_size: ", read_size);
 }
 
@@ -133,11 +126,6 @@ std::string TokenStream::ParseLineComment() {
     if (IsEOF() || read_buf[cur_index] == '\n') break;
     buf.push_back(read_buf[cur_index++]);
     col++;
-  }
-  if (read_buf[cur_index] == '\n') {
-    col = 1;
-    line++;
-    cur_index++;
   }
 
   return buf;
@@ -171,7 +159,6 @@ std::optional<std::string> TokenStream::ParseBlockComment() {
           line++;
         }
       }
-      cur_index++;
     } else if (read_buf[cur_index] == '/') {
       if (read_buf[cur_index] == '*') {
         depth++;
@@ -183,7 +170,6 @@ std::optional<std::string> TokenStream::ParseBlockComment() {
           line++;
         }
       }
-      cur_index++;
     } else {
       buf.push_back(read_buf[cur_index]);
       if (read_buf[cur_index] == '\n') {
@@ -191,6 +177,7 @@ std::optional<std::string> TokenStream::ParseBlockComment() {
         line++;
       }
     }
+    cur_index++;
   }
   return buf;
 }
@@ -200,64 +187,40 @@ Token TokenStream::ParseSimpleToken() {
   Token cur;
   cur.type = Token::Undefined;
 
-  // @OPTIMISATION: these will be more common so maybe we should put these
-  //                above the others
-  // or we should see if we can jump straight to the first token easily
-  const TokenSet *current_set = &tokenFromStrMap;
-  const TokenSet *previous_set = NULL;
-  int i = 0;
+  BeginLineRange();
 
-  // Recursively call on each child token set till we reach a dead end
-  // either we can go back one level and step into the 'value' section of the
-  // tree or we can't and thus no token can be found. i.e. `+>` will parse the
-  // `+` and `>` separately  `+=>` will parse as `+=` and `>`.
-  // Of course this may not be preferred so we may want to
-  // have a precendence for tokens, I think it is fine though for now.
-  while (true) {
-    Assert(cur_index + i < TokenizerBufSize, "We can't have a token with a"
-          "length more than TokenizerBufSize", cur_index);
+  size_t i = 1;
+  std::string_view view = read_buf;
 
-    // trie leaf
-    // @NOTE: you can't have WS in tokens that is a token can't contain a
-    //        line break or any kinda of ws in the middle of it i.e = > is
-    //        always going to be `=` and `>` and never `=>`.
-    //        This statement allows us to just increment col as expected.
-    int undefined = static_cast<int>(Token::Undefined);
-    if (current_set->child_tokens == NULL ||
-       (current_set->child_tokens[read_buf[i]].child_tokens == NULL && 
-        current_set->child_tokens[read_buf[i]].tokens == NULL)) {
-      // We hit a dead end but can we find a value node either in our current
-      // node or go back one token
-      if (current_set->tokens != NULL &&
-          current_set->tokens[read_buf[i]] != undefined &&
-          (!std::isalnum(read_buf[i + 1]) || !std::isalnum(read_buf[i]))) {
-        col += i + 1;
-        cur_index += i + 1;
-        cur = Token(static_cast<Token::Kind>(current_set->tokens[read_buf[i]]),
-                    EndLineRange(-1));
-      } else if (previous_set != NULL && previous_set->tokens != NULL &&
-                 previous_set->tokens[read_buf[i - 1]] != undefined &&
-                 !std::isalnum(read_buf[i])) {
-        // i.e. parse `<!` as `<` and `!`
-        col += i;
-        cur = Token(static_cast<Token::Kind>(previous_set->tokens[read_buf[i - 1]]),
-                    EndLineRange(-1));
-        cur_index += i;
-      }
-      // Else there is nothing to match so we just don't do anything
-      // for example `z` is not a starting character for any tokens
-      // so it would hit this section.
-      break;
-    } else {
-      // go deeper into set
-      previous_set = current_set;
-      current_set = &current_set->child_tokens[read_buf[i]];
+  if (std::isalpha(read_buf[cur_index])) {
+    // read till non letter
+    // it is <= read_size since the + i represents an offset length
+    while (std::isalpha(read_buf[cur_index + i]) && cur_index + i <= read_size)
       i++;
+    cur.type = tokenFromStr(view.substr(cur_index, i));
+    if (cur.type != Token::Undefined) {
+      cur_index += i;
+    }
+  } else {
+    Token::Kind prev = Token::Undefined;
+    Token::Kind kind = tokenFromStr(view.substr(cur_index, i));
+    while (cur_index + i <= read_size &&
+           (kind != Token::Undefined || prev == Token::Undefined)) {
+      prev = kind;
+      i++;
+      kind = tokenFromStr(view.substr(cur_index, i));
+    }
+
+    if (prev != Token::Undefined) {
+      cur.type = prev;
+      cur_index += i - 1;
+      col += i - 1;
     }
   }
 
-  Assert(IsEOF() || cur_index < read_size,
-         "Postcondition Failed",
+  cur.pos = EndLineRange(-1);
+
+  Assert(IsEOF() || cur_index <= read_size, "Postcondition Failed",
          "read_size: ", read_size, ", cur_index: ", cur_index);
   return cur;
 }
@@ -284,9 +247,15 @@ Token TokenStream::Parse() {
 
   // parse complicated tokens
   switch (read_buf[cur_index]) {
-    case '"':   cur = ParseStr();   break;
-    case '\'':  cur = ParseChar();  break;
-    default:    cur = ParseNum();   break;
+    case '"':
+      cur = ParseStr();
+      break;
+    case '\'':
+      cur = ParseChar();
+      break;
+    default:
+      cur = ParseNum();
+      break;
   }
 
   // if we have a token
@@ -324,8 +293,8 @@ std::optional<int> TokenStream::ParseSimpleNumber(int max_digits, int base) {
 
   while (cur_digits < max_digits) {
     if (cur_index == read_size) Read();
-    // I guess this could be valid (though I don't see how since it won't have a string ender)
-    // Still should be rigorous I guess
+    // I guess this could be valid (though I don't see how since it won't have a
+    // string ender) Still should be rigorous I guess
     if (IsEOF()) break;
     if (read_buf[cur_index] >= '0' && read_buf[cur_index] <= '9') {
       cur_digits++;
@@ -334,7 +303,8 @@ std::optional<int> TokenStream::ParseSimpleNumber(int max_digits, int base) {
       col++;
     } else {
       // reached invalid char
-      // (definitely can be a viable string for example \na is just `\n` and `a`)
+      // (definitely can be a viable string for example \na is just `\n` and
+      // `a`)
       // @INFO: We could support `_` in numbers here too????
       break;
     }
@@ -347,18 +317,33 @@ std::optional<int> TokenStream::ParseSimpleNumber(int max_digits, int base) {
 // returns str since we may return multiple unicode chars for a single codepoint
 void TokenStream::ConvEscapeCodes(std::string &str) {
   col++;
-  switch(read_buf[cur_index++]) {
-    case 'n': str.push_back('\n'); break;
-    case 'r': str.push_back('\r'); break;
-    case 't': str.push_back('\t'); break;
-    case 'v': str.push_back('\v'); break;
-    case 'a': str.push_back('\a'); break;
-    case 'b': str.push_back('\b'); break;
-    case 'f': str.push_back('\f'); break;
+  switch (read_buf[cur_index++]) {
+    case 'n':
+      str.push_back('\n');
+      break;
+    case 'r':
+      str.push_back('\r');
+      break;
+    case 't':
+      str.push_back('\t');
+      break;
+    case 'v':
+      str.push_back('\v');
+      break;
+    case 'a':
+      str.push_back('\a');
+      break;
+    case 'b':
+      str.push_back('\b');
+      break;
+    case 'f':
+      str.push_back('\f');
+      break;
     case 'x': {
       // hex
       auto num = ParseSimpleNumber(3, 16);
-      if (num) str.push_back(static_cast<unsigned char>(*num));
+      if (num)
+        str.push_back(static_cast<unsigned char>(*num));
       else {
         // @TODO: error
         std::cerr << "Invalid hex str lit!!!  TODO: better errors" << std::endl;
@@ -374,8 +359,16 @@ void TokenStream::ConvEscapeCodes(std::string &str) {
       // @TODO: (I would like a stdlib way the other way is ugh)
       Unreachable("Unreachable, TODO");
     } break;
-    case '0': case '1': case '2': case '3': case '4': case '5': case '6':
-    case '7': case '8': case '9': {
+    case '0':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9': {
       // octal
       // a bit ugh; we have to manually fix it up
       // since \01 is the octal 01 and we need to include
@@ -387,7 +380,8 @@ void TokenStream::ConvEscapeCodes(std::string &str) {
       cur_index--;
       col--;
       auto num = ParseSimpleNumber(3, 8);
-      if (num) str.push_back(static_cast<unsigned char>(*num));
+      if (num)
+        str.push_back(static_cast<unsigned char>(*num));
       else {
         // @TODO: error
         std::cerr << "Invalid oct str lit!!!  TODO: better errors" << std::endl;
@@ -397,7 +391,8 @@ void TokenStream::ConvEscapeCodes(std::string &str) {
     //        outputs `k`, this is not suitable and really should error
     //        but since errors aren't handled well by the tokenizer yet
     //        I'm gonna push that back
-    default: str.push_back(read_buf[cur_index]);
+    default:
+      str.push_back(read_buf[cur_index]);
   }
 }
 
@@ -408,7 +403,7 @@ Token TokenStream::ParseStr() {
 
   buf++;
   size_t len = read_size - cur_index - 1;
-  int i = 0;
+  size_t i = 0;
   bool escaped = false;
   std::string str = std::string();
 
@@ -434,29 +429,29 @@ Token TokenStream::ParseStr() {
     } else if (buf[i] == '"' && !escaped) {
       break;
     } else {
-      if (!escaped)   str.push_back(buf[i]);
-      else            ConvEscapeCodes(str);
+      if (!escaped)
+        str.push_back(buf[i]);
+      else
+        ConvEscapeCodes(str);
       escaped = false;
     }
     i++;
   }
 
   // +2 since +1 for each `"`
-  col += i + 2;
-  cur_index += i + 2;
+  col += i + 2u;
+  cur_index += i + 2u;
   cur = Token(Token::Str, EndLineRange(-1), str);
   return cur;
 }
 
 bool valid_char(char c) {
-  return (c >= '0' && c <= '9') || // digit
-      c == 'e' || c == 'E'  || // exp
-      c == '.' || c == '_';    // dec pt and seperator
+  return (c >= '0' && c <= '9') ||  // digit
+         c == 'e' || c == 'E' ||    // exp
+         c == '.' || c == '_';      // dec pt and seperator
 }
 
-bool is_num(char c) {
-  return c >= '0' && c <= '9';
-}
+bool is_num(char c) { return c >= '0' && c <= '9'; }
 
 Token TokenStream::ParseNum() {
   char *buf = &read_buf[cur_index];
@@ -486,7 +481,7 @@ Token TokenStream::ParseNum() {
   }
 
   std::string str = std::string();
-  int i = 0;
+  size_t i = 0;
   size_t len = read_size - cur_index;
   bool handled_exp = false;
   bool handled_dot = false;
@@ -502,16 +497,21 @@ Token TokenStream::ParseNum() {
       // reset
       i = 0;
       buf = read_buf;
-      len = read_size;
+      len = read_size - cur_index;
     }
 
     if (prev_exp) {
       int old_i = i - 1;
-      if (buf[i] == '_') continue; // skip `_`
+      if (buf[i] == '_') {
+        i++;
+        continue;  // skip `_`
+      }
 
       if (buf[i] == '+' || buf[i] == '-' || is_num(buf[i])) {
         str.push_back(buf[i]);
         handled_exp = true;
+        prev_exp = false;
+        i++;
         continue;
       } else {
         // @WEIRD: previously we tried to adjust for the E
@@ -576,8 +576,7 @@ bool valid_id_char(char c) {
 }
 
 Token TokenStream::ParseId() {
-  if (!valid_id_char_starting(read_buf[cur_index]))
-    return Token();
+  if (!valid_id_char_starting(read_buf[cur_index])) return Token();
 
   Token cur;
   std::string str = std::string();
@@ -595,18 +594,18 @@ Token TokenStream::ParseId() {
 }
 
 void TokenStream::Read() {
-  read_size = reader->Read(static_cast<char*>(read_buf), TokenizerBufSize);
+  read_size = reader->Read(static_cast<char *>(read_buf), TokenizerBufSize);
   cur_index = 0;
 }
 
 void TokenStream::ReadOffset() {
-  int offset = read_size - cur_index;
-  memmove(static_cast<char*>(read_buf),
-          static_cast<char*>(read_buf) + cur_index, read_size - cur_index);
-  read_size = reader->Read(static_cast<char*>(read_buf) + offset,
+  size_t offset = read_size - cur_index;
+  memmove(static_cast<char *>(read_buf),
+          static_cast<char *>(read_buf) + cur_index, read_size - cur_index);
+  read_size = reader->Read(static_cast<char *>(read_buf) + offset,
                            TokenizerBufSize - offset);
   cur_index = 0;
   read_size += offset;
 }
 
-}
+}  // namespace porc

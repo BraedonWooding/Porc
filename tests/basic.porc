@@ -1,5 +1,14 @@
 # Just a basic Porc test
 # Bug x = ((n) => {2})
+
+type vec is (x: int, y: int, z: int) {
+  str.vec :: () => {
+    return 1;
+  }
+}
+
+a, b := [1, 2];
+
 main :: () => {
   x :: () => 2;
 
@@ -8,13 +17,9 @@ main :: () => {
 
   zl :: () => {= 2;}
 
-  9 + println(fib("hello", 2))(5) * 2 ** 2;
+  9 + println(fib("hello", 2, true))(5) * 2 ** 2;
   x = 2;
   if (let x := 2) {
     = x;
   }
-}
-
-k :: () => {
-
 }

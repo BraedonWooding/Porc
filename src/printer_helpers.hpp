@@ -40,7 +40,7 @@ public:
 
   LineRange() {
     std::cerr << "Internal Error: Constructed an empty line range, FIXME"
-              << std::endl;
+      << std::endl;
     line_start = line_end = col_start = col_end = -1;
     file_name = "Internal Error; Invalid File Name";
   }

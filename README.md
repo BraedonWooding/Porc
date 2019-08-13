@@ -59,7 +59,10 @@ Are you interested?  Maybe check out the [Language Guide](docs/LanguageGuide.md)
   - Only changes are;
     - Use C++17 instead of C++11
     - Templates are fine if used for functions avoid templated classes.
+      - I'll write up a post about this some other time but for now just take it as it is.
 - Compiling on High Sierra; `cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=$(which clang++) -DCMAKE_C_COMPILER=$(which clang) ..`
+- Compiling on Windows; `cmake -DCMAKE_BUILD_TYPE=Debug -G "Visual Studio 16 2019" -A x64 ..`
+  - NOTE: You can change the version inside `-G` and the architecture of `-A` if you want it should work with any reasonably modern compiler
 - You need the following libraries (just added to a folder called lib will work);
   - [catch](https://github.com/catchorg/Catch2)
   - [CLI11](https://github.com/CLIUtils/CLI11)
@@ -77,6 +80,7 @@ Are you interested?  Maybe check out the [Language Guide](docs/LanguageGuide.md)
 - [ ] Bytecode Instruction Set
   - Basics are setup
 - [ ] Basic Bytecode Codegen
+  - No type checking/types (that is almost purely optional and just trusts you kinda like in python)
 - [ ] Interpreter
 - [ ] standard library implementation
 - [ ] Possibly JIT

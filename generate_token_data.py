@@ -8,71 +8,11 @@ null_term = '\\0'
 split_on = ' '
 file_location = "src/tokens"
 
-# Effectively the same structure as the _token_set_t struct
-# Except it uses dictionaries/hashtables (more efficient in python and
-# takes less space and easier to use).
-class TokenSet:
-    # tokens contains all the tokens for single characters
-    # child_tokens shows the branching for characters
-    """
-        i.e.
-          > (token)
-        - (token)
-          - (token)
-          = (token)
-        The `-` would be in .tokens
-        The `-` would also be in .child_tokens which would have a sub tokenset
-        with `>`, `-`, `=` all as .tokens of that child subset
-    """
-
-    # debugging purposes
-    def __str__(self):
-        return "tokens: " + str(self.tokens) + "\n" + "child_tokens: " + \
-        '\n'.join([str(key) + ": " + str(val) for key, val in self.child_tokens.items()])
-
-    def __init__(self):
-        self.tokens = {}
-        self.child_tokens = {}
-
-    # Recursively adds token to children one character at a time
-    # Till the last character where it goes into the self.tokens dictionary
-    def add_token(self, key, token):
-        if len(key) == 1:
-            self.tokens[key] = token
-        else:
-            if key[0] not in self.child_tokens:
-                self.child_tokens[key[0]] = TokenSet()
-            self.child_tokens[key[0]].add_token(key[1:], token)
-
-# Prints out token maps recursively
-def print_token(file, token, counter):
-    original_counter = counter
-    counter += 1
-    # Grab the bits we care about
-    children_nodes = [(key, tok) for key, tok in token.child_tokens.items()]
-    token_nodes = [(key, tok) for key, tok in token.tokens.items()]
-    if len(token_nodes) == 0:
-        file.write(f"{tab * (counter - 1)}NULL,\n")
-    else:
-        file.write(f"{tab * (counter - 1)}(int[ASCII_SET]){{\n")
-        for node in token_nodes:
-            file.write(f"{tab * counter}['{node[0]}'] = (int)Token::Kind::{node[1]},\n")
-        file.write(f"{tab * (counter - 1)}}},\n")
-
-    if len(children_nodes) == 0:
-        file.write(f"{tab * (counter - 1)}NULL,\n")
-    else:
-        file.write(f"{tab * (counter - 1)}(TokenSet[ASCII_SET]){{\n")
-        for node in children_nodes:
-            file.write(f"{tab * counter}['{node[0]}'] = {{\n")
-            print_token(file, node[1], counter + 1)
-        file.write(f"{tab * (counter - 1)}}},\n")
-    file.write(f"{tab * (original_counter - 1)}")
-    file.write(f"}}{';' if original_counter == 1 else ','}\n")
-
 def generate(file):
     token_list = open("src/token_list.inc", "w")
     token_data = open("src/token_data.hpp", "w")
+    token_data_impl = open("src/token_data.cpp", "w")
+
     # token_constants_def = open("src/token_constants_definitions.inc", "w")
     # token_constants_vals = open("src/token_constants.inc", "w")
     token_list.write("/* Auto Generated File */\n")
@@ -85,16 +25,27 @@ def generate(file):
 
 #include "token.hpp"
 
-#define ASCII_SET 128
+namespace porc {
+  const char *tokenToStr(Token::Kind token);
+  const char *tokenToName(Token::Kind token);
+  Token::Kind tokenFromStr(std::string_view str);
+}
+
+#endif
+"""
+    )
+    token_data_impl.write(
+"""/* Auto Generated File */
+#include "token_data.hpp"
 
 namespace porc {
 \n"""
     )
 
-    token_data.write("static const char *tokenToStrMap[(int)Token::Kind::NumTokens] = {\n")
-    string_to_write = "static const char *tokenToNameMap[(int)Token::Kind::NumTokens] = {"
+    token_data_impl.write("const char *tokenToStr(Token::Kind token) {\n" + tab + "switch (token) {\n")
+    string_to_write = "const char *tokenToName(Token::Kind token) {\n" + tab + "switch (token) {"
 
-    main_token = TokenSet()
+    tokens = []
 
     for line in file:
         # starts with
@@ -106,24 +57,22 @@ namespace porc {
         token_list.write(f"{toks[0]},\n")
         # token_constants_def.write(f"static const Token {toks[0]};\n")
         # token_constants_vals.write(f"const Token Token::{toks[0]} = Token(Token::Kind::{toks[0]}, LineRange::Null());\n")
-        string_to_write += f"\n{tab}[(int)Token::Kind::{toks[0]}] = \"{toks[0]}\","
+        string_to_write += f"{tab + tab}case Token::Kind::{toks[0]}: return \"{toks[0]}\";\n"
         if len(toks) >= 2:
-            token_data.write(f"{tab}[(int)Token::Kind::{toks[0]}] = {toks[1]},\n")
+            token_data_impl.write(f"{tab + tab}case Token::Kind::{toks[0]}: return {toks[1]};\n")
             token = toks[1].strip('"')
             # handle the case of just ws properly
             if not token: token = " "
-            main_token.add_token(token, toks[0])
-    token_data.write("};\n\n" + string_to_write + "\n};\n\n")
+            tokens.append((token, toks[0]))
+    token_data_impl.write(f"{tab + tab}default: return nullptr;\n{tab}}}\n}}\n\n" + string_to_write + f"{tab + tab}default: return nullptr;\n{tab}}}\n}}\n\n")
 
-    token_data.write(
-"""struct TokenSet {
-    const int *tokens;
-    const TokenSet *child_tokens;
-};\n\n""")
+    token_data_impl.write(f"Token::Kind tokenFromStr(std::string_view str) {{\n")
+    for tok in tokens:
+        token_data_impl.write(f"{tab}if (str == \"{tok[0]}\") return Token::Kind::{tok[1]};\n")
+    token_data_impl.write(f"{tab}return Token::Kind::Undefined;\n}}\n")
 
-    token_data.write(f"static const TokenSet tokenFromStrMap = {{\n")
-    print_token(token_data, main_token, 1)
-    token_data.write("\n}\n\n#endif\n");
+    token_data_impl.write("}\n")
+    token_data_impl.close()
     token_list.close()
     token_data.close()
     # token_constants_vals.close()
